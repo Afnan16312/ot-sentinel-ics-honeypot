@@ -19,7 +19,7 @@ dashboard = [
   "streamlit>=1.48,<2",
 ]
 geoip = ["geoip2>=5,<6"]
-dev = ["pytest>=8,<9", "ruff>=0.12,<1"]
+dev = ["pytest>=8,<10", "ruff>=0.12,<1"]
 
 [project.scripts]
 ot-sentinel = "ot_sentinel.cli:main"
