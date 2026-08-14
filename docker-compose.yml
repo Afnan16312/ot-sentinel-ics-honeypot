@@ -1,0 +1,38 @@
+services:
+  sensor:
+    build: .
+    container_name: ot-sentinel-sensor
+    restart: unless-stopped
+    read_only: true
+    user: "10001:10001"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 80
+    mem_limit: 256m
+    cpus: 0.50
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid,nodev
+    volumes:
+      - ./logs:/data
+    ports:
+      - "502:1502/tcp"
+      - "102:1102/tcp"
+      - "2404:2404/tcp"
+    environment:
+      OT_SENSOR_ID: ${OT_SENSOR_ID:-local-docker-01}
+      OT_MAX_PAYLOAD_BYTES: "512"
+      OT_SESSION_TIMEOUT_SECONDS: "8"
+    networks:
+      - sensor_net
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  sensor_net:
+    internal: true
+
