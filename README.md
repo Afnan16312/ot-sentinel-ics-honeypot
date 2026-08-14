@@ -1,6 +1,6 @@
 # OT Sentinel
 
-**A safe, simulated industrial-system honeypot that records suspicious activity and turns it into an easy-to-read security dashboard.**
+**I built OT Sentinel as a safe, simulated industrial-system honeypot that records suspicious activity and turns it into an easy-to-read security dashboard.**
 
 [![CI](https://github.com/Afnan16312/ot-sentinel-ics-honeypot/actions/workflows/ci.yml/badge.svg)](https://github.com/Afnan16312/ot-sentinel-ics-honeypot/actions/workflows/ci.yml)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-65f6c8.svg)](https://www.python.org/)
@@ -10,11 +10,11 @@
 
 ![OT Sentinel dashboard showing synthetic ICS telemetry](docs/assets/dashboard.png)
 
-## What does this project do?
+## What I built
 
-Factories, power plants and water facilities use industrial control systems (ICS) to operate equipment. Exposing a real control system to the internet would be unsafe, so OT Sentinel creates harmless decoys that look like common industrial devices.
+Factories, power plants and water facilities use industrial control systems (ICS) to operate equipment. Exposing a real control system to the internet would be unsafe, so I created OT Sentinel to provide harmless decoys that look like common industrial devices.
 
-The project then:
+My system then:
 
 1. Listens for traffic aimed at simulated Modbus, S7 and IEC-104 services.
 2. Records what was attempted without controlling any real equipment.
@@ -24,17 +24,9 @@ The project then:
 
 ## Why it matters
 
-OT/ICS security protects services people depend on, including electricity, water, ports and manufacturing. This project demonstrates practical skills in secure system design, network protocols, threat analysis, privacy engineering, cloud deployment, automated testing and clear reporting.
+OT/ICS security protects services people depend on, including electricity, water, ports and manufacturing. I chose this project to develop practical skills in secure system design, industrial network protocols, threat analysis, privacy engineering, cloud deployment, automated testing and security reporting.
 
-## What recruiters can review
-
-- A working three-protocol honeypot written in Python
-- A dashboard with a world map, timeline, ATT&CK heat layer and session explorer
-- Privacy controls that hide IP addresses and remove raw payloads
-- Automated tests, including a real socket-level Modbus test
-- Docker and Azure deployment files
-- A five-page [demonstration research report](output/pdf/ot-sentinel-demonstration-report.pdf)
-- Clear [architecture](docs/ARCHITECTURE.md), [ethics](docs/ETHICS.md) and [deployment](docs/DEPLOYMENT.md) documentation
+The repository includes the complete source code, a working dashboard, automated tests, deployment files and a five-page [demonstration research report](output/pdf/ot-sentinel-demonstration-report.pdf).
 
 ## Try the dashboard
 
@@ -83,9 +75,9 @@ flowchart LR
     E --> F[Public dashboard and report]
 ```
 
-The ATT&CK mapper is intentionally cautious. A simple connection is not called an exploit. Stronger labels are added only when the recorded command provides supporting evidence, and every label includes a confidence level and explanation.
+I designed the ATT&CK mapper to be intentionally cautious. A simple connection is not called an exploit. Stronger labels are added only when the recorded command provides supporting evidence, and every label includes a confidence level and explanation.
 
-## Safety and ethics
+## My safety and ethics rules
 
 - The honeypot never connects to a real PLC, HMI or industrial process.
 - Responses are limited, simulated and designed not to become a general-purpose server.
@@ -98,7 +90,7 @@ Read [ETHICS.md](docs/ETHICS.md) before any public deployment.
 
 ## Cost
 
-Everything can be developed and demonstrated locally for free. GitHub, Docker, Python and Streamlit's local server are free. A public cloud sensor may cost money unless you have student credits or another free credit. The [deployment guide](docs/DEPLOYMENT.md) explains a zero-out-of-pocket route and how to remove cloud resources before credits expire.
+I designed the project so it can be developed and demonstrated locally for free. GitHub, Docker, Python and Streamlit's local server are free. A public cloud sensor may cost money unless student credits or another free credit are available. My [deployment guide](docs/DEPLOYMENT.md) explains a zero-out-of-pocket route and how to remove cloud resources before credits expire.
 
 ## Test the project
 
