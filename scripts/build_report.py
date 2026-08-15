@@ -232,7 +232,7 @@ def build() -> None:
         topMargin=22 * mm,
         bottomMargin=18 * mm,
         title="OT Sentinel - Demonstration Research Brief",
-        author="Afnan",
+        author="Mir Afnan Ali",
         subject="Synthetic validation of an OT/ICS honeypot analytics pipeline",
     )
 
@@ -274,7 +274,7 @@ def build() -> None:
     story.extend([metrics, Spacer(1, 42 * mm)])
     story.append(
         Paragraph(
-            "Prepared August 2026  |  Portfolio research build 0.1.0  |  Times and locations are illustrative",
+            "Prepared by Mir Afnan Ali  |  August 2026  |  Research build 0.1.0  |  Times and locations are illustrative",
             ParagraphStyle(
                 "CoverFooter",
                 parent=styles["Mono"],
@@ -407,7 +407,7 @@ def build() -> None:
                 styles["Body"],
             ),
             Paragraph(
-                "This distinction improves analytical honesty and makes the output useful for review. Recruiters and defenders can inspect not only what was mapped, but why it was mapped and what the evidence cannot prove.",
+                "This distinction improves analytical honesty and makes the output useful for review. Analysts and defenders can inspect not only what was mapped, but why it was mapped and what the evidence cannot prove.",
                 styles["Callout"],
             ),
             Paragraph("Safety and privacy", styles["H2"]),

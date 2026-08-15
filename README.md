@@ -3,12 +3,16 @@
 **I built OT Sentinel as a safe, simulated industrial-system honeypot that records suspicious activity and turns it into an easy-to-read security dashboard.**
 
 [![CI](https://github.com/Afnan16312/ot-sentinel-ics-honeypot/actions/workflows/ci.yml/badge.svg)](https://github.com/Afnan16312/ot-sentinel-ics-honeypot/actions/workflows/ci.yml)
-[![Python 3.12](https://img.shields.io/badge/python-3.12-65f6c8.svg)](https://www.python.org/)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-6f9fc4.svg)](https://www.python.org/)
 [![MITRE ATT&CK for ICS](https://img.shields.io/badge/MITRE-ATT%26CK%20for%20ICS-f4b860.svg)](https://attack.mitre.org/matrices/ics/)
 
 > **Honest data notice:** The dashboard currently uses clearly labeled, computer-generated demonstration data. It proves the complete system works, but it is not presented as real attacker activity. Real observations can be added later after an authorized collection period and privacy review.
 
-![OT Sentinel dashboard showing synthetic ICS telemetry](docs/assets/dashboard.png)
+## Project author
+
+OT Sentinel is my OT/ICS security research project.
+
+**Mir Afnan Ali** · [GitHub profile](https://github.com/Afnan16312) · [Project repository](https://github.com/Afnan16312/ot-sentinel-ics-honeypot)
 
 ## What I built
 
@@ -125,6 +129,7 @@ The public-data check helps prevent accidental publication of raw IP addresses, 
 | `tests/` | Automated unit and integration tests |
 | `infra/` | Docker, Azure and Linux service deployment assets |
 | `docs/` | Architecture, ethics, data and deployment explanations |
+| `docs/PROJECT_WALKTHROUGH.md` | Simple step-by-step explanation and demonstration guide |
 | `output/pdf/` | Demonstration threat-intelligence report |
 
 ## Important limitations

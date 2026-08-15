@@ -27,24 +27,27 @@ st.markdown(
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap');
 html, body, [class*="css"] { font-family: 'Manrope', sans-serif; }
-.stApp { background: radial-gradient(circle at 70% 0%, #112722 0, #07100f 34%, #060b0b 100%); }
-[data-testid="stSidebar"] { background: rgba(8,18,16,.96); border-right: 1px solid #213d36; }
-[data-testid="stMetric"] { background: linear-gradient(145deg, rgba(20,39,35,.9), rgba(10,22,20,.9)); border: 1px solid #24443b; border-radius: 12px; padding: 16px 18px; }
-[data-testid="stMetricValue"] { font-family: 'DM Mono', monospace; color: #f1fff9; }
-.eyebrow { color:#65f6c8; font-family:'DM Mono',monospace; letter-spacing:.14em; text-transform:uppercase; font-size:.72rem; }
-.hero { padding: 1.1rem 0 1.2rem; border-bottom:1px solid #1b342e; margin-bottom:1.3rem; }
-.hero h1 { font-size:2.35rem; letter-spacing:-.045em; margin:.3rem 0 .25rem; color:#f2fff9; }
-.hero p { color:#91aaa2; max-width:780px; margin:0; font-size:.98rem; }
+.stApp { background: radial-gradient(circle at 70% 0%, #16212c 0, #0b1118 36%, #080c11 100%); }
+[data-testid="stSidebar"] { background: rgba(13,20,28,.97); border-right: 1px solid #263746; }
+[data-testid="stMetric"] { background: linear-gradient(145deg, rgba(21,31,42,.94), rgba(13,21,29,.94)); border: 1px solid #2a3d4a; border-radius: 12px; padding: 16px 18px; }
+[data-testid="stMetricValue"] { font-family: 'DM Mono', monospace; color: #edf3f8; }
+.eyebrow { color:#6f9fc4; font-family:'DM Mono',monospace; letter-spacing:.14em; text-transform:uppercase; font-size:.72rem; }
+.hero { padding: 1.1rem 0 1.2rem; border-bottom:1px solid #263746; margin-bottom:1.3rem; }
+.hero h1 { font-size:2.35rem; letter-spacing:-.045em; margin:.3rem 0 .25rem; color:#f3f6f9; }
+.hero p { color:#9caebb; max-width:780px; margin:0; font-size:.98rem; }
+.author-line { color:#728696; font-size:.78rem; margin-top:.6rem; }
+.author-line a, .footer-note a { color:#8eb2cf; text-decoration:none; }
+.author-line a:hover, .footer-note a:hover { text-decoration:underline; }
 .demo-banner { border:1px solid #806a2d; background:rgba(89,67,14,.22); color:#f1d98a; padding:.72rem 1rem; border-radius:9px; font-size:.88rem; margin:.4rem 0 1.2rem; }
-.live-banner { border:1px solid #28785e; background:rgba(20,91,66,.2); color:#87f4ce; padding:.72rem 1rem; border-radius:9px; font-size:.88rem; margin:.4rem 0 1.2rem; }
-.section-title { font-size:1.05rem; font-weight:650; color:#eafff7; margin-top:.55rem; }
-.technique { border-left:3px solid #65f6c8; background:rgba(15,31,27,.72); padding:.75rem .9rem; margin:.5rem 0; border-radius:0 8px 8px 0; }
-.technique .id { color:#65f6c8; font-family:'DM Mono',monospace; font-size:.76rem; }
-.technique .name { color:#effff9; font-weight:650; margin-top:.16rem; }
-.technique .meta { color:#78948b; font-size:.78rem; margin-top:.16rem; }
-.footer-note { color:#607b72; font-size:.74rem; border-top:1px solid #172a26; margin-top:2rem; padding-top:1rem; }
-div[data-testid="stDataFrame"] { border:1px solid #203a34; border-radius:10px; overflow:hidden; }
-.stTabs [data-baseweb="tab-list"] { gap:1.25rem; border-bottom:1px solid #1c332e; }
+.live-banner { border:1px solid #436b80; background:rgba(37,70,89,.22); color:#a9c6d8; padding:.72rem 1rem; border-radius:9px; font-size:.88rem; margin:.4rem 0 1.2rem; }
+.section-title { font-size:1.05rem; font-weight:650; color:#e8edf2; margin-top:.55rem; }
+.technique { border-left:3px solid #6f9fc4; background:rgba(19,28,38,.78); padding:.75rem .9rem; margin:.5rem 0; border-radius:0 8px 8px 0; }
+.technique .id { color:#6f9fc4; font-family:'DM Mono',monospace; font-size:.76rem; }
+.technique .name { color:#eef3f7; font-weight:650; margin-top:.16rem; }
+.technique .meta { color:#8599a8; font-size:.78rem; margin-top:.16rem; }
+.footer-note { color:#728696; font-size:.74rem; border-top:1px solid #22303d; margin-top:2rem; padding-top:1rem; }
+div[data-testid="stDataFrame"] { border:1px solid #2a3a46; border-radius:10px; overflow:hidden; }
+.stTabs [data-baseweb="tab-list"] { gap:1.25rem; border-bottom:1px solid #253443; }
 .stTabs [data-baseweb="tab"] { font-family:'DM Mono',monospace; font-size:.78rem; }
 </style>
 """,
@@ -119,6 +122,7 @@ st.markdown(
   <div class="eyebrow">ICS THREAT RESEARCH / UAE SENSOR PROGRAM</div>
   <h1>OT Sentinel</h1>
   <p>A low-interaction observatory for Modbus, S7 and IEC-104 activity, with evidence-aware MITRE ATT&amp;CK for ICS mapping.</p>
+  <div class="author-line">Project by <a href="https://github.com/Afnan16312" target="_blank">Mir Afnan Ali · @Afnan16312</a></div>
 </div>
 """,
     unsafe_allow_html=True,
@@ -192,15 +196,15 @@ with overview:
             color="protocol",
             hover_name="source_country",
             projection="natural earth",
-            color_discrete_map={"modbus": "#65F6C8", "s7": "#F4B860", "iec104": "#70A7FF"},
+            color_discrete_map={"modbus": "#6F9FC4", "s7": "#C59A5B", "iec104": "#8D82B8"},
         )
         fig.update_geos(
             showland=True,
-            landcolor="#10211e",
+            landcolor="#151f2a",
             showocean=True,
-            oceancolor="#081311",
+            oceancolor="#0b1118",
             showcountries=True,
-            countrycolor="#28423b",
+            countrycolor="#354758",
             showframe=False,
             bgcolor="rgba(0,0,0,0)",
         )
@@ -228,7 +232,7 @@ with overview:
         x="observed_at",
         y="events",
         color="protocol",
-        color_discrete_map={"modbus": "#65F6C8", "s7": "#F4B860", "iec104": "#70A7FF"},
+        color_discrete_map={"modbus": "#6F9FC4", "s7": "#C59A5B", "iec104": "#8D82B8"},
     )
     line.update_traces(line_width=1.4)
     line.update_layout(
@@ -240,8 +244,8 @@ with overview:
         xaxis_title="",
         yaxis_title="Events / 6h",
     )
-    line.update_xaxes(gridcolor="#17302a")
-    line.update_yaxes(gridcolor="#17302a")
+    line.update_xaxes(gridcolor="#22384a")
+    line.update_yaxes(gridcolor="#22384a")
     st.plotly_chart(line, use_container_width=True)
 
 with attack_tab:
@@ -257,7 +261,7 @@ with attack_tab:
                 z=pivot.values,
                 x=pivot.columns,
                 y=pivot.index,
-                colorscale=[[0, "#0c1917"], [0.35, "#1e6a56"], [1, "#65f6c8"]],
+                colorscale=[[0, "#111820"], [0.35, "#324e67"], [1, "#6f9fc4"]],
                 hovertemplate="%{y}<br>%{x}: %{z} observations<extra></extra>",
             )
         )
@@ -314,6 +318,6 @@ with methodology:
         )
 
 st.markdown(
-    "<div class='footer-note'>OT Sentinel · Research build 0.1.0 · Times shown in UTC · MITRE ATT&CK® is a registered trademark of The MITRE Corporation.</div>",
+    "<div class='footer-note'>Project by <a href='https://github.com/Afnan16312' target='_blank'>Mir Afnan Ali (@Afnan16312)</a> · OT Sentinel research build 0.1.0 · Times shown in UTC · MITRE ATT&CK® is a registered trademark of The MITRE Corporation.</div>",
     unsafe_allow_html=True,
 )
