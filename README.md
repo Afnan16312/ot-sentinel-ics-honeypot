@@ -30,12 +30,25 @@ The repository includes the complete source code, a working dashboard, automated
 
 ## Try the dashboard
 
-You need Python 3.12 or newer. In a terminal, run:
+You need Python 3.12 or newer.
+
+On Windows, open PowerShell in the project folder and run the included launcher:
+
+```powershell
+.\run_dashboard.ps1
+```
+
+The launcher creates the local environment, installs anything missing and starts the dashboard. If Windows blocks local PowerShell scripts, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\run_dashboard.ps1
+```
+
+On Linux or macOS, run:
 
 ```bash
 python -m venv .venv
-# Windows: .venv\Scripts\activate
-# Linux or macOS: source .venv/bin/activate
+source .venv/bin/activate
 pip install -r requirements.txt
 streamlit run app.py
 ```
