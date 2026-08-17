@@ -131,9 +131,10 @@ class StixExportTests(unittest.TestCase):
         options = stix2validator.ValidationOptions(version="2.1", silent=True)
         public = export_events([sample_event(sanitized=True)], profile="public")
         private = export_events([sample_event(is_demo=False)], profile="private")
-        for bundle in (public, private):
-            result = stix2validator.validate_string(json.dumps(bundle), options)
-            self.assertTrue(result.is_valid, result.errors)
+        for profile, bundle in (("public", public), ("private", private)):
+            with self.subTest(profile=profile):
+                result = stix2validator.validate_string(json.dumps(bundle), options)
+                self.assertTrue(result.is_valid, [str(error) for error in result.errors])
 
     def test_empty_and_unknown_profile_are_rejected(self):
         with self.assertRaisesRegex(ValueError, "At least one event"):
