@@ -1,0 +1,35 @@
+title: OT Sentinel Modbus Write Command
+id: 608780d4-c637-4cc1-ac7a-17545ca5bbdd
+status: experimental
+description: Detects a decoded Modbus request that attempts to write to the simulated controller.
+author: Mir Afnan Ali
+date: 2026-08-17
+references:
+  - https://attack.mitre.org/techniques/T1692/001/
+  - https://attack.mitre.org/techniques/T0836/
+logsource:
+  category: application
+  product: ot_sentinel
+  service: sensor
+detection:
+  selection:
+    event_type: protocol_request
+    protocol: modbus
+    decoded.operation:
+      - write_single
+      - write_multiple
+  condition: selection
+fields:
+  - observed_at
+  - sensor_id
+  - source_id
+  - session_id
+  - decoded.function_code
+  - decoded.address
+  - decoded.value_or_quantity
+falsepositives:
+  - Authorized engineering or maintenance activity directed at a monitored decoy address.
+level: high
+tags:
+  - attack.t1692.001
+  - attack.t0836

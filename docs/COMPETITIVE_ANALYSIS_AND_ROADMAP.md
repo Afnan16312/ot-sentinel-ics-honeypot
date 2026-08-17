@@ -2,6 +2,19 @@
 
 Research date: 17 August 2026
 
+## Version 0.2 implementation status
+
+The roadmap below was written from the earlier repository baseline. Version 0.2 now implements and tests the following locally at zero service cost:
+
+- Sigma, Suricata and Wazuh detection packs with positive and negative fixtures;
+- public and private STIX 2.1 exports;
+- explainable triage scoring and a labeled ATT&CK mapper regression set;
+- three validated, fictional stateful OT profiles;
+- health snapshots, selective redacted webhook alerts and signed multi-sensor transport;
+- SPDX release SBOM, checksums, Ruff, dependency audit and CodeQL workflows.
+
+The remaining research milestone is an authorized live collection period. It has deliberately not been represented as completed; the public dataset is still synthetic.
+
 This document compares OT Sentinel with established open-source honeypot projects and turns the findings into a practical, zero-cost development roadmap. The aim is not to claim that a small project is more mature than long-running community platforms. The aim is to identify a useful problem that OT Sentinel can solve well and prove with working code and tests.
 
 ## Executive conclusion

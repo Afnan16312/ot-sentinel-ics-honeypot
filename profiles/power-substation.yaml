@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "profile_id": "fictional-power-substation-v1",
+  "display_name": "Fictional Distribution Substation",
+  "fictional": true,
+  "sector": "power",
+  "description": "A completely fictional distribution process used only for safe OT Sentinel demonstrations.",
+  "device": {"vendor": "OT Sentinel Labs", "model": "GRID-SIM-400", "firmware": "SIM-1.0", "station_name": "TRAINING-GRID-01"},
+  "modbus": {
+    "holding_registers": {"0": 11000, "1": 5000, "2": 620, "3": 1, "4": 1, "5": 0, "32": 1, "33": 0},
+    "writable_ranges": [[32, 47]]
+  },
+  "s7": {"rack": 0, "slot": 2, "blocks": ["DB10"]},
+  "iec104": {"common_address": 201, "points": {"2001": 1, "2002": 1}}
+}

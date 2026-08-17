@@ -1,0 +1,10 @@
+# OT Sentinel network detections for Modbus/TCP.
+# These signatures use Suricata's native Modbus application-layer keywords.
+
+alert tcp $EXTERNAL_NET any -> $HOME_NET 502 (msg:"OT SENTINEL ICS Modbus write command"; flow:established,to_server; app-layer-protocol:modbus; modbus: access write; classtype:attempted-admin; reference:url,attack.mitre.org/techniques/T1692/001/; metadata:attack_target OT_ICS, attack_technique T1692.001, deployment Perimeter; sid:4200501; rev:1;)
+
+alert tcp $EXTERNAL_NET any -> $HOME_NET 502 (msg:"OT SENTINEL ICS Modbus broadcast write command"; flow:established,to_server; app-layer-protocol:modbus; modbus: unit 0, access write; classtype:attempted-admin; reference:url,attack.mitre.org/techniques/T1692/001/; metadata:attack_target OT_ICS, attack_technique T1692.001, deployment Perimeter; sid:4200502; rev:1;)
+
+alert tcp $EXTERNAL_NET any -> $HOME_NET 502 (msg:"OT SENTINEL ICS Modbus unassigned function"; flow:established,to_server; app-layer-protocol:modbus; modbus: function unassigned; classtype:protocol-command-decode; reference:url,attack.mitre.org/techniques/T0846/001/; metadata:attack_target OT_ICS, attack_technique T0846.001, deployment Perimeter; sid:4200503; rev:1;)
+
+alert tcp $EXTERNAL_NET any -> $HOME_NET 502 (msg:"OT SENTINEL ICS Modbus encapsulated interface request"; flow:established,to_server; app-layer-protocol:modbus; modbus: function 43; classtype:attempted-recon; reference:url,attack.mitre.org/techniques/T0846/001/; metadata:attack_target OT_ICS, attack_technique T0846.001, deployment Perimeter; sid:4200504; rev:1;)

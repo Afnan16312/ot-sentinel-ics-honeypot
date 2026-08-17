@@ -11,6 +11,8 @@ from typing import Any
 from .mapper import map_event
 from .model import Event
 from .normalizer import severity_for
+from .operations import HealthTracker, WebhookAlerter
+from .profiles import ProfileRuntime, load_profile
 from .protocols import (
     iec104_response,
     modbus_response,
@@ -19,6 +21,7 @@ from .protocols import (
     parse_s7,
     s7_response,
 )
+from .transport import RemoteCollectorSink
 
 Parser = Callable[[bytes], dict[str, Any]]
 Responder = Callable[[bytes, dict[str, Any]], bytes]
@@ -46,6 +49,10 @@ class LowInteractionSensor:
         sensor_id: str,
         max_payload: int = 512,
         timeout: float = 8.0,
+        profile: ProfileRuntime | None = None,
+        health_path: Path | None = None,
+        alerter: WebhookAlerter | None = None,
+        collector: RemoteCollectorSink | None = None,
     ) -> None:
         self.host = host
         self.ports = ports
@@ -53,6 +60,16 @@ class LowInteractionSensor:
         self.sensor_id = sensor_id
         self.max_payload = min(max(max_payload, 64), 4096)
         self.timeout = min(max(timeout, 1.0), 30.0)
+        self.profile = profile
+        self.health_path = health_path
+        if alerter is not None:
+            self.health = alerter.health
+        elif collector is not None:
+            self.health = collector.health
+        else:
+            self.health = HealthTracker(sensor_id)
+        self.alerter = alerter
+        self.collector = collector
         self.servers: list[asyncio.Server] = []
 
     async def start(self) -> None:
@@ -75,11 +92,33 @@ class LowInteractionSensor:
 
     async def serve_forever(self) -> None:
         await self.start()
+        if self.alerter is not None:
+            await self.alerter.start()
+        if self.collector is not None:
+            await self.collector.start()
         addresses = ", ".join(str(sock.getsockname()) for s in self.servers for sock in s.sockets or [])
         print(f"OT Sentinel listening on {addresses}")
-        async with asyncio.TaskGroup() as group:
-            for server in self.servers:
-                group.create_task(server.serve_forever())
+        try:
+            async with asyncio.TaskGroup() as group:
+                for server in self.servers:
+                    group.create_task(server.serve_forever())
+        finally:
+            if self.alerter is not None:
+                await self.alerter.close()
+            if self.collector is not None:
+                await self.collector.close()
+
+    async def emit(self, event: Event) -> None:
+        await self.writer.append(event)
+        self.health.record(event)
+        if self.alerter is not None:
+            await self.alerter.submit(event)
+        if self.collector is not None:
+            await self.collector.submit(event)
+        if self.health_path is not None:
+            alert_depth = self.alerter.queue.qsize() if self.alerter is not None else 0
+            collector_depth = self.collector.queue.qsize() if self.collector is not None else 0
+            self.health.write(self.health_path, alert_depth, collector_depth)
 
     async def handle(
         self,
@@ -101,11 +140,16 @@ class LowInteractionSensor:
             sensor_id=self.sensor_id,
             tags=["low-interaction", "no-execution"],
         )
-        await self.writer.append(session_seed)
+        await self.emit(session_seed)
         try:
             payload = await asyncio.wait_for(reader.read(self.max_payload), timeout=self.timeout)
             if payload:
                 decoded = parser(payload)
+                if self.profile is not None:
+                    self.profile.enrich(protocol, decoded)
+                tags = ["low-interaction", "no-execution"]
+                if self.profile is not None:
+                    tags.append(f"profile:{self.profile.definition.profile_id}")
                 event = Event(
                     protocol=protocol,
                     source_ip=source_ip,
@@ -117,11 +161,11 @@ class LowInteractionSensor:
                     byte_count=len(payload),
                     raw_payload_hex=payload.hex(),
                     decoded=decoded,
-                    tags=["low-interaction", "no-execution"],
+                    tags=tags,
                 )
                 event.techniques = map_event(protocol, event.event_type, decoded)
                 event.severity = severity_for(event.techniques)
-                await self.writer.append(event)
+                await self.emit(event)
                 reply = responder(payload, decoded)
                 if reply:
                     stream.write(reply)
@@ -138,7 +182,7 @@ class LowInteractionSensor:
                 decoded={"error": type(exc).__name__},
                 tags=["bounded-error"],
             )
-            await self.writer.append(error)
+            await self.emit(error)
         finally:
             stream.close()
             try:
@@ -165,11 +209,55 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
         default=float(os.getenv("OT_SESSION_TIMEOUT_SECONDS", "8")),
     )
+    parser.add_argument(
+        "--profile",
+        default=os.getenv("OT_PROFILE_PATH", ""),
+        help="Safe JSON-subset-of-YAML fictional process profile",
+    )
+    parser.add_argument(
+        "--health-file",
+        default=os.getenv("OT_HEALTH_PATH", ""),
+        help="Write an atomic JSON sensor health snapshot after each event",
+    )
+    parser.add_argument(
+        "--alert-webhook",
+        default=os.getenv("OT_ALERT_WEBHOOK", ""),
+        help="Optional HTTPS endpoint for redacted high-confidence alerts",
+    )
+    parser.add_argument(
+        "--alert-secret",
+        default=os.getenv("OT_ALERT_SECRET", ""),
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "--collector-url",
+        default=os.getenv("OT_COLLECTOR_URL", ""),
+        help="Optional authenticated HTTPS central collector /v1/events URL",
+    )
+    parser.add_argument(
+        "--collector-secret",
+        default=os.getenv("OT_COLLECTOR_SECRET", ""),
+        help=argparse.SUPPRESS,
+    )
     return parser
 
 
 def main() -> None:
     args = build_parser().parse_args()
+    profile = ProfileRuntime(load_profile(args.profile)) if args.profile else None
+    health = HealthTracker(args.sensor_id)
+    alerter = None
+    if args.alert_webhook:
+        if not args.alert_secret:
+            raise SystemExit("Set OT_ALERT_SECRET when OT_ALERT_WEBHOOK is configured.")
+        alerter = WebhookAlerter(args.alert_webhook, args.alert_secret, health)
+    collector = None
+    if args.collector_url:
+        if not args.collector_secret:
+            raise SystemExit("Set OT_COLLECTOR_SECRET when OT_COLLECTOR_URL is configured.")
+        collector = RemoteCollectorSink(
+            args.collector_url, args.sensor_id, args.collector_secret, health
+        )
     sensor = LowInteractionSensor(
         host=args.host,
         ports={"modbus": args.modbus_port, "s7": args.s7_port, "iec104": args.iec104_port},
@@ -177,6 +265,10 @@ def main() -> None:
         sensor_id=args.sensor_id,
         max_payload=args.max_payload,
         timeout=args.timeout,
+        profile=profile,
+        health_path=Path(args.health_file) if args.health_file else None,
+        alerter=alerter,
+        collector=collector,
     )
     try:
         asyncio.run(sensor.serve_forever())

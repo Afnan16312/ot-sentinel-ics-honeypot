@@ -1,0 +1,61 @@
+<!--
+  OT Sentinel custom Wazuh rules.
+  Install as /var/ossec/etc/rules/ot_sentinel_rules.xml and test with wazuh-logtest.
+-->
+<group name="ot_sentinel,ics,">
+  <rule id="110000" level="0">
+    <decoded_as>json</decoded_as>
+    <field name="sensor_id" type="pcre2">^.+$</field>
+    <description>OT Sentinel JSON event.</description>
+    <group>ot_sentinel,ics,</group>
+  </rule>
+
+  <rule id="110001" level="12">
+    <if_sid>110000</if_sid>
+    <field name="event_type" type="pcre2">^protocol_request$</field>
+    <field name="protocol" type="pcre2">^modbus$</field>
+    <field name="decoded.operation" type="pcre2">^write_(single|multiple)$</field>
+    <description>OT Sentinel: Modbus write command against the decoy.</description>
+    <mitre>
+      <id>T1692.001</id>
+      <id>T0836</id>
+    </mitre>
+    <group>ot_sentinel,ics,control_command,</group>
+  </rule>
+
+  <rule id="110002" level="12">
+    <if_sid>110000</if_sid>
+    <field name="event_type" type="pcre2">^protocol_request$</field>
+    <field name="protocol" type="pcre2">^iec104$</field>
+    <field name="decoded.operation" type="pcre2">^(single|setpoint)_command$</field>
+    <description>OT Sentinel: IEC-104 control command against the decoy.</description>
+    <mitre>
+      <id>T1692.001</id>
+      <id>T0836</id>
+    </mitre>
+    <group>ot_sentinel,ics,control_command,</group>
+  </rule>
+
+  <rule id="110003" level="12">
+    <if_sid>110000</if_sid>
+    <field name="event_type" type="pcre2">^protocol_request$</field>
+    <field name="protocol" type="pcre2">^s7$</field>
+    <field name="decoded.operation" type="pcre2">^program_download$</field>
+    <description>OT Sentinel: S7 controller program download attempt.</description>
+    <mitre>
+      <id>T0843</id>
+    </mitre>
+    <group>ot_sentinel,ics,program_transfer,</group>
+  </rule>
+
+  <rule id="110004" level="14">
+    <if_sid>110000</if_sid>
+    <field name="event_type" type="pcre2">^known_exploit_probe$</field>
+    <field name="decoded.signature" type="pcre2">^.+$</field>
+    <description>OT Sentinel: Evidence-backed exploit probe against an ICS service.</description>
+    <mitre>
+      <id>T0866</id>
+    </mitre>
+    <group>ot_sentinel,ics,exploit_probe,</group>
+  </rule>
+</group>

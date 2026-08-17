@@ -25,6 +25,8 @@ My system then:
 3. Describes the behavior using MITRE ATT&CK for ICS, a well-known security framework.
 4. Removes sensitive details before anything is made public.
 5. Displays trends, locations, techniques and sessions in an interactive dashboard.
+6. Exports portable STIX intelligence and tested Sigma, Suricata and Wazuh rules.
+7. Prioritizes stronger events with an explainable risk score and review queue.
 
 ## Why it matters
 
@@ -33,6 +35,18 @@ OT/ICS security protects services people depend on, including electricity, water
 The repository includes the complete source code, a working dashboard, automated tests, deployment files and a five-page [demonstration research report](output/pdf/ot-sentinel-demonstration-report.pdf).
 
 I also documented how OT Sentinel compares with established honeypot projects and which practical security features should come next in the [competitive analysis and roadmap](docs/COMPETITIVE_ANALYSIS_AND_ROADMAP.md).
+
+## What is included in version 0.2
+
+| Feature | Plain-language purpose |
+|---|---|
+| Stateful device profiles | Three fictional water, power and port scenarios respond consistently without controlling equipment |
+| Detection rules | Ready-to-review examples for Sigma, Suricata and Wazuh |
+| STIX 2.1 export | Moves sanitized findings into a standard threat-intelligence format |
+| Triage and validation | Shows which sessions deserve attention and why, then measures mapper agreement against labeled examples |
+| Health and alerts | Records sensor health and can send only redacted, high-confidence notifications |
+| Multi-sensor collector | Accepts authenticated events from isolated sensors over encrypted transport |
+| Release evidence | Produces an SPDX software bill of materials and SHA-256 file checksums |
 
 ## Try the dashboard
 
@@ -65,7 +79,7 @@ Streamlit opens the dashboard in your browser with the included demonstration da
 
 ```bash
 pip install -e .
-python -m ot_sentinel.sensor
+python -m ot_sentinel.sensor --profile profiles/water-treatment.yaml
 ```
 
 It listens on safe local test ports:
@@ -88,10 +102,11 @@ docker compose logs -f
 ```mermaid
 flowchart LR
     A[Internet scanner] --> B[Safe industrial decoy]
-    B --> C[Private event log]
-    C --> D[Behavior analysis]
-    D --> E[Privacy filter]
-    E --> F[Public dashboard and report]
+    B --> C[Protocol evidence]
+    C --> D[ATT&CK mapping and triage]
+    D --> E[Detection and STIX outputs]
+    D --> F[Privacy filter]
+    F --> G[Public dashboard and report]
 ```
 
 I designed the ATT&CK mapper to be intentionally cautious. A simple connection is not called an exploit. Stronger labels are added only when the recorded command provides supporting evidence, and every label includes a confidence level and explanation.
@@ -115,11 +130,22 @@ I designed the project so it can be developed and demonstrated locally for free.
 
 ```bash
 pip install -e .
-python -m unittest discover -s tests -v
+python -m pytest -q -p no:cacheprovider
+python -m ruff check .
+python scripts/validate_detections.py
 python scripts/validate_public_data.py data/demo_events.jsonl
 ```
 
 The public-data check helps prevent accidental publication of raw IP addresses, raw payloads or unlabeled demonstration records.
+
+Other useful commands:
+
+```bash
+ot-sentinel validate-profile profiles/water-treatment.yaml
+ot-sentinel evaluate-mapper --fixtures tests/fixtures/evaluation/mapper_cases.jsonl
+export OT_PRIVACY_SALT='replace-with-a-private-random-value'
+ot-sentinel export-stix data/demo_events.jsonl artifacts/public-stix.json --profile public
+```
 
 ## Repository guide
 
@@ -127,11 +153,16 @@ The public-data check helps prevent accidental publication of raw IP addresses, 
 |---|---|
 | `app.py` | Interactive Streamlit dashboard |
 | `src/ot_sentinel/` | Honeypot, protocol parsers, ATT&CK mapper and privacy tools |
+| `profiles/` | Validated fictional water, power and port device profiles |
+| `detections/` | Sigma, Suricata and Wazuh detection content plus fixtures |
 | `data/` | Clearly labeled synthetic demonstration events |
 | `tests/` | Automated unit and integration tests |
 | `infra/` | Docker, Azure and Linux service deployment assets |
 | `docs/` | Architecture, ethics, data and deployment explanations |
 | `docs/PROJECT_WALKTHROUGH.md` | Simple step-by-step explanation and demonstration guide |
+| `docs/OPERATIONS.md` | Health, alerting and authenticated collector instructions |
+| `docs/DETECTION_ENGINEERING.md` | Detection logic, testing and deployment notes |
+| `docs/STIX_EXPORT.md` | Public and private STIX export rules |
 | `docs/COMPETITIVE_ANALYSIS_AND_ROADMAP.md` | Project comparison and zero-cost improvement plan |
 | `output/pdf/` | Demonstration threat-intelligence report |
 

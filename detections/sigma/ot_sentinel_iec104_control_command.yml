@@ -1,0 +1,33 @@
+title: OT Sentinel IEC-104 Control Command
+id: 3161ec3a-f5e2-460f-9c99-dfd018e49e08
+status: experimental
+description: Detects an IEC-104 command intended to change the state of the simulated process.
+author: Mir Afnan Ali
+date: 2026-08-17
+references:
+  - https://attack.mitre.org/techniques/T1692/001/
+  - https://attack.mitre.org/techniques/T0836/
+logsource:
+  category: application
+  product: ot_sentinel
+  service: sensor
+detection:
+  selection:
+    event_type: protocol_request
+    protocol: iec104
+    decoded.operation:
+      - single_command
+      - setpoint_command
+  condition: selection
+fields:
+  - observed_at
+  - sensor_id
+  - source_id
+  - session_id
+  - decoded.type_id
+falsepositives:
+  - Authorized test traffic intentionally sent to the honeypot.
+level: high
+tags:
+  - attack.t1692.001
+  - attack.t0836

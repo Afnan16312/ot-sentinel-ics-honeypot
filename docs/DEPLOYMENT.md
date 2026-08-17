@@ -1,6 +1,10 @@
 # Zero-out-of-pocket deployment guide
 
+The complete software, dashboard, test suite and synthetic demonstration run locally for AED 0. A public Internet collection is optional and is not required to demonstrate the project. Do not expose a personal computer or home network to avoid cloud costs.
+
 Use an **Azure for Students** subscription when eligible. Keep its spending limit enabled and do not upgrade the subscription to pay-as-you-go. The project uses one small Linux VM and no paid Marketplace image.
+
+If no free cloud credit is available, stop after the local demonstration. The repository remains a complete, reproducible engineering project; only claims about observed live traffic must wait.
 
 ## Prerequisites
 
@@ -72,4 +76,3 @@ Export the private evidence to an encrypted local archive, then remove the entir
 ```
 
 Confirm that the resource group, disk and public IP no longer appear in Azure, and check Cost Analysis after its normal reporting delay.
-

@@ -95,12 +95,13 @@ Before events are suitable for publication, the privacy layer:
 
 ### Step 7: The dashboard displays the results
 
-The Streamlit dashboard provides four main views:
+The Streamlit dashboard provides five main views:
 
 1. **Observatory:** overview, source distribution, technique summaries and activity timeline.
 2. **ATT&CK Layer:** technique intensity separated by industrial protocol.
-3. **Session Explorer:** sanitized event records for detailed investigation.
-4. **Methodology:** an explanation of what the sensor can and cannot prove.
+3. **Triage & Validation:** explainable event priority, review queue and mapper test results.
+4. **Session Explorer:** sanitized event records for detailed investigation.
+5. **Methodology:** an explanation of what the sensor can and cannot prove.
 
 ## 6. What the current dashboard data means
 
@@ -138,6 +139,11 @@ Synthetic data lets anyone reproduce the dashboard and test the complete pipelin
 | `src/ot_sentinel/mapper.py` | Maps evidence to ATT&CK for ICS |
 | `src/ot_sentinel/privacy.py` | Sanitizes events for publication |
 | `src/ot_sentinel/normalizer.py` | Converts events into one consistent format |
+| `src/ot_sentinel/stix_export.py` | Exports public or private STIX 2.1 bundles |
+| `src/ot_sentinel/triage.py` | Calculates an explainable review priority |
+| `src/ot_sentinel/collector.py` | Authenticates events from optional remote sensors |
+| `profiles/` | Contains fictional water, power and port device profiles |
+| `detections/` | Contains Sigma, Suricata and Wazuh rules |
 | `data/demo_events.jsonl` | Contains the synthetic demonstration dataset |
 | `tests/` | Contains automated unit and integration tests |
 | `infra/azure/` | Contains optional Azure deployment and cleanup files |
@@ -225,11 +231,11 @@ No. It is security research tooling designed with the UAE critical-infrastructur
 
 ### How did I test it?
 
-The project contains unit tests for protocol parsing, privacy and ATT&CK mapping. It also contains a socket-level integration test that connects to the Modbus listener and checks the response and recorded event. GitHub Actions runs the tests again after publication.
+The project contains unit and integration tests for protocol parsing, privacy, profiles, ATT&CK mapping, triage, STIX, detections, alerts, transport and release evidence. A socket-level test connects to the Modbus listener and checks the response and recorded event. GitHub Actions runs the full suite after publication.
 
 ## 14. Current status and future work
 
-The code, demonstration dashboard, tests, documentation, Docker deployment, Azure template and synthetic research report are complete.
+The version 0.2 code, demonstration dashboard, detections, STIX export, triage, profiles, health monitoring, multi-sensor foundation, tests, documentation, Docker deployment, Azure template and synthetic research report are complete.
 
 Possible future phases are:
 

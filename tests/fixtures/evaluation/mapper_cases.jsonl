@@ -1,0 +1,12 @@
+{"case_id":"connection-only","protocol":"modbus","event_type":"connection","decoded":{},"expected_technique_ids":[]}
+{"case_id":"modbus-probe-read","protocol":"modbus","event_type":"protocol_request","decoded":{"operation":"device_probe","function_code":3},"expected_technique_ids":["T0846.001","T0877"]}
+{"case_id":"modbus-read-only","protocol":"modbus","event_type":"protocol_request","decoded":{"operation":"read_holding_registers","function_code":3},"expected_technique_ids":["T0877"]}
+{"case_id":"modbus-write-single","protocol":"modbus","event_type":"protocol_request","decoded":{"operation":"write_single","function_code":6},"expected_technique_ids":["T1692.001","T0836"]}
+{"case_id":"modbus-write-multiple","protocol":"modbus","event_type":"protocol_request","decoded":{"operation":"write_multiple","function_code":16},"expected_technique_ids":["T1692.001","T0836"]}
+{"case_id":"s7-setup","protocol":"s7","event_type":"protocol_request","decoded":{"operation":"connection_setup"},"expected_technique_ids":["T0846.001"]}
+{"case_id":"s7-download","protocol":"s7","event_type":"protocol_request","decoded":{"operation":"program_download"},"expected_technique_ids":["T0843"]}
+{"case_id":"iec-interrogation","protocol":"iec104","event_type":"protocol_request","decoded":{"operation":"interrogation"},"expected_technique_ids":["T0846.001"]}
+{"case_id":"iec-single-command","protocol":"iec104","event_type":"protocol_request","decoded":{"operation":"single_command"},"expected_technique_ids":["T1692.001","T0836"]}
+{"case_id":"signature-with-probe","protocol":"s7","event_type":"known_exploit_probe","decoded":{"operation":"device_probe","signature":"TEST-SIGNATURE"},"expected_technique_ids":["T0846.001","T0866"]}
+{"case_id":"exploit-name-without-signature","protocol":"s7","event_type":"known_exploit_probe","decoded":{"operation":"device_probe"},"expected_technique_ids":["T0846.001"]}
+{"case_id":"unknown-request","protocol":"unknown","event_type":"protocol_request","decoded":{"operation":"unknown"},"expected_technique_ids":[]}

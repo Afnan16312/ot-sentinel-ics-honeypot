@@ -1,0 +1,29 @@
+title: OT Sentinel S7 Program Download Attempt
+id: 1da046a2-08da-487a-9799-e12d5548681b
+status: experimental
+description: Detects an S7 controller program-transfer operation observed by the decoy.
+author: Mir Afnan Ali
+date: 2026-08-17
+references:
+  - https://attack.mitre.org/techniques/T0843/
+logsource:
+  category: application
+  product: ot_sentinel
+  service: sensor
+detection:
+  selection:
+    event_type: protocol_request
+    protocol: s7
+    decoded.operation: program_download
+  condition: selection
+fields:
+  - observed_at
+  - sensor_id
+  - source_id
+  - session_id
+  - decoded.s7_function
+falsepositives:
+  - Authorized test traffic intentionally sent to the honeypot.
+level: high
+tags:
+  - attack.t0843

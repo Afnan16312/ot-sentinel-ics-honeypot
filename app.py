@@ -13,7 +13,11 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "src"))
 
+from ot_sentinel.evaluation import evaluate_mapper, load_labeled_jsonl
+from ot_sentinel.triage import assess_event, factor_summary
+
 DATA_PATH = Path(os.getenv("OT_PUBLIC_DATA_PATH", ROOT / "data" / "demo_events.jsonl"))
+EVALUATION_FIXTURE = ROOT / "tests" / "fixtures" / "evaluation" / "mapper_cases.jsonl"
 
 st.set_page_config(
     page_title="OT Sentinel | ICS Threat Observatory",
@@ -89,6 +93,45 @@ def flatten_techniques(frame: pd.DataFrame) -> pd.DataFrame:
                 }
             )
     return pd.DataFrame(rows)
+
+
+def build_triage_queue(frame: pd.DataFrame) -> pd.DataFrame:
+    """Create an explainable review queue from normalized dashboard rows."""
+    rows: list[dict] = []
+    decoded_columns = [column for column in frame.columns if column.startswith("decoded.")]
+    for _, event in frame.iterrows():
+        decoded = {
+            column.removeprefix("decoded."): event[column]
+            for column in decoded_columns
+            if pd.notna(event[column])
+        }
+        assessment = assess_event(
+            {
+                "event_type": event.get("event_type"),
+                "decoded": decoded,
+                "techniques": event.get("techniques", []),
+            }
+        )
+        rows.append(
+            {
+                "observed_at": event.get("observed_at"),
+                "source": event.get("source_id", event.get("source_ip", "redacted")),
+                "protocol": event.get("protocol"),
+                "operation": decoded.get("operation", "unknown"),
+                "score": assessment.score,
+                "priority": assessment.priority,
+                "evidence factors": factor_summary(assessment),
+                "analyst note": assessment.analyst_note,
+                "session_id": event.get("session_id"),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+@st.cache_data(show_spinner=False)
+def load_evaluation(path: str, mtime: float) -> dict:
+    del mtime
+    return evaluate_mapper(load_labeled_jsonl(path)).to_dict()
 
 
 def technique_cards(techniques: pd.DataFrame) -> None:
@@ -174,8 +217,8 @@ m2.metric("Distinct sessions", f"{sessions:,}")
 m3.metric("Pseudonymous sources", f"{sources:,}")
 m4.metric("Control attempts", f"{commands:,}", help="Requests containing a write, command, or program-transfer operation")
 
-overview, attack_tab, sessions_tab, methodology = st.tabs(
-    ["OBSERVATORY", "ATT&CK LAYER", "SESSION EXPLORER", "METHODOLOGY"]
+overview, attack_tab, triage_tab, sessions_tab, methodology = st.tabs(
+    ["OBSERVATORY", "ATT&CK LAYER", "TRIAGE & VALIDATION", "SESSION EXPLORER", "METHODOLOGY"]
 )
 
 with overview:
@@ -278,6 +321,111 @@ with attack_tab:
             "Counts represent telemetry matches, not unique intrusions. Confidence and rationale remain attached to each event."
         )
 
+with triage_tab:
+    st.markdown("<div class='section-title'>Evidence-based analyst review queue</div>", unsafe_allow_html=True)
+    st.caption(
+        "Scores prioritize recorded decoy interactions for review. They do not establish attacker intent, identity, attribution, or compromise."
+    )
+    triage = build_triage_queue(filtered)
+    if triage.empty:
+        st.info("No events match the current filters.")
+    else:
+        scored = int((triage["score"] > 0).sum())
+        high_review = int((triage["score"] >= 50).sum())
+        top_score = int(triage["score"].max())
+        q1, q2, q3 = st.columns(3)
+        q1.metric("Scored interactions", f"{scored:,}")
+        q2.metric("High / urgent review", f"{high_review:,}")
+        q3.metric("Highest review score", f"{top_score}/100")
+
+        queue_col, chart_col = st.columns([1.65, 1], gap="large")
+        with queue_col:
+            st.dataframe(
+                triage.sort_values(["score", "observed_at"], ascending=[False, False]),
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "observed_at": st.column_config.DatetimeColumn("Observed (UTC)", format="YYYY-MM-DD HH:mm:ss"),
+                    "score": st.column_config.ProgressColumn("Review score", min_value=0, max_value=100),
+                },
+            )
+        with chart_col:
+            score_counts = triage.groupby("priority", dropna=False).size().reset_index(name="events")
+            priority_order = [
+                "urgent review",
+                "high review",
+                "elevated review",
+                "routine review",
+                "informational",
+            ]
+            score_counts["priority"] = pd.Categorical(
+                score_counts["priority"], categories=priority_order, ordered=True
+            )
+            score_counts = score_counts.sort_values("priority")
+            bars = px.bar(
+                score_counts,
+                x="events",
+                y="priority",
+                orientation="h",
+                color="priority",
+                color_discrete_map={
+                    "urgent review": "#B86A6A",
+                    "high review": "#C58F5B",
+                    "elevated review": "#B7A265",
+                    "routine review": "#6F9FC4",
+                    "informational": "#526778",
+                },
+            )
+            bars.update_layout(
+                height=330,
+                margin={"l": 0, "r": 0, "t": 10, "b": 0},
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                showlegend=False,
+                xaxis_title="Events",
+                yaxis_title="",
+            )
+            st.plotly_chart(bars, use_container_width=True)
+
+    st.divider()
+    st.markdown("<div class='section-title'>ATT&CK mapper regression benchmark</div>", unsafe_allow_html=True)
+    st.caption(
+        "The fixed, human-labeled fixture checks expected mapper behavior. These metrics are not a claim of accuracy on live traffic."
+    )
+    if not EVALUATION_FIXTURE.exists():
+        st.warning("Evaluation fixture is not available in this build.")
+    else:
+        evaluation = load_evaluation(
+            str(EVALUATION_FIXTURE), EVALUATION_FIXTURE.stat().st_mtime
+        )
+        e1, e2, e3, e4 = st.columns(4)
+        e1.metric("Labeled cases", evaluation["cases"])
+        e2.metric("Exact match", f"{evaluation['exact_match_ratio']:.0%}")
+        e3.metric("Micro F1", f"{evaluation['micro_f1']:.2f}")
+        e4.metric("Macro F1", f"{evaluation['macro_f1']:.2f}")
+        metrics_frame = pd.DataFrame(evaluation["techniques"]).rename(
+            columns={
+                "technique_id": "technique",
+                "true_positive": "TP",
+                "false_positive": "FP",
+                "false_negative": "FN",
+                "true_negative": "TN",
+            }
+        )
+        st.dataframe(
+            metrics_frame[["technique", "support", "TP", "FP", "FN", "TN", "precision", "recall", "f1"]],
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "precision": st.column_config.NumberColumn(format="%.2f"),
+                "recall": st.column_config.NumberColumn(format="%.2f"),
+                "f1": st.column_config.NumberColumn(format="%.2f"),
+            },
+        )
+        st.caption(
+            "A perfect fixture result means the mapper has not regressed against these cases; broader validation requires independently reviewed, authorized observations."
+        )
+
 with sessions_tab:
     st.markdown("<div class='section-title'>Sanitized event ledger</div>", unsafe_allow_html=True)
     display = filtered.copy()
@@ -318,6 +466,6 @@ with methodology:
         )
 
 st.markdown(
-    "<div class='footer-note'>Project by <a href='https://github.com/Afnan16312' target='_blank'>Mir Afnan Ali (@Afnan16312)</a> · OT Sentinel research build 0.1.0 · Times shown in UTC · MITRE ATT&CK® is a registered trademark of The MITRE Corporation.</div>",
+    "<div class='footer-note'>Project by <a href='https://github.com/Afnan16312' target='_blank'>Mir Afnan Ali (@Afnan16312)</a> · OT Sentinel research build 0.2.0 · Times shown in UTC · MITRE ATT&CK® is a registered trademark of The MITRE Corporation.</div>",
     unsafe_allow_html=True,
 )

@@ -24,6 +24,8 @@ services:
       OT_SENSOR_ID: ${OT_SENSOR_ID:-local-docker-01}
       OT_MAX_PAYLOAD_BYTES: "512"
       OT_SESSION_TIMEOUT_SECONDS: "8"
+      OT_PROFILE_PATH: /app/profiles/water-treatment.yaml
+      OT_HEALTH_PATH: /data/health.json
     networks:
       - sensor_net
     logging:
@@ -35,4 +37,3 @@ services:
 networks:
   sensor_net:
     internal: true
-

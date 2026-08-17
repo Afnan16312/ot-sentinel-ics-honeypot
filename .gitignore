@@ -19,3 +19,5 @@ data/private/
 .idea/
 .vscode/
 tmp/
+artifacts/
+logs/

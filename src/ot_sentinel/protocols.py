@@ -44,6 +44,14 @@ def parse_modbus(payload: bytes) -> dict[str, Any]:
     if len(payload) >= 12:
         decoded["address"] = int.from_bytes(payload[8:10], "big")
         decoded["value_or_quantity"] = int.from_bytes(payload[10:12], "big")
+    if function_code == 16 and len(payload) >= 13:
+        quantity = min(int(decoded.get("value_or_quantity", 0)), 123)
+        byte_count = min(payload[12], len(payload) - 13)
+        value_bytes = payload[13 : 13 + byte_count]
+        decoded["write_values"] = [
+            int.from_bytes(value_bytes[offset : offset + 2], "big")
+            for offset in range(0, min(len(value_bytes), quantity * 2) - 1, 2)
+        ]
     return decoded
 
 
@@ -56,14 +64,16 @@ def modbus_response(payload: bytes, decoded: dict[str, Any]) -> bytes:
     function_code = int(decoded["function_code"])
     if function_code in {3, 4}:
         quantity = min(max(int(decoded.get("value_or_quantity", 1)), 1), 16)
-        registers = [1200, 62, 410, 1, 0, 77, 24, 900][:quantity]
+        registers = list(decoded.get("simulated_values", []))[:quantity]
+        if not registers:
+            registers = [1200, 62, 410, 1, 0, 77, 24, 900][:quantity]
         registers.extend([0] * (quantity - len(registers)))
         pdu = bytes([function_code, quantity * 2]) + b"".join(
             value.to_bytes(2, "big") for value in registers
         )
     elif function_code in {1, 2}:
         pdu = bytes([function_code, 1, 0])
-    elif function_code in {5, 6} and len(payload) >= 12:
+    elif function_code in {5, 6, 15, 16} and len(payload) >= 12:
         pdu = payload[7:12]
     else:
         pdu = bytes([function_code | 0x80, 1])
@@ -131,4 +141,3 @@ def iec104_response(payload: bytes, decoded: dict[str, Any]) -> bytes:
     if decoded.get("frame_type") == "U" and decoded.get("u_function") == "0x7":
         return bytes.fromhex("68040b000000")  # STARTDT confirmation
     return b""
-

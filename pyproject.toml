@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ot-sentinel"
-version = "0.1.0"
+version = "0.2.0"
 description = "Low-interaction OT/ICS honeypot telemetry and ATT&CK visualization"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -19,10 +19,16 @@ dashboard = [
   "streamlit>=1.48,<2",
 ]
 geoip = ["geoip2>=5,<6"]
-dev = ["pytest>=8,<9", "ruff>=0.12,<1"]
+dev = [
+  "pip-audit>=2.9,<3",
+  "pytest>=9.0.3,<10",
+  "ruff>=0.12,<1",
+  "stix2-validator>=3.2,<4",
+]
 
 [project.scripts]
 ot-sentinel = "ot_sentinel.cli:main"
+ot-sentinel-collector = "ot_sentinel.collector:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

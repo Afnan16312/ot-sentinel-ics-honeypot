@@ -11,6 +11,7 @@ WORKDIR /app
 
 COPY pyproject.toml README.md LICENSE ./
 COPY src ./src
+COPY profiles ./profiles
 RUN pip install --no-cache-dir --no-deps .
 
 RUN mkdir /data && chown sensor:sensor /data

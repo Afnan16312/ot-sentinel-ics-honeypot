@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "profile_id": "fictional-water-treatment-v1",
+  "display_name": "Fictional Coastal Water Treatment Unit",
+  "fictional": true,
+  "sector": "water",
+  "description": "A completely fictional treatment process used only for safe OT Sentinel demonstrations.",
+  "device": {"vendor": "OT Sentinel Labs", "model": "AQUA-SIM-1200", "firmware": "SIM-1.0", "station_name": "TRAINING-WATER-01"},
+  "modbus": {
+    "holding_registers": {"0": 1200, "1": 62, "2": 410, "3": 1, "4": 0, "5": 77, "16": 50, "17": 25},
+    "writable_ranges": [[16, 31]]
+  },
+  "s7": {"rack": 0, "slot": 2, "blocks": ["DB1"]},
+  "iec104": {"common_address": 101, "points": {"1001": 1, "1002": 0}}
+}
