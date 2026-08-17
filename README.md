@@ -36,6 +36,8 @@ The repository includes the complete source code, a working dashboard, automated
 
 I also documented how OT Sentinel compares with established honeypot projects and which practical security features should come next in the [competitive analysis and roadmap](docs/COMPETITIVE_ANALYSIS_AND_ROADMAP.md).
 
+For the complete record of requirements, shipped features, engineering decisions, system design, and solved problems, start with the [engineering documentation](docs/ENGINEERING_DOCUMENTATION.md).
+
 ## What is included in version 0.2
 
 | Feature | Plain-language purpose |
@@ -159,6 +161,7 @@ ot-sentinel export-stix data/demo_events.jsonl artifacts/public-stix.json --prof
 | `tests/` | Automated unit and integration tests |
 | `infra/` | Docker, Azure and Linux service deployment assets |
 | `docs/` | Architecture, ethics, data and deployment explanations |
+| `docs/ENGINEERING_DOCUMENTATION.md` | Index to requirements, features, decisions, system design and solved problems |
 | `docs/PROJECT_WALKTHROUGH.md` | Simple step-by-step explanation and demonstration guide |
 | `docs/OPERATIONS.md` | Health, alerting and authenticated collector instructions |
 | `docs/DETECTION_ENGINEERING.md` | Detection logic, testing and deployment notes |
