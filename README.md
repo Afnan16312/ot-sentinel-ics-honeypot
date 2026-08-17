@@ -32,6 +32,8 @@ OT/ICS security protects services people depend on, including electricity, water
 
 The repository includes the complete source code, a working dashboard, automated tests, deployment files and a five-page [demonstration research report](output/pdf/ot-sentinel-demonstration-report.pdf).
 
+I also documented how OT Sentinel compares with established honeypot projects and which practical security features should come next in the [competitive analysis and roadmap](docs/COMPETITIVE_ANALYSIS_AND_ROADMAP.md).
+
 ## Try the dashboard
 
 You need Python 3.12 or newer.
@@ -130,6 +132,7 @@ The public-data check helps prevent accidental publication of raw IP addresses, 
 | `infra/` | Docker, Azure and Linux service deployment assets |
 | `docs/` | Architecture, ethics, data and deployment explanations |
 | `docs/PROJECT_WALKTHROUGH.md` | Simple step-by-step explanation and demonstration guide |
+| `docs/COMPETITIVE_ANALYSIS_AND_ROADMAP.md` | Project comparison and zero-cost improvement plan |
 | `output/pdf/` | Demonstration threat-intelligence report |
 
 ## Important limitations

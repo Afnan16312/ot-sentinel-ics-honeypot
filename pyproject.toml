@@ -9,7 +9,7 @@ description = "Low-interaction OT/ICS honeypot telemetry and ATT&CK visualizatio
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
-authors = [{name = "Afnan"}]
+authors = [{name = "Mir Afnan Ali"}]
 dependencies = []
 
 [project.optional-dependencies]
