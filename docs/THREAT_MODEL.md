@@ -28,7 +28,7 @@ This threat model covers the low-interaction sensor, optional profile runtime, p
 
 ### Resource exhaustion
 
-An attacker opens many connections or sends oversized data. The sensor limits stream buffers, payload size and idle time. Docker drops capabilities, limits processes, CPU and memory, and uses a read-only filesystem.
+An attacker opens many connections or sends oversized data. The sensor limits stream buffers, payload size and idle time. Docker drops capabilities, limits processes, CPU and memory, uses a read-only filesystem, and removes Python package installers from the finished image.
 
 ### Parser confusion
 

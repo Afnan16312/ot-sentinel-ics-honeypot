@@ -13,7 +13,9 @@ COPY pyproject.toml README.md LICENSE ./
 COPY src ./src
 COPY profiles ./profiles
 RUN python -m pip install --no-cache-dir --upgrade "pip==26.2.1" && \
-    python -m pip install --no-cache-dir --no-deps .
+    python -m pip install --no-cache-dir --no-deps . && \
+    python -m pip uninstall --yes setuptools && \
+    python -m pip uninstall --yes pip
 
 RUN mkdir /data && chown sensor:sensor /data
 USER 10001:10001
