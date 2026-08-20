@@ -18,6 +18,7 @@ This threat model covers the low-interaction sensor, optional profile runtime, p
 | Boundary | Untrusted input | Main controls |
 |---|---|---|
 | Internet to sensor | Arbitrary TCP bytes | Three explicit listeners, 4 KiB hard maximum, timeouts, no execution |
+| Sensor container to Internet | Attempted new outbound connection | Dedicated edge subnet, host `DOCKER-USER` new-connection drop and boot-time fail-closed helper |
 | Profile loader | Local profile document | 64 KiB limit, JSON-only YAML subset, schema allowlist, active-content key rejection |
 | Sensor to raw log | Parsed and raw evidence | Bounded payload, append-only JSONL, private ignored directory |
 | Sensor to collector | Signed event envelope | HTTPS requirement, per-sensor HMAC, timestamp window, replay rejection, bounded queue |
@@ -29,6 +30,10 @@ This threat model covers the low-interaction sensor, optional profile runtime, p
 ### Resource exhaustion
 
 An attacker opens many connections or sends oversized data. The sensor limits stream buffers, payload size and idle time. Docker drops capabilities, limits processes, CPU and memory, uses a read-only filesystem, and removes Python package installers from the finished image.
+
+### Container outbound pivot
+
+A parser or runtime flaw attempts to initiate an Internet connection. The Oracle deployment creates a dedicated edge bridge only for published ports, installs a host `DOCKER-USER` rule that drops new connections originating from that subnet, and refuses systemd startup when the expected firewall chain is unavailable. Established response traffic remains possible so the decoy can answer inbound sessions.
 
 ### Parser confusion
 
@@ -57,6 +62,7 @@ A dashboard viewer treats a scan, score or mapped technique as proof of compromi
 - JSONL storage is not a tamper-evident database.
 - A public IP creates continuing patching and monitoring obligations.
 - Engine-specific Sigma, Suricata and Wazuh validation must be repeated in the destination environment.
+- The Oracle egress helper assumes Docker's iptables backend and must be redesigned before an nftables-backend migration.
 
 ## Deployment rule
 

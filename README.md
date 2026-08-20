@@ -6,7 +6,7 @@
 [![Python 3.12](https://img.shields.io/badge/python-3.12-6f9fc4.svg)](https://www.python.org/)
 [![MITRE ATT&CK for ICS](https://img.shields.io/badge/MITRE-ATT%26CK%20for%20ICS-f4b860.svg)](https://attack.mitre.org/matrices/ics/)
 
-> **Honest data notice:** The dashboard currently uses clearly labeled, computer-generated demonstration data. It proves the complete system works, but it is not presented as real attacker activity. Real observations can be added later after an authorized collection period and privacy review.
+> **Honest data notice:** The public dashboard uses clearly labeled, computer-generated demonstration data. A separate isolated Oracle Cloud sensor began a private live collection on 2026-08-19, but no unreviewed live record is published or presented as attacker activity. See the [privacy-safe deployment record](docs/LIVE_DEPLOYMENT_RECORD.md).
 
 ## Project author
 
@@ -32,7 +32,7 @@ My system then:
 
 OT/ICS security protects services people depend on, including electricity, water, ports and manufacturing. I chose this project to develop practical skills in secure system design, industrial network protocols, threat analysis, privacy engineering, cloud deployment, automated testing and security reporting.
 
-The repository includes the complete source code, a working dashboard, automated tests, deployment files and a five-page [demonstration research report](output/pdf/ot-sentinel-demonstration-report.pdf).
+The repository includes the complete source code, a working dashboard, automated tests, deployment files, a verified Oracle Cloud runbook and a five-page [demonstration research report](output/pdf/ot-sentinel-demonstration-report.pdf).
 
 I also documented how OT Sentinel compares with established honeypot projects and which practical security features should come next in the [competitive analysis and roadmap](docs/COMPETITIVE_ANALYSIS_AND_ROADMAP.md).
 
@@ -49,6 +49,13 @@ For the complete record of requirements, shipped features, engineering decisions
 | Health and alerts | Records sensor health and can send only redacted, high-confidence notifications |
 | Multi-sensor collector | Accepts authenticated events from isolated sensors over encrypted transport |
 | Release evidence | Produces an SPDX software bill of materials and SHA-256 file checksums |
+| Isolated live deployment | Reproduces the Oracle ARM64 service, restart, firewall and log-retention controls without publishing private telemetry |
+
+## Current live-study status
+
+The software is now operating on an isolated, Always Free-eligible Oracle Cloud VM in the UAE East (Dubai) region. The container survived the restart test, all three decoy ports responded, outbound container initiation was blocked, health remained `ok` overnight and log rotation was verified.
+
+That deployment proves operation, not attacker identity or compromise. The first privacy-safe counts are recorded in [LIVE_DEPLOYMENT_RECORD.md](docs/LIVE_DEPLOYMENT_RECORD.md); raw JSONL remains private. The hosted Streamlit dashboard still displays only the deterministic synthetic dataset.
 
 ## Try the dashboard
 
@@ -119,14 +126,14 @@ I designed the ATT&CK mapper to be intentionally cautious. A simple connection i
 - Responses are limited, simulated and designed not to become a general-purpose server.
 - The project does not retaliate, identify people or make attribution claims.
 - Raw IP addresses and payloads are excluded from the public repository.
-- The included Azure design limits exposed ports, uses SSH keys and supports complete cleanup.
+- The verified Oracle design limits exposed ports, restricts SSH to the operator, blocks new container egress and preserves private logs locally.
 - This is research tooling, not proof of NESA compliance or a production security control.
 
 Read [ETHICS.md](docs/ETHICS.md) before any public deployment.
 
 ## Cost
 
-I designed the project so it can be developed and demonstrated locally for free. GitHub, Docker, Python and Streamlit's local server are free. A public cloud sensor may cost money unless student credits or another free credit are available. My [deployment guide](docs/DEPLOYMENT.md) explains a zero-out-of-pocket route and how to remove cloud resources before credits expire.
+I designed the project so it can be developed and demonstrated locally for free. GitHub, Docker, Python and Streamlit Community Cloud can be used without a project service fee. The current sensor uses an Oracle shape marked Always Free-eligible and stays inside the documented compute and storage allowance; eligibility, capacity and pricing can change, so Cost Analysis still needs daily review. The [deployment guide](docs/DEPLOYMENT.md) explains the cost boundary.
 
 ## Test the project
 
@@ -159,11 +166,13 @@ ot-sentinel export-stix data/demo_events.jsonl artifacts/public-stix.json --prof
 | `detections/` | Sigma, Suricata and Wazuh detection content plus fixtures |
 | `data/` | Clearly labeled synthetic demonstration events |
 | `tests/` | Automated unit and integration tests |
-| `infra/` | Docker, Azure and Linux service deployment assets |
+| `infra/` | Docker, Oracle Cloud, Azure and Linux service deployment assets |
 | `docs/` | Architecture, ethics, data and deployment explanations |
 | `docs/ENGINEERING_DOCUMENTATION.md` | Index to requirements, features, decisions, system design and solved problems |
 | `docs/PROJECT_WALKTHROUGH.md` | Simple step-by-step explanation and demonstration guide |
 | `docs/OPERATIONS.md` | Health, alerting and authenticated collector instructions |
+| `docs/ORACLE_CLOUD_RUNBOOK.md` | Exact verified Oracle deployment, isolation and recovery procedure |
+| `docs/LIVE_DEPLOYMENT_RECORD.md` | Privacy-safe evidence that the live sensor is operating |
 | `docs/DETECTION_ENGINEERING.md` | Detection logic, testing and deployment notes |
 | `docs/STIX_EXPORT.md` | Public and private STIX export rules |
 | `docs/COMPETITIVE_ANALYSIS_AND_ROADMAP.md` | Project comparison and zero-cost improvement plan |

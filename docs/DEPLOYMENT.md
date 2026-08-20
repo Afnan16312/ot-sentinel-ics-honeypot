@@ -1,12 +1,22 @@
 # Zero-out-of-pocket deployment guide
 
-The complete software, dashboard, test suite and synthetic demonstration run locally for AED 0. A public Internet collection is optional and is not required to demonstrate the project. Do not expose a personal computer or home network to avoid cloud costs.
+The complete software, dashboard, test suite and synthetic demonstration run locally for AED 0. A public Internet collection is optional and must never run from a personal computer or home network.
 
-Use an **Azure for Students** subscription when eligible. Keep its spending limit enabled and do not upgrade the subscription to pay-as-you-go. The project uses one small Linux VM and no paid Marketplace image.
+The verified public-sensor route uses one Oracle Cloud `VM.Standard.A1.Flex` instance explicitly marked Always Free-eligible in the account's home region. The reproducible instructions and host assets are in the [Oracle Cloud runbook](ORACLE_CLOUD_RUNBOOK.md). The privacy-safe operational proof is in the [live deployment record](LIVE_DEPLOYMENT_RECORD.md).
 
-If no free cloud credit is available, stop after the local demonstration. The repository remains a complete, reproducible engineering project; only claims about observed live traffic must wait.
+Oracle's cost estimator can display list price without applying tier allowances. Keep compute and total block storage within the documented Always Free limits and check Cost Analysis. Eligibility, capacity and pricing can change; the project cannot guarantee a perpetual third-party free service.
 
-## Prerequisites
+Azure for Students remains an alternative when eligible. Keep its spending limit enabled and do not upgrade the subscription to pay-as-you-go.
+
+If no protected free allowance is available, stop after the local demonstration. The repository remains complete and reproducible; only observed-traffic claims must wait.
+
+## Recommended route: Oracle Always Free
+
+Use [ORACLE_CLOUD_RUNBOOK.md](ORACLE_CLOUD_RUNBOOK.md). It records the exact ARM64 VM, VCN/NSG, Docker, systemd, outbound-blocking and log-rotation configuration verified during the current deployment. It intentionally excludes public addresses, cloud identifiers, SSH keys and live JSONL.
+
+## Alternative route: Azure for Students
+
+### Prerequisites
 
 - Azure CLI and Bicep support
 - An Azure subscription with sufficient free credit
@@ -14,13 +24,13 @@ If no free cloud credit is available, stop after the local demonstration. The re
 - Your current public IP expressed as `/32`
 - Docker Engine on the VM, or Python 3.11+
 
-## 1. Check cost protection
+### 1. Check cost protection
 
 In Azure Portal, open **Cost Management + Billing → Subscriptions** and verify that a spending limit is active. Create budget alerts at 25%, 50%, and 75%. A budget alert is not a hard cap; the subscription spending limit is the protection.
 
 Do not enable Defender upgrades, Log Analytics, Azure Monitor ingestion, managed databases, or Marketplace appliances for this project.
 
-## 2. Deploy the isolated VM
+### 2. Deploy the isolated VM
 
 ```powershell
 az login
@@ -30,7 +40,7 @@ az account show
 
 The template permits SSH only from your `/32` and exposes only TCP 502, 102 and 2404. Password authentication is disabled and Trusted Launch is enabled.
 
-## 3. Install the sensor
+### 3. Install the sensor
 
 Copy this repository to `/opt/ot-sentinel`, build the image, and start the isolated Compose service:
 
@@ -46,7 +56,7 @@ docker compose ps
 
 The container runs as UID 10001, drops all Linux capabilities, has a read-only root filesystem, uses resource limits, and is attached to an internal Docker network with no Internet route.
 
-## 4. Validate safely
+### 4. Validate safely
 
 From an authorized test machine, send a harmless Modbus read request. Never scan infrastructure you do not own or have permission to test.
 
@@ -56,7 +66,7 @@ printf '\x00\x01\x00\x00\x00\x06\x01\x03\x00\x00\x00\x03' | nc -w 2 SENSOR_IP 50
 
 Then confirm `logs/events.jsonl` contains a connection and protocol request.
 
-## 5. Publish only sanitized data
+### 5. Publish only sanitized data
 
 Keep the raw file private. Set a new random salt outside the repository and run:
 
@@ -67,7 +77,7 @@ ot-sentinel sanitize logs/events.jsonl data/public_events.jsonl
 
 Review the exported file manually before publishing it. The sanitizer removes raw payloads and replaces IP addresses with pseudonymous identifiers, but human review remains required.
 
-## 6. End the experiment
+### 6. End the experiment
 
 Export the private evidence to an encrypted local archive, then remove the entire project resource group:
 

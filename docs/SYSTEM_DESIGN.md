@@ -159,9 +159,10 @@ See [THREAT_MODEL.md](THREAT_MODEL.md) for threat detail and [ETHICS.md](ETHICS.
 | Local Docker | No service fee beyond the computer | Isolation and reproducible demo | Non-root container, read-only filesystem, dropped capabilities, limits |
 | Linux service | Host-dependent | Controlled lab or authorized sensor | Dedicated account, firewall, log rotation, service hardening |
 | Optional Azure VM | Paid unless covered by a credit/free allowance | Time-bounded authorized regional collection | Budget alert, NSG allowlist/ports, no management UI exposure, retention and shutdown plan |
+| Oracle Always Free sensor | Expected AED 0 while eligible and within allowance | Active isolated regional collection | Dedicated VCN/NSG, SSH `/32`, non-root container, host egress guard, systemd and log rotation |
 | Optional central collector | Host-dependent | Multiple controlled sensors | TLS certificates, HMAC secret rotation, clock and replay monitoring |
 
-No Azure resource is required to build, test, run, or demonstrate the current project.
+No cloud resource is required to build, test, run or demonstrate the project. The Oracle sensor is a separate private research deployment; its raw data is not used by the public dashboard.
 
 ## 12. Capacity and scaling
 
@@ -187,6 +188,6 @@ Current passing fixture metrics indicate agreement with the curated regression s
 - Suricata, Sigma CLI, and Wazuh engine-native validation must run in destination environments.
 - The dashboard is a local analysis tool, not an authenticated multi-user SOC platform.
 - Technique coverage is conservative and limited by decoded evidence.
-- Cloud deployment, continuous monitoring, legal review, and report publication remain operator activities.
+- Continuous monitoring, cost review, collection shutdown, legal/privacy review and report publication remain operator activities.
 
 The future-work requirements and their evidence conditions are listed in [PRODUCT_REQUIREMENTS_AND_TRACEABILITY.md](PRODUCT_REQUIREMENTS_AND_TRACEABILITY.md).

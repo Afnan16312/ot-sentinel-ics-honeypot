@@ -2,6 +2,8 @@
 
 This guide covers the optional state profile, health, alert and multi-sensor features. The basic local dashboard remains available through `run_dashboard.ps1`.
 
+The verified Oracle Cloud operating procedure, including systemd, Docker networking, outbound blocking and log rotation, is in [ORACLE_CLOUD_RUNBOOK.md](ORACLE_CLOUD_RUNBOOK.md). The current privacy-safe study status is in [LIVE_DEPLOYMENT_RECORD.md](LIVE_DEPLOYMENT_RECORD.md).
+
 ## Safe stateful profiles
 
 Three fictional profiles are included:
@@ -89,6 +91,22 @@ For a same-machine demonstration only, the collector accepts `--allow-insecure-l
 - Alert and collector delivery never blocks protocol handling; bounded queues absorb short interruptions.
 - After three failed deliveries the health counter increases and the sensor continues locally.
 - Local JSONL remains the evidence source when a remote integration is unavailable.
+
+## Oracle host daily check
+
+Run these commands only from the private SSH session:
+
+```bash
+cd /opt/ot-sentinel
+sudo systemctl is-active ot-sentinel.service
+sudo docker compose -f docker-compose.yml \
+  -f infra/oracle/docker-compose.oracle.yml ps
+sudo cat logs/health.json
+df -h /
+sudo du -sh logs
+```
+
+The service should be `active`, the container should be `Up`, health should be `ok`, and disk growth should remain bounded. Do not paste or publish `logs/events.jsonl`.
 
 ## Production limits
 

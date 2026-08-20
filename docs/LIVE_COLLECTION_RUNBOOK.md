@@ -1,6 +1,6 @@
 # Authorized Live Collection Runbook
 
-This runbook is for a future two-to-four-week study. The current public project uses synthetic data and does not claim live attacker findings.
+This runbook governs the active two-to-four-week study that began on 2026-08-19. The public project still uses synthetic data and does not claim live attacker findings. Deployment status is recorded without identifiers in [LIVE_DEPLOYMENT_RECORD.md](LIVE_DEPLOYMENT_RECORD.md).
 
 ## Before deployment
 
@@ -35,5 +35,4 @@ This runbook is for a future two-to-four-week study. The current public project 
 - Retain or delete private logs according to the written retention decision.
 - Publish only after the privacy review is signed off.
 
-The only unfinished project milestone is executing this runbook on authorized, isolated public infrastructure. That external study cannot be simulated and should not be claimed until it happens.
-
+The isolated infrastructure is now operating, but the study is not complete. The unfinished milestone is to finish the stated collection window, shut down cleanly, sanitize and review the evidence, and publish only material that passes the privacy and methodology gates.

@@ -91,15 +91,15 @@ This record explains the important engineering and delivery problems encountered
 
 ## Research-integrity problems
 
-### PS-023 — No authorized live observation period yet
+### PS-023 — Live observation and publication milestone
 
-**Problem.** The intended quarterly regional intelligence report requires real observations, but claiming them without an authorized deployment would be misleading.
+**Problem.** The intended regional intelligence report requires real observations, but deployment evidence alone does not make source activity safe or valid to publish.
 
-**Solution.** Kept the public dataset synthetic, wrote a live-collection runbook with stop conditions, and made provenance visible in events, reports, dashboard language, and exports.
+**Solution.** Kept the public dataset synthetic, deployed a private isolated sensor on 2026-08-19, recorded privacy-safe operational evidence, and retained the live-collection stop, sanitization and review gates.
 
-**Proof.** [LIVE_COLLECTION_RUNBOOK.md](LIVE_COLLECTION_RUNBOOK.md), sample-data metadata, public validation.
+**Proof.** [LIVE_COLLECTION_RUNBOOK.md](LIVE_COLLECTION_RUNBOOK.md), [LIVE_DEPLOYMENT_RECORD.md](LIVE_DEPLOYMENT_RECORD.md), sample-data metadata and public validation.
 
-**Residual.** The live report is not complete until a legally approved sensor operates for the stated period and the results pass privacy and methodology review.
+**Residual.** The live report remains incomplete until the stated collection window ends and the candidate public material passes privacy and methodology review.
 
 ### PS-024 — Security engines unavailable in the local development environment
 
@@ -110,6 +110,40 @@ This record explains the important engineering and delivery problems encountered
 **Proof.** `scripts/validate_detections.py`, detection tests, [DETECTION_ENGINEERING.md](DETECTION_ENGINEERING.md).
 
 **Residual.** A destination lab must run `suricata -T`, Sigma conversion/validation, and `wazuh-logtest` before production use.
+
+### PS-025 — Docker 29 did not publish ports from an internal-only network
+
+**Observed problem.** Docker recorded the requested host bindings, but no host ports were listening while the container was connected only to the Compose network marked `internal: true`.
+
+**Root cause.** The verified Docker 29 ARM64 host treated the internal-only bridge as externally isolated, preventing the published-port path required by this honeypot.
+
+**Solution.** Added a dedicated small edge bridge for port publication, kept the original internal network, and inserted host `DOCKER-USER` rules that allow response traffic but drop new outbound connections from the edge subnet.
+
+**Proof.** All three host ports became reachable; the local Modbus request succeeded; the container outbound test returned `TimeoutError`; the rules persisted through the systemd restart path.
+
+**Residual.** The helper is specific to the iptables firewall backend. Docker networking or backend upgrades require a repeated inbound, outbound and restart test.
+
+### PS-026 — Free-tier console showed a non-zero list-price estimate
+
+**Observed problem.** The Oracle creation page displayed an estimated monthly boot-volume amount even though the selected shape was marked Always Free-eligible.
+
+**Root cause.** The estimate displayed unit/list pricing and explicitly did not apply tier-unit allowances.
+
+**Solution.** Kept the A1 shape and boot storage inside Oracle's documented Always Free allowances, avoided optional paid services and added a daily Cost Analysis check to the runbook.
+
+**Proof.** The selected shape was labeled Always Free-eligible and the deployment uses one default-sized boot volume in the home region.
+
+**Residual.** Third-party eligibility, capacity and pricing can change. This repository cannot guarantee future zero cost; the operator must continue checking Cost Analysis.
+
+### PS-027 — Cloud lifecycle and log growth needed persistence
+
+**Problem.** A manually started container or one-time firewall command would not reliably survive a reboot, and an unbounded JSONL file could eventually consume the boot volume.
+
+**Solution.** Added a systemd oneshot unit that restores the edge/firewall policy before Compose startup and a logrotate policy with daily checks, a 50 MiB trigger, compression and 35 retained files.
+
+**Proof.** The service reported enabled and active after restart, host ports remained published, the outbound block remained effective and logrotate accepted the policy.
+
+**Residual.** Operators must still check service state, disk use and cloud cost daily; local JSONL is not immutable or centrally backed up.
 
 ## Problem-solving method used
 
