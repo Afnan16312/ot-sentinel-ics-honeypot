@@ -147,6 +147,12 @@ python scripts/validate_public_data.py data/demo_events.jsonl
 
 The public-data check helps prevent accidental publication of raw IP addresses, raw payloads or unlabeled demonstration records.
 
+The aggregate-only dashboard summary can also be reproduced without exposing individual rows:
+
+```bash
+python scripts/build_public_summary.py data/demo_events.jsonl data/demo_summary.json
+```
+
 Other useful commands:
 
 ```bash
@@ -174,6 +180,11 @@ ot-sentinel export-stix data/demo_events.jsonl artifacts/public-stix.json --prof
 | `docs/ORACLE_CLOUD_RUNBOOK.md` | Exact verified Oracle deployment, isolation and recovery procedure |
 | `docs/LIVE_DEPLOYMENT_RECORD.md` | Privacy-safe evidence that the live sensor is operating |
 | `docs/DETECTION_ENGINEERING.md` | Detection logic, testing and deployment notes |
+| `docs/SAFE_PUBLICATION_PIPELINE.md` | Aggregate-only synthetic pipeline and future publication gates |
+| `docs/SOC_INTEGRATION_PLAN.md` | Safe offline Wazuh and Suricata integration phases |
+| `docs/MONITORING_PLAN.md` | Future health, capacity and privacy-monitoring design |
+| `docs/THREAT_INTELLIGENCE_REPORT_TEMPLATE.md` | Privacy-reviewed live-study report structure |
+| `docs/DEMO_SCRIPT.md` | Simple five-minute explanation for project demonstrations |
 | `docs/STIX_EXPORT.md` | Public and private STIX export rules |
 | `docs/COMPETITIVE_ANALYSIS_AND_ROADMAP.md` | Project comparison and zero-cost improvement plan |
 | `output/pdf/` | Demonstration threat-intelligence report |

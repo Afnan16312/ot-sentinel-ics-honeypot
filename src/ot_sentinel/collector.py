@@ -18,6 +18,18 @@ class CollectorError(ValueError):
     pass
 
 
+class CollectorAuthenticationError(CollectorError):
+    pass
+
+
+class CollectorReplayError(CollectorError):
+    pass
+
+
+class CollectorPayloadError(CollectorError):
+    pass
+
+
 class CollectorVerifier:
     def __init__(self, sensor_secrets: Mapping[str, str], max_clock_skew: int = 300) -> None:
         if not sensor_secrets:
@@ -31,39 +43,44 @@ class CollectorVerifier:
 
     def verify(self, headers: Mapping[str, str], body: bytes) -> dict:
         if len(body) > 64 * 1024:
-            raise CollectorError("request exceeds 64 KiB")
+            raise CollectorPayloadError("request exceeds 64 KiB")
         normalized_headers = {str(key).lower(): str(value) for key, value in headers.items()}
         sensor_id = normalized_headers.get("x-ot-sensor", "")
         timestamp = normalized_headers.get("x-ot-timestamp", "")
         provided = normalized_headers.get("x-ot-signature", "")
         secret = self.sensor_secrets.get(sensor_id)
         if secret is None:
-            raise CollectorError("unknown sensor")
+            raise CollectorAuthenticationError("unknown sensor")
         try:
             numeric_timestamp = int(timestamp)
         except ValueError as exc:
-            raise CollectorError("invalid timestamp") from exc
+            raise CollectorAuthenticationError("invalid timestamp") from exc
         if abs(time.time() - numeric_timestamp) > self.max_clock_skew:
-            raise CollectorError("timestamp outside accepted window")
+            raise CollectorAuthenticationError("timestamp outside accepted window")
         expected = "sha256=" + canonical_signature(secret, timestamp, body)
         if not hmac.compare_digest(provided, expected):
-            raise CollectorError("invalid signature")
+            raise CollectorAuthenticationError("invalid signature")
         try:
             envelope = json.loads(body)
-        except json.JSONDecodeError as exc:
-            raise CollectorError("invalid JSON") from exc
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise CollectorPayloadError("invalid JSON") from exc
         if not isinstance(envelope, dict):
-            raise CollectorError("envelope must be a JSON object")
+            raise CollectorPayloadError("envelope must be a JSON object")
         if envelope.get("schema") != "ot-sentinel-envelope/1":
-            raise CollectorError("unsupported envelope schema")
+            raise CollectorPayloadError("unsupported envelope schema")
+        sent_at = envelope.get("sent_at")
+        if not isinstance(sent_at, str) or not sent_at:
+            raise CollectorPayloadError("envelope sent_at must be a non-empty string")
         if envelope.get("sensor_id") != sensor_id:
-            raise CollectorError("sensor identity mismatch")
+            raise CollectorAuthenticationError("sensor identity mismatch")
         event = envelope.get("event")
         if not isinstance(event, dict) or event.get("sensor_id") != sensor_id:
-            raise CollectorError("event sensor identity mismatch")
+            raise CollectorAuthenticationError("event sensor identity mismatch")
         required = {"event_id", "session_id", "observed_at", "protocol", "event_type"}
         if not required.issubset(event):
-            raise CollectorError("event is missing required fields")
+            raise CollectorPayloadError("event is missing required fields")
+        if any(not isinstance(event[field], str) or not event[field] for field in required):
+            raise CollectorPayloadError("event required fields must be non-empty strings")
         replay_key = f"{sensor_id}:{event['event_id']}"
         now = time.monotonic()
         with self._lock:
@@ -71,14 +88,23 @@ class CollectorVerifier:
                 key: observed for key, observed in self._seen.items() if now - observed < 900
             }
             if replay_key in self._seen:
-                raise CollectorError("duplicate event")
+                raise CollectorReplayError("duplicate event")
             self._seen[replay_key] = now
         return {
             "received_at": datetime.now(UTC).isoformat(timespec="milliseconds"),
             "transport_authenticated": True,
-            "envelope_sent_at": envelope.get("sent_at"),
+            "envelope_sent_at": sent_at,
             **event,
         }
+
+    def release_replay(self, event: Mapping[str, object]) -> None:
+        """Permit a retry when authenticated storage fails before acceptance."""
+        sensor_id = str(event.get("sensor_id", ""))
+        event_id = str(event.get("event_id", ""))
+        if not sensor_id or not event_id:
+            return
+        with self._lock:
+            self._seen.pop(f"{sensor_id}:{event_id}", None)
 
 
 class CollectorStore:
@@ -93,45 +119,117 @@ class CollectorStore:
             handle.write(line + "\n")
 
 
-def make_handler(verifier: CollectorVerifier, store: CollectorStore):
+class CollectorHTTPServer(ThreadingHTTPServer):
+    """Threaded server that waits for in-flight handlers during server_close()."""
+
+    daemon_threads = False
+    block_on_close = True
+
+
+def make_handler(
+    verifier: CollectorVerifier,
+    store: CollectorStore,
+    *,
+    request_timeout: float = 5.0,
+):
+    bounded_timeout = min(max(float(request_timeout), 0.1), 15.0)
+
     class Handler(BaseHTTPRequestHandler):
-        server_version = "OTSentinelCollector/0.2"
+        server_version = "OTSentinelCollector"
+        sys_version = ""
+
+        def version_string(self) -> str:
+            return self.server_version
+
+        def send_error(
+            self,
+            code: int,
+            message: str | None = None,
+            explain: str | None = None,
+        ) -> None:
+            self._reply(code, {"accepted": False, "error": "request rejected"})
 
         def do_GET(self) -> None:
             if self.path != "/health":
-                self.send_error(404)
+                self._reply(404, {"error": "not found"})
                 return
             self._reply(200, {"status": "ok"})
 
         def do_POST(self) -> None:
             if self.path != "/v1/events":
-                self.send_error(404)
+                self._reply(404, {"accepted": False, "error": "not found"})
+                return
+            if self.headers.get_content_type() != "application/json":
+                self._error(415, "content type must be application/json")
+                return
+
+            length_values = self.headers.get_all("Content-Length", [])
+            if not length_values:
+                self._error(411, "content length is required")
+                return
+            if len(length_values) != 1:
+                self._error(400, "invalid content length")
                 return
             try:
-                try:
-                    length = int(self.headers.get("Content-Length", "0"))
-                except ValueError as exc:
-                    raise CollectorError("invalid content length") from exc
-                if not 0 < length <= 64 * 1024:
-                    raise CollectorError("invalid content length")
-                self.connection.settimeout(5.0)
+                length = int(length_values[0])
+            except ValueError:
+                self._error(400, "invalid content length")
+                return
+            if length <= 0:
+                self._error(400, "request body is required")
+                return
+            if length > 64 * 1024:
+                self._error(413, "request exceeds 64 KiB")
+                return
+
+            self.connection.settimeout(bounded_timeout)
+            try:
                 body = self.rfile.read(length)
-                if len(body) != length:
-                    raise CollectorError("incomplete request body")
+            except TimeoutError:
+                self._error(408, "request body timed out")
+                return
+            except OSError:
+                self._error(400, "request body could not be read")
+                return
+            if len(body) != length:
+                self._error(400, "incomplete request body")
+                return
+
+            try:
                 event = verifier.verify(self.headers, body)
+            except CollectorAuthenticationError:
+                self._error(401, "authentication failed")
+                return
+            except CollectorReplayError:
+                self._error(409, "duplicate event")
+                return
+            except CollectorPayloadError:
+                self._error(400, "invalid event envelope")
+                return
+
+            try:
                 store.append(event)
-            except (CollectorError, TimeoutError) as exc:
-                self._reply(401, {"accepted": False, "error": str(exc)})
+            except OSError:
+                verifier.release_replay(event)
+                self._error(503, "storage unavailable")
                 return
             self._reply(202, {"accepted": True, "event_id": event["event_id"]})
+
+        def _error(self, status: int, message: str) -> None:
+            self._reply(status, {"accepted": False, "error": message})
 
         def _reply(self, status: int, payload: dict) -> None:
             body = json.dumps(payload, separators=(",", ":")).encode()
             self.send_response(status)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
             self.end_headers()
-            self.wfile.write(body)
+            try:
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                return
 
         def log_message(self, format: str, *args) -> None:
             return
@@ -155,7 +253,7 @@ def main() -> None:
     args = build_parser().parse_args()
     credentials = json.loads(Path(args.credentials).read_text(encoding="utf-8"))
     verifier = CollectorVerifier(credentials)
-    server = ThreadingHTTPServer(
+    server = CollectorHTTPServer(
         (args.host, args.port), make_handler(verifier, CollectorStore(Path(args.output)))
     )
     if args.tls_cert and args.tls_key:

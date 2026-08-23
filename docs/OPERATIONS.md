@@ -83,6 +83,8 @@ $env:OT_SENSOR_ID = "remote-sensor-02"
 
 The transport signs the timestamp and exact JSON body. The collector rejects unknown sensors, invalid signatures, stale timestamps, oversized requests, identity mismatches and duplicate event IDs. It writes `transport_authenticated: true` only after those checks pass.
 
+The machine-readable request and response contract is [OpenAPI 3.1](api/collector.openapi.json). The [collector threat model](COLLECTOR_THREAT_MODEL.md) explains what the controls do and do not protect. The [operational hardening guide](COLLECTOR_HARDENING.md) covers TLS termination, gateways, rate limits, supervision, rotation, monitoring, backup, migration and rollback without treating those deployment activities as already completed.
+
 For a same-machine demonstration only, the collector accepts `--allow-insecure-loopback` while bound to `127.0.0.1`. Plain HTTP is deliberately refused for remote addresses.
 
 ## Shutdown and failure behavior
@@ -115,3 +117,6 @@ The service should be `active`, the container should be `Up`, health should be `
 - Monitor disk space and ship private logs to approved storage.
 - Do not expose the collector or sensor from a personal network.
 - Do not place any component on the same network as production OT.
+- Treat `GET /health` as process liveness only; monitor successful storage and disk state separately.
+- Preserve the exact request bytes through any gateway because HMAC verification covers the exact body.
+- Use the tested 64 KiB application limit even if an upstream proxy permits larger generic requests.

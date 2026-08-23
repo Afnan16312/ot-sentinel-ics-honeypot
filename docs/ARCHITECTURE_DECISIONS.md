@@ -25,6 +25,7 @@ This file records the major decisions behind OT Sentinel `v0.2.0`. Each decision
 | ADR-017 | Treat CI and release evidence as product features | Make security and reproducibility visible |
 | ADR-018 | Keep public-cloud deployment optional | Avoid making paid infrastructure a prerequisite |
 | ADR-019 | Use an Oracle edge bridge plus a host egress guard | Publish the decoy ports on the verified Docker host without permitting container-initiated Internet connections |
+| ADR-020 | Retain the framework-free collector | Two authenticated machine endpoints do not justify Flask or Django yet |
 
 ## ADR-001 — Custom low-interaction sensor
 
@@ -255,6 +256,28 @@ This file records the major decisions behind OT Sentinel `v0.2.0`. Each decision
 **Consequences.** The host now owns a Docker network and firewall policy outside the base Compose lifecycle. The helper must run at boot, and the outbound test must be repeated after Docker or firewall-backend changes. The current helper targets Docker's iptables backend and is not automatically valid for the nftables backend.
 
 **Evidence.** `infra/oracle/`, [ORACLE_CLOUD_RUNBOOK.md](ORACLE_CLOUD_RUNBOOK.md), [LIVE_DEPLOYMENT_RECORD.md](LIVE_DEPLOYMENT_RECORD.md), deployment invariant tests.
+
+## ADR-020 — Retain the framework-free collector
+
+**Decision.** Keep the two-endpoint collector on Python's standard library. Do not add Flask, Django or Django REST Framework while the API remains limited to authenticated event ingestion and process health.
+
+**Why.** The current collector already implements exact-body HMAC, freshness, identity, replay, size, timeout, concurrency and privacy controls, and those behaviors are covered by synthetic black-box tests. A framework would add dependencies without removing the need for those controls.
+
+**Migration triggers.** Reconsider when complex resources, analyst accounts/roles, browser workflows, case data, major SIEM/SOAR consumers or unsafe scaling limits become real requirements.
+
+**Full record.** [ADR_020_COLLECTOR_FRAMEWORK.md](ADR_020_COLLECTOR_FRAMEWORK.md).
+
+## ADR-021 — Aggregate-first public dashboard handoff
+
+**Context.** Even pseudonymized event rows can disclose timing, stable identifiers or small-group patterns that a public dashboard does not need.
+
+**Decision.** Add a separate publication step that accepts only validated sanitized input and emits aggregate counts plus calendar-date boundaries. Keep individual live records private and require a human review before any observed summary replaces the synthetic dashboard source.
+
+**Why.** The public presentation can show protocol and ATT&CK trends with less disclosure risk and without creating an automatic path from the Oracle sensor to GitHub or Streamlit.
+
+**Consequences.** Aggregate output cannot support public row-level investigation. A separately authorized analyst workflow must retain private evidence, and small-count disclosure still needs human review.
+
+**Evidence.** `scripts/build_public_summary.py`, `tests/test_public_summary.py`, `data/demo_summary.json`, [Safe Publication Pipeline](SAFE_PUBLICATION_PIPELINE.md).
 
 ## How to change a decision
 

@@ -145,6 +145,16 @@ This record explains the important engineering and delivery problems encountered
 
 **Residual.** Operators must still check service state, disk use and cloud cost daily; local JSONL is not immutable or centrally backed up.
 
+### PS-028 — A public dashboard did not need individual event rows
+
+**Problem.** A sanitized event file can still contain stable pseudonyms, session references and detailed timing that are unnecessary for high-level public trends.
+
+**Solution.** Added a fail-closed aggregate-summary builder that first runs the public-data validator, rejects mixed synthetic/observed classifications and outputs only calendar dates and counts. Extended CI to reproduce the synthetic summary on feature branches and pull requests.
+
+**Proof.** Public-summary tests reject raw address, payload and literal network-prefix fields; the complete suite and public-data validator pass.
+
+**Residual.** Aggregation does not replace human disclosure review, especially for small counts or sensitive collection windows. No live data was processed or connected automatically.
+
 ## Problem-solving method used
 
 Across these records, the same method is visible:

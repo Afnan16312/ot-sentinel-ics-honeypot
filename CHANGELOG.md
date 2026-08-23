@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Added synthetic black-box collector assurance tests for authentication, replay, malformed HTTP, concurrency, timeout, storage failure, privacy and shutdown.
+- Added a machine-readable OpenAPI 3.1 collector contract, dedicated threat model, framework ADR and operational hardening guide.
+- Added privacy-safe collector error handling, media/length enforcement and retry release after failed storage.
+- Added branch-level CI, aggregate-only public-summary generation, stricter network-prefix validation and synthetic pipeline tests.
+- Added offline SOC integration, monitoring, report-template and five-minute demonstration guides.
 - Added the verified Oracle Cloud ARM64 deployment override, systemd unit, outbound firewall guard and log-rotation policy.
 - Added a complete Oracle Cloud free-tier runbook and privacy-safe live deployment record.
 - Recorded the Docker 29 internal-network port-publication problem, its bounded edge-network solution and validation evidence.
