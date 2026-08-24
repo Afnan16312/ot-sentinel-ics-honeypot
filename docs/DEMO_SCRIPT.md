@@ -1,5 +1,7 @@
 # Five-Minute Demonstration Script
 
+This short speaking outline is complemented by the exact [Synthetic Walkthrough Recording Checklist](RECORDING_CHECKLIST.md). The checklist is authoritative for a public 5–7 minute recording, native SOC prerequisites and frame-by-frame privacy review. No video is currently claimed.
+
 ## 1. Explain the problem
 
 “Industrial systems use protocols such as Modbus, S7 and IEC-104. OT Sentinel safely simulates limited services so I can study network behavior without connecting to real machinery.”

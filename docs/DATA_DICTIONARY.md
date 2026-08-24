@@ -8,7 +8,6 @@
 | `observed_at` | UTC ISO-8601 timestamp |
 | `protocol` | `modbus`, `s7`, or `iec104` |
 | `source_id` | Salted, truncated SHA-256 pseudonym |
-| `source_network` | Coarse source prefix; may be removed in stricter releases |
 | `source_country` | Approximate GeoIP country, not verified physical location |
 | `source_asn` | Approximate autonomous-system label |
 | `event_type` | Connection, request, or bounded sensor error |
@@ -20,5 +19,4 @@
 
 The dashboard derives `risk_score`, `risk_band` and score factors from the fields above. These are deterministic analyst-priority aids, not assertions about a person's identity or intent.
 
-Private sensor events may also contain `source_ip` and `raw_payload_hex`. Public datasets and public STIX bundles never contain either field. Remote collector transport adds authentication headers but does not add secrets to the event body.
-
+Private sensor events may also contain `source_ip`, `source_network` and `raw_payload_hex`. Strict public sanitization removes all three, recursively removes credential-like keys and requires `sanitized: true`. Public datasets and public STIX bundles contain no literal address or network prefix. Remote collector transport adds authentication headers but does not add secrets to the event body.

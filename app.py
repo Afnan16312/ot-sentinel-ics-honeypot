@@ -13,7 +13,14 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "src"))
 
+from ot_sentinel.detection_preview import preview_detections
 from ot_sentinel.evaluation import evaluate_mapper, load_labeled_jsonl
+from ot_sentinel.publication import (
+    PublicationValidationError,
+    load_public_jsonl,
+    validate_public_stix_bundle,
+)
+from ot_sentinel.stix_export import export_events
 from ot_sentinel.triage import assess_event, factor_summary
 
 DATA_PATH = Path(os.getenv("OT_PUBLIC_DATA_PATH", ROOT / "data" / "demo_events.jsonl"))
@@ -60,13 +67,9 @@ div[data-testid="stDataFrame"] { border:1px solid #2a3a46; border-radius:10px; o
 
 
 @st.cache_data(show_spinner=False)
-def load_events(path: str, mtime: float) -> pd.DataFrame:
+def load_events(path: str, mtime: float) -> tuple[list[dict], pd.DataFrame]:
     del mtime
-    records: list[dict] = []
-    with Path(path).open(encoding="utf-8") as handle:
-        for line in handle:
-            if line.strip():
-                records.append(json.loads(line))
+    records = load_public_jsonl(path)
     frame = pd.json_normalize(records)
     frame["observed_at"] = pd.to_datetime(frame["observed_at"], utc=True, errors="coerce")
     frame["technique_ids"] = frame.get("techniques", pd.Series([[]] * len(frame))).apply(
@@ -75,7 +78,7 @@ def load_events(path: str, mtime: float) -> pd.DataFrame:
     frame["technique_names"] = frame.get("techniques", pd.Series([[]] * len(frame))).apply(
         lambda items: [item.get("name", "") for item in items or []]
     )
-    return frame
+    return records, frame
 
 
 def flatten_techniques(frame: pd.DataFrame) -> pd.DataFrame:
@@ -156,7 +159,11 @@ if not DATA_PATH.exists():
     st.error(f"Dataset not found: {DATA_PATH}")
     st.stop()
 
-df = load_events(str(DATA_PATH), DATA_PATH.stat().st_mtime)
+try:
+    public_records, df = load_events(str(DATA_PATH), DATA_PATH.stat().st_mtime)
+except (OSError, PublicationValidationError):
+    st.error("The public dataset failed the safety gate and will not be displayed.")
+    st.stop()
 is_demo = bool(df.get("is_demo", pd.Series([False])).fillna(False).all())
 
 st.markdown(
@@ -217,8 +224,15 @@ m2.metric("Distinct sessions", f"{sessions:,}")
 m3.metric("Pseudonymous sources", f"{sources:,}")
 m4.metric("Control attempts", f"{commands:,}", help="Requests containing a write, command, or program-transfer operation")
 
-overview, attack_tab, triage_tab, sessions_tab, methodology = st.tabs(
-    ["OBSERVATORY", "ATT&CK LAYER", "TRIAGE & VALIDATION", "SESSION EXPLORER", "METHODOLOGY"]
+overview, attack_tab, detection_tab, triage_tab, sessions_tab, methodology = st.tabs(
+    [
+        "OBSERVATORY",
+        "ATT&CK LAYER",
+        "DETECTION PREVIEW",
+        "TRIAGE & VALIDATION",
+        "SESSION EXPLORER",
+        "METHODOLOGY",
+    ]
 )
 
 with overview:
@@ -257,7 +271,7 @@ with overview:
             paper_bgcolor="rgba(0,0,0,0)",
             legend_title_text="",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     with right:
         st.markdown("<div class='section-title'>Top ATT&CK hypotheses</div>", unsafe_allow_html=True)
         technique_cards(techniques)
@@ -266,7 +280,7 @@ with overview:
     timeline = (
         filtered.set_index("observed_at")
         .groupby("protocol")
-        .resample("6h")
+        .resample("6h", include_groups=False)
         .size()
         .reset_index(name="events")
     )
@@ -289,7 +303,7 @@ with overview:
     )
     line.update_xaxes(gridcolor="#22384a")
     line.update_yaxes(gridcolor="#22384a")
-    st.plotly_chart(line, use_container_width=True)
+    st.plotly_chart(line, width="stretch")
 
 with attack_tab:
     st.markdown("<div class='section-title'>Technique intensity by protocol</div>", unsafe_allow_html=True)
@@ -316,9 +330,69 @@ with attack_tab:
             xaxis_title="Protocol",
             yaxis_title="",
         )
-        st.plotly_chart(heat, use_container_width=True)
+        st.plotly_chart(heat, width="stretch")
         st.caption(
             "Counts represent telemetry matches, not unique intrusions. Confidence and rationale remain attached to each event."
+        )
+
+    st.divider()
+    st.markdown("<div class='section-title'>Public STIX 2.1 export</div>", unsafe_allow_html=True)
+    try:
+        public_stix = export_events(public_records, profile="public")
+        validate_public_stix_bundle(public_stix)
+    except (PublicationValidationError, ValueError):
+        st.error("The STIX export failed the independent publication safety gate.")
+    else:
+        st.download_button(
+            "Download validated public STIX bundle",
+            data=json.dumps(public_stix, indent=2) + "\n",
+            file_name="ot-sentinel-public-demo.stix.json",
+            mime="application/json",
+            help="Contains sanitized synthetic evidence only; raw addresses and payloads are excluded.",
+        )
+
+with detection_tab:
+    st.markdown("<div class='section-title'>Detection Preview</div>", unsafe_allow_html=True)
+    st.warning(
+        "Offline prediction only. These matches use local rule logic and are not proof that a native Sigma, Wazuh or Suricata engine fired."
+    )
+    visible_event_ids = set(filtered["event_id"].astype(str))
+    preview_records = [
+        record for record in public_records if str(record.get("event_id", "")) in visible_event_ids
+    ]
+    predictions = [item.to_dict() for item in preview_detections(preview_records, root=ROOT)]
+    if not predictions:
+        st.info("No offline detection rule matches the current sanitized event filters.")
+    else:
+        preview_frame = pd.DataFrame(predictions)
+        engines = sorted(preview_frame["engine"].unique())
+        protocols_for_preview = sorted(preview_frame["protocol"].unique())
+        rules_for_preview = sorted(preview_frame["rule_id"].unique())
+        p1, p2, p3 = st.columns(3)
+        selected_engines = p1.multiselect("Detection engine", engines, default=engines)
+        selected_preview_protocols = p2.multiselect(
+            "Detection protocol", protocols_for_preview, default=protocols_for_preview
+        )
+        selected_rules = p3.multiselect("Detection rule", rules_for_preview, default=rules_for_preview)
+        preview_frame = preview_frame[
+            preview_frame["engine"].isin(selected_engines)
+            & preview_frame["protocol"].isin(selected_preview_protocols)
+            & preview_frame["rule_id"].isin(selected_rules)
+        ]
+        st.dataframe(
+            preview_frame[
+                [
+                    "engine",
+                    "protocol",
+                    "rule_id",
+                    "title",
+                    "severity",
+                    "technique",
+                    "evidence_reason",
+                ]
+            ],
+            width="stretch",
+            hide_index=True,
         )
 
 with triage_tab:
@@ -342,7 +416,7 @@ with triage_tab:
         with queue_col:
             st.dataframe(
                 triage.sort_values(["score", "observed_at"], ascending=[False, False]),
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
                 column_config={
                     "observed_at": st.column_config.DatetimeColumn("Observed (UTC)", format="YYYY-MM-DD HH:mm:ss"),
@@ -385,7 +459,7 @@ with triage_tab:
                 xaxis_title="Events",
                 yaxis_title="",
             )
-            st.plotly_chart(bars, use_container_width=True)
+            st.plotly_chart(bars, width="stretch")
 
     st.divider()
     st.markdown("<div class='section-title'>ATT&CK mapper regression benchmark</div>", unsafe_allow_html=True)
@@ -414,7 +488,7 @@ with triage_tab:
         )
         st.dataframe(
             metrics_frame[["technique", "support", "TP", "FP", "FN", "TN", "precision", "recall", "f1"]],
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
             column_config={
                 "precision": st.column_config.NumberColumn(format="%.2f"),
@@ -435,7 +509,7 @@ with sessions_tab:
     columns = ["observed_at", "source", "source_country", "source_asn", "protocol", "operation", "severity", "techniques", "session_id"]
     st.dataframe(
         display[columns].sort_values("observed_at", ascending=False),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         column_config={"observed_at": st.column_config.DatetimeColumn("Observed (UTC)", format="YYYY-MM-DD HH:mm:ss")},
     )

@@ -12,6 +12,10 @@ OT Sentinel already includes tested Wazuh and Suricata rules. This plan keeps in
 6. In a disposable Suricata lab, load `detections/suricata/ot_sentinel_modbus.rules` and run `suricata -T` before packet testing.
 7. Record false positives and rule changes with matching regression fixtures.
 
+The repository now provides this disposable harness under `tests/soc/`, including pinned Wazuh 4.14.7 and Suricata 8.0.4 definitions, a synthetic injector, deterministic write/read PCAP and verification scripts. It requires at least 4 CPU, 8 GB RAM, 50 GB free disk and a recent Docker Compose implementation. All host mappings are loopback-only, and Suricata runs offline without IPS/blocking behavior.
+
+Static harness tests pass, but native Wazuh/Suricata execution has not been performed in the current workspace because Docker is not installed. That distinction is intentional: offline matching and configuration inspection do not replace `wazuh-logtest`, `suricata -T` and `eve.json` output. Follow [tests/soc/README.md](../tests/soc/README.md) on a suitable local machine; never run this stack on Oracle.
+
 ## Phase 2: controlled future integration
 
 Do not start this phase during active collection without a change window and rollback approval.

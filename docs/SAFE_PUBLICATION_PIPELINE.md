@@ -25,7 +25,13 @@ The summary contains counts by protocol, event type, severity and ATT&CK techniq
 - The input must have `sanitized: true` on every record.
 - Raw source-address and payload fields are rejected.
 - Literal network prefixes are rejected.
+- Credential-like keys are stripped recursively from dictionaries and lists.
+- Strict sanitization removes `source_network` instead of publishing a coarse prefix.
+- Raw-address pseudonymization requires a private salt of at least 32 characters.
+- Unsafe pre-existing pseudonyms containing an address are rejected.
 - Synthetic and observed records cannot be mixed.
+- Streamlit validates every record before normalization or display.
+- Public STIX is validated independently again before download.
 - Observation timestamps are reduced to calendar dates in the aggregate output.
 - CI regenerates the synthetic summary and fails if the committed result is not reproducible.
 
@@ -34,3 +40,5 @@ Passing these automated checks is necessary but not sufficient for publishing li
 ## Live-data boundary
 
 Do not point the summary builder at `logs/events.jsonl`. It accepts only a separately created, reviewed and validated publication candidate. The live sensor does not upload to GitHub, Streamlit or this pipeline automatically.
+
+The shared implementation is `src/ot_sentinel/publication.py`; the command-line validator, summary builder, dashboard and STIX exporter use it so they fail consistently. Phase 2 changed only local/synthetic paths and did not connect this code to Oracle.

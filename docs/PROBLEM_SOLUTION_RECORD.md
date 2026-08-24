@@ -155,6 +155,66 @@ This record explains the important engineering and delivery problems encountered
 
 **Residual.** Aggregation does not replace human disclosure review, especially for small counts or sensitive collection windows. No live data was processed or connected automatically.
 
+### PS-029 — Restart-sensitive replay and delivery state
+
+**Problem.** Process memory forgot collector replay keys and pending forwards after restart.
+
+**Solution.** Added separate, bounded SQLite replay and delivery stores. Replay insertion is atomic; spool signatures are generated only during transmission and no transport secret is stored.
+
+**Proof.** Restart, concurrent replay, queue-bound, retry, corrupt-row, successful-drain and secret-exclusion tests.
+
+**Residual.** SQLite files are private auxiliary state and need protected storage; JSONL remains the authoritative record.
+
+### PS-030 — Repeated scanners inflated analytical rows
+
+**Problem.** Exact repeated protocol payloads from one source could obscure the number of distinct observations.
+
+**Solution.** Calculate a keyed HMAC-SHA256 over source, protocol and exact bounded payload, then increment `repeat_count` within 30 minutes while storing only a salted pseudonym and normalized evidence.
+
+**Proof.** Fingerprint, expiry, concurrency, repeat-count and database-content tests.
+
+**Residual.** A fingerprint identifies repeat equality only; it does not identify a person or prove common control.
+
+### PS-031 — Publication rules could drift by consumer
+
+**Problem.** A script, Streamlit and STIX could apply different definitions of public-safe content.
+
+**Solution.** Moved validation into `ot_sentinel.publication`, recursively removed credential-like fields, removed `source_network` during strict sanitization and added a second public-STIX gate.
+
+**Proof.** End-to-end address, prefix, payload, nested-credential, pseudonym and mixed-provenance tests.
+
+**Residual.** Technical validation cannot replace legal, ethical or small-cell disclosure review.
+
+### PS-032 — Static detection tests were easy to overstate
+
+**Problem.** Offline matching is useful but does not prove destination-engine parsing or execution.
+
+**Solution.** Added an explicitly labeled Detection Preview plus a pinned disposable native Wazuh/Suricata lab with positive and negative fixtures.
+
+**Proof.** Preview and harness tests pass.
+
+**Residual.** Docker is not installed locally; native engine outputs must be produced elsewhere before Task 4 is described as complete.
+
+### PS-033 — Local readiness had no actionable exit status
+
+**Problem.** A JSON snapshot alone did not distinguish warning from critical conditions or check disk and storage readiness.
+
+**Solution.** Added a redacted local checker for process/snapshot/event freshness, disk, queues, delivery and collector storage with exit codes 0, 1 and 2.
+
+**Proof.** Healthy, stale, disk, queue, process and storage-failure tests.
+
+**Residual.** No scheduler or cloud monitor was installed; deployment remains a separate operator decision.
+
+### PS-034 — A written demo script was not a reviewed video
+
+**Problem.** The repository could not truthfully claim a recorded walkthrough from an environment without screen capture and native SOC evidence.
+
+**Solution.** Prepared an exact 6:15 storyboard, prerequisites and frame-by-frame privacy review.
+
+**Proof.** Checklist content test.
+
+**Residual.** The project owner must record, review, upload and approve the final URL.
+
 ## Problem-solving method used
 
 Across these records, the same method is visible:

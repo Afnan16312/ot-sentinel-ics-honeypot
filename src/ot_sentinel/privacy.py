@@ -5,9 +5,16 @@ import ipaddress
 from copy import deepcopy
 from typing import Any
 
+from .publication import MIN_PSEUDONYM_SALT_LENGTH, strip_credential_fields
+
 
 def pseudonymize_ip(ip: str, salt: str) -> str:
     """Return a stable, non-reversible label for publication."""
+    if len(salt) < MIN_PSEUDONYM_SALT_LENGTH:
+        raise ValueError(
+            f"pseudonymization salt must contain at least {MIN_PSEUDONYM_SALT_LENGTH} characters"
+        )
+    ipaddress.ip_address(ip)
     return "src-" + hashlib.sha256(f"{salt}|{ip}".encode()).hexdigest()[:12]
 
 
@@ -19,14 +26,12 @@ def network_prefix(ip: str) -> str:
 
 def sanitize_event(event: dict[str, Any], salt: str) -> dict[str, Any]:
     clean = deepcopy(event)
-    source_ip = str(clean.pop("source_ip", "0.0.0.0"))
+    source_ip = str(clean.pop("source_ip", "")).strip()
+    if not source_ip:
+        raise ValueError("source_ip is required for strict public sanitization")
     clean["source_id"] = pseudonymize_ip(source_ip, salt)
-    clean["source_network"] = network_prefix(source_ip)
+    clean.pop("source_network", None)
     clean.pop("raw_payload_hex", None)
-    decoded = clean.get("decoded", {})
-    for key in ("username", "password", "token", "credential"):
-        decoded.pop(key, None)
-    clean["decoded"] = decoded
+    clean = strip_credential_fields(clean)
     clean["sanitized"] = True
     return clean
-

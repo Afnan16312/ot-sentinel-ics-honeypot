@@ -6,10 +6,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-try:
-    from scripts.validate_public_data import validate
-except ModuleNotFoundError:  # Direct execution adds scripts/, not the repository root, to sys.path.
-    from validate_public_data import validate
+from ot_sentinel.publication import PublicationValidationError, load_public_jsonl
 
 
 def _sorted_counts(values: list[str]) -> dict[str, int]:
@@ -18,16 +15,12 @@ def _sorted_counts(values: list[str]) -> dict[str, int]:
 
 def build_summary(path: Path) -> dict[str, Any]:
     """Build aggregate-only statistics from an already sanitized JSONL file."""
-    _, errors = validate(path)
-    if errors:
-        raise ValueError("Input failed public-data validation: " + "; ".join(errors[:10]))
+    try:
+        records = load_public_jsonl(path)
+    except PublicationValidationError as exc:
+        raise ValueError("Input failed public-data validation: " + str(exc)) from exc
 
-    with path.open(encoding="utf-8") as handle:
-        records = [json.loads(line) for line in handle if line.strip()]
-
-    demo_flags = {record.get("is_demo") is True for record in records}
-    if len(demo_flags) != 1:
-        raise ValueError("Synthetic and observed records must not be mixed in one summary")
+    demo_flags = {record["is_demo"] for record in records}
 
     observed_dates = sorted(
         str(record.get("observed_at", ""))[:10]

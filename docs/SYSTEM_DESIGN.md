@@ -147,8 +147,11 @@ See [THREAT_MODEL.md](THREAT_MODEL.md) for threat detail and [ETHICS.md](ETHICS.
 - A slow client reaches a timeout; a noisy client reaches request/session caps.
 - An invalid profile prevents startup rather than silently weakening controls.
 - An alert destination failure causes bounded retries and metrics; it does not remove the JSONL record.
+- An optional delivery-spool failure increments privacy-safe readiness counters; pending JSONL remains available.
 - A stale, oversized, incorrectly signed, or replayed collector request is rejected.
+- A replay remains rejected after a collector restart when the SQLite replay store is configured.
 - A public artifact with forbidden fields fails validation and must not be published.
+- Streamlit validates the complete dataset before normalization; public STIX is validated again before download.
 - An unmapped event stays unmapped instead of receiving a guessed ATT&CK technique.
 
 ## 11. Deployment modes
@@ -166,7 +169,7 @@ No cloud resource is required to build, test, run or demonstrate the project. Th
 
 ## 12. Capacity and scaling
 
-The implementation uses explicit connection, request, payload, queue, retry, and replay-cache limits. These bounds make behavior predictable on a small host. The repository does **not** claim a production throughput number because no standardized load benchmark is part of `v0.2.0`.
+The implementation uses explicit connection, 512-byte payload, queue row/byte, retry, and durable replay-expiry limits. These bounds make behavior predictable on a small host. The repository does **not** claim a production throughput number because no standardized load benchmark is part of `v0.2.0`.
 
 For a larger authorized deployment, run separate sensor instances, forward sanitized/verified records to a central store, rotate local evidence, and benchmark the exact host and traffic profile before setting capacity targets.
 
@@ -189,5 +192,23 @@ Current passing fixture metrics indicate agreement with the curated regression s
 - The dashboard is a local analysis tool, not an authenticated multi-user SOC platform.
 - Technique coverage is conservative and limited by decoded evidence.
 - Continuous monitoring, cost review, collection shutdown, legal/privacy review and report publication remain operator activities.
+
+## 15. Phase 2 auxiliary data flows
+
+### Private observation path
+
+The sensor appends every event to private JSONL first. If enabled, an independent SQLite index derives a keyed fingerprint from the raw source, protocol and bounded payload, then stores only the fingerprint, salted pseudonym, normalized evidence, technique confidence and repeat count. An index failure increments a counter but does not roll back JSONL.
+
+### Durable delivery path
+
+The optional SQLite spool stores pending event JSON, creation time, attempt count and estimated size. It never stores the collector secret or a signature. A worker selects due rows, creates a fresh version-1 envelope and HMAC only at transmit time, deletes accepted rows and reschedules failures with bounded exponential backoff. Row and byte limits reject the newest enqueue and increment drop metrics.
+
+### Publication path
+
+Strict sanitization requires a private 32-character salt, replaces a raw address with a pseudonym, removes network prefixes/payloads and strips credential-like keys recursively. The shared validator then checks the complete provenance-homogeneous dataset. Streamlit stops before normalization on any failure. Public STIX uses an allowlist and is validated a second time before display/download.
+
+### Analyst outputs
+
+The SQLite observation index can produce a private or synthetic seven-day brief and Navigator Layer 4.5. The dashboard Detection Preview reuses offline rule logic and labels all results as predictions. Authoritative native Wazuh/Suricata output remains separate and is not inferred from the preview.
 
 The future-work requirements and their evidence conditions are listed in [PRODUCT_REQUIREMENTS_AND_TRACEABILITY.md](PRODUCT_REQUIREMENTS_AND_TRACEABILITY.md).

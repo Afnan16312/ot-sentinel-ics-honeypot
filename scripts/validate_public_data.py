@@ -1,64 +1,17 @@
 from __future__ import annotations
 
 import argparse
-import ipaddress
-import json
 from pathlib import Path
 
-FORBIDDEN_FIELDS = {
-    "source_ip",
-    "raw_payload_hex",
-    "password",
-    "credential",
-    "token",
-    "username",
-}
-
-
-def walk(value, path: str = ""):
-    if isinstance(value, dict):
-        for key, child in value.items():
-            current = f"{path}.{key}" if path else key
-            yield current, key, child
-            yield from walk(child, current)
-    elif isinstance(value, list):
-        for index, child in enumerate(value):
-            yield from walk(child, f"{path}[{index}]")
+from ot_sentinel.publication import PublicationValidationError, load_public_jsonl
 
 
 def validate(path: Path) -> tuple[int, list[str]]:
-    errors: list[str] = []
-    count = 0
-    with path.open(encoding="utf-8") as handle:
-        for line_number, line in enumerate(handle, 1):
-            if not line.strip():
-                continue
-            count += 1
-            record = json.loads(line)
-            if not record.get("sanitized"):
-                errors.append(f"line {line_number}: sanitized flag is not true")
-            for field_path, key, value in walk(record):
-                if key.lower() in FORBIDDEN_FIELDS:
-                    errors.append(f"line {line_number}: forbidden field {field_path}")
-                if isinstance(value, str) and key.lower().endswith("ip"):
-                    try:
-                        ipaddress.ip_address(value)
-                    except ValueError:
-                        pass
-                    else:
-                        errors.append(f"line {line_number}: literal IP found in {field_path}")
-                if isinstance(value, str) and key.lower() == "source_network":
-                    try:
-                        ipaddress.ip_network(value, strict=False)
-                    except ValueError:
-                        pass
-                    else:
-                        errors.append(
-                            f"line {line_number}: literal network prefix found in {field_path}"
-                        )
-    if count == 0:
-        errors.append("dataset is empty")
-    return count, errors
+    try:
+        records = load_public_jsonl(path)
+    except PublicationValidationError as exc:
+        return 0, list(exc.errors)
+    return len(records), []
 
 
 def main() -> None:

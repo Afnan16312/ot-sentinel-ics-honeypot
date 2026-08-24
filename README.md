@@ -27,6 +27,8 @@ My system then:
 5. Displays trends, locations, techniques and sessions in an interactive dashboard.
 6. Exports portable STIX intelligence and tested Sigma, Suricata and Wazuh rules.
 7. Prioritizes stronger events with an explainable risk score and review queue.
+8. Keeps replay and pending delivery state across local restarts using optional bounded SQLite stores.
+9. Generates a synthetic ATT&CK Navigator layer and weekly intelligence brief.
 
 ## Why it matters
 
@@ -50,6 +52,21 @@ For the complete record of requirements, shipped features, engineering decisions
 | Multi-sensor collector | Accepts authenticated events from isolated sensors over encrypted transport |
 | Release evidence | Produces an SPDX software bill of materials and SHA-256 file checksums |
 | Isolated live deployment | Reproduces the Oracle ARM64 service, restart, firewall and log-retention controls without publishing private telemetry |
+
+## Phase 2 enhancements on this feature branch
+
+| Enhancement | Plain-language purpose |
+|---|---|
+| Durable replay protection | A resent collector event remains rejected after a local collector restart |
+| Scanner deduplication | Repeated identical requests increment a count instead of creating misleading duplicate analysis rows |
+| Navigator and weekly brief | Synthetic/private SQLite analysis becomes a heat layer and a reproducible seven-day Markdown summary |
+| Shared publication safety gate | Streamlit, public summaries and public STIX reject raw addresses, prefixes, payloads, credentials and mixed provenance |
+| Detection Preview | Shows which Sigma, Wazuh and Suricata rules would match, clearly labeled as an offline prediction |
+| Local readiness monitor | Reports stale health, disk, queue, delivery and storage conditions without echoing telemetry |
+| Durable delivery spool | Optionally preserves pending collector forwards across restarts without storing HMAC secrets |
+| Standards validation | CI validates the collector contract with a pinned OpenAPI 3.1 implementation |
+
+The disposable Wazuh/Suricata lab files are included, but native proof is still pending because Docker is not installed in the development environment. The exact [recording checklist](docs/RECORDING_CHECKLIST.md) is ready; no public video is claimed yet.
 
 ## Current live-study status
 
@@ -143,6 +160,7 @@ python -m pytest -q -p no:cacheprovider
 python -m ruff check .
 python scripts/validate_detections.py
 python scripts/validate_public_data.py data/demo_events.jsonl
+python -m openapi_spec_validator docs/api/collector.openapi.json
 ```
 
 The public-data check helps prevent accidental publication of raw IP addresses, raw payloads or unlabeled demonstration records.
@@ -185,6 +203,9 @@ ot-sentinel export-stix data/demo_events.jsonl artifacts/public-stix.json --prof
 | `docs/MONITORING_PLAN.md` | Future health, capacity and privacy-monitoring design |
 | `docs/THREAT_INTELLIGENCE_REPORT_TEMPLATE.md` | Privacy-reviewed live-study report structure |
 | `docs/DEMO_SCRIPT.md` | Simple five-minute explanation for project demonstrations |
+| `docs/RECORDING_CHECKLIST.md` | Exact synthetic-only 5–7 minute recording and privacy-review procedure |
+| `docs/PHASE_2_ENGINEERING_RECORD.md` | Phase 2 decisions, features, tests, limitations and non-deployment record |
+| `docs/HEALTH_MONITORING_RUNBOOK.md` | Local privacy-safe readiness checker instructions |
 | `docs/STIX_EXPORT.md` | Public and private STIX export rules |
 | `docs/COMPETITIVE_ANALYSIS_AND_ROADMAP.md` | Project comparison and zero-cost improvement plan |
 | `output/pdf/` | Demonstration threat-intelligence report |

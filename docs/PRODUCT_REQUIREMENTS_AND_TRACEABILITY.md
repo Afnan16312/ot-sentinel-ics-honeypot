@@ -62,13 +62,25 @@ OT Sentinel is a low-interaction OT/ICS honeypot and analysis pipeline. It safel
 | FR-25 | Fail safely on concurrent requests, body timeout and private-storage errors | Shipped | collector replay/store locks, bounded HTTP read, safe retry release | `test_collector_blackbox.py` |
 | FR-26 | Document the collector API, threat model, framework decision and production hardening boundary | Shipped as documentation | OpenAPI 3.1 and collector assurance documents | contract tests and documentation review |
 | FR-27 | Produce aggregate public statistics without source IDs, session IDs, addresses, payloads or individual rows | Shipped for synthetic/reviewed sanitized input | `build_public_summary.py`, `demo_summary.json` | public-summary tests, privacy validator and CI reproducibility gate |
+| FR-28 | Reject collector replay after restart and atomically accept only one concurrent copy | Shipped locally | `SQLiteReplayStore`, collector verifier | storage and collector concurrency/restart tests |
+| FR-29 | Deduplicate repeated observations using a private keyed fingerprint while retaining JSONL | Shipped locally | `SQLiteObservationStore`, `JsonlWriter` | repeat, expiry, concurrency, failure and database-privacy tests |
+| FR-30 | Export Navigator Layer 4.5 scores from summed repeat counts | Shipped for synthetic/private local input | `export_navigator.py` | Navigator structure, order, score and privacy tests |
+| FR-31 | Generate reproducible seven-day intelligence briefs without automatic observed publication | Shipped for synthetic/private local input | `generate_report.py` | empty, provenance, tie, repeat and privacy tests |
+| FR-32 | Validate public records before Streamlit normalization and public STIX download | Shipped | `publication.py`, `app.py`, `stix_export.py` | end-to-end publication and STIX tests |
+| FR-33 | Enforce a non-configurable 512-byte maximum received sensor payload | Shipped locally | `LowInteractionSensor` | sensor integration limit test |
+| FR-34 | Monitor local readiness with privacy-safe warning and critical results | Shipped locally | `check_health.py` | health monitor tests |
+| FR-35 | Explain predicted Sigma, Wazuh and Suricata matches without presenting them as native alerts | Shipped | `detection_preview.py`, `app.py` | positive and negative preview tests |
+| FR-36 | Persist pending authenticated deliveries without storing transport secrets | Shipped as optional local feature | `SQLiteDeliverySpool`, `RemoteCollectorSink` | restart, retry, corruption, bounds, drain and secret-exclusion tests |
+| FR-37 | Validate the collector specification with an external OpenAPI 3.1 implementation | Shipped in development/CI | pinned validator and contract | external validation test and CI command |
+| FR-38 | Provide a loopback-only native Wazuh/Suricata validation path | Assets shipped; native proof pending | `tests/soc/` | static harness tests; authoritative native execution blocked by missing Docker |
+| FR-39 | Provide an exact privacy-reviewed walkthrough procedure | Checklist shipped; recording pending | `RECORDING_CHECKLIST.md` | checklist test and required human review |
 
 ## 6. Non-functional requirements
 
 | ID | Requirement | Design response | Verification |
 |---|---|---|---|
 | NFR-01 Safety | No received content may execute or reach real equipment | Low-interaction parsers, fixed response functions, no shell/plugin hooks | protocol, profile and integration tests |
-| NFR-02 Bounded input | A client cannot send unbounded session data | Configurable limit with 4 KiB hard cap and timeouts | sensor implementation and tests |
+| NFR-02 Bounded input | A client cannot send unbounded session data | Configurable value with an absolute 512-byte hard cap and timeouts | sensor implementation and tests |
 | NFR-03 Privacy | Public output must exclude raw IPs and payloads | Allowlisted sanitizer and STIX public gate | privacy tests and validator script |
 | NFR-04 Explainability | Every strong mapping or score must expose its evidence | rationale, confidence and score factors | mapper, triage tests and dashboard |
 | NFR-05 Availability | Notification or collector failure must not stop local sensing | bounded background queues and retries | operations and transport tests |
@@ -96,9 +108,10 @@ OT Sentinel is a low-interaction OT/ICS honeypot and analysis pipeline. It safel
 |---|---|---|---|
 | FUT-01 | Complete the active two-to-four-week public collection | The isolated sensor began collecting on 2026-08-19, but the window and shutdown record are incomplete | final collection window, daily health/cost evidence and shutdown record |
 | FUT-02 | Publish a UAE-region observed-data report | There is no live reviewed dataset yet | privacy-reviewed observations and a report separating fact from inference |
-| FUT-03 | Validate rules inside operational Sigma, Suricata and Wazuh engines | Those engine binaries are not installed in the local workspace | successful destination-engine validation logs |
+| FUT-03 | Complete native Wazuh and Suricata lab validation | The disposable harness exists, but Docker is not installed in the local workspace | successful `wazuh-logtest`, `suricata -T` and PCAP positive/negative outputs |
 | FUT-04 | Host a permanent public dashboard | The current dashboard is a local application | approved hosting, cost and privacy decision plus deployment health evidence |
 | FUT-05 | Complete independent analyst labeling | The current 12-case mapper fixture is a regression set, not a field benchmark | larger independently reviewed corpus and revised metrics |
+| FUT-06 | Record and publish the reviewed 5–7 minute walkthrough | Exact checklist exists; no safe recording was produced automatically | reviewed native SOC evidence, green branch CI, frame-by-frame privacy review and approved URL |
 
 ## 9. Change control
 
