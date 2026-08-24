@@ -32,7 +32,7 @@ Keep Detection Preview offline and clearly labeled. Native Wazuh and Suricata ev
 
 ## Consequences
 
-SQLite transactions provide restart persistence and local concurrency with no new runtime package. Operators must protect and bound private database files. A corrupt auxiliary database can reduce analysis or forwarding availability but must not erase JSONL. Shared publication failures stop display/download instead of degrading to partial output. The native SOC task and final recording remain incomplete until authoritative engine output and human review exist.
+SQLite transactions provide restart persistence and local concurrency with no new runtime package. Operators must protect and bound private database files. A corrupt auxiliary database can reduce analysis or forwarding availability but must not erase JSONL. Shared publication failures stop display/download instead of degrading to partial output. Pinned local Wazuh/Suricata native evidence is recorded separately from offline predictions; the final recording still requires human capture and review.
 
 ## Migration and rollback
 

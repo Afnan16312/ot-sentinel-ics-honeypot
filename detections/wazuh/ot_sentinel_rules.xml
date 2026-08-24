@@ -13,7 +13,7 @@
   <rule id="110001" level="12">
     <if_sid>110000</if_sid>
     <field name="event_type" type="pcre2">^protocol_request$</field>
-    <field name="protocol" type="pcre2">^modbus$</field>
+    <protocol type="pcre2">^modbus$</protocol>
     <field name="decoded.operation" type="pcre2">^write_(single|multiple)$</field>
     <description>OT Sentinel: Modbus write command against the decoy.</description>
     <mitre>
@@ -26,7 +26,7 @@
   <rule id="110002" level="12">
     <if_sid>110000</if_sid>
     <field name="event_type" type="pcre2">^protocol_request$</field>
-    <field name="protocol" type="pcre2">^iec104$</field>
+    <protocol type="pcre2">^iec104$</protocol>
     <field name="decoded.operation" type="pcre2">^(single|setpoint)_command$</field>
     <description>OT Sentinel: IEC-104 control command against the decoy.</description>
     <mitre>
@@ -39,7 +39,7 @@
   <rule id="110003" level="12">
     <if_sid>110000</if_sid>
     <field name="event_type" type="pcre2">^protocol_request$</field>
-    <field name="protocol" type="pcre2">^s7$</field>
+    <protocol type="pcre2">^s7$</protocol>
     <field name="decoded.operation" type="pcre2">^program_download$</field>
     <description>OT Sentinel: S7 controller program download attempt.</description>
     <mitre>

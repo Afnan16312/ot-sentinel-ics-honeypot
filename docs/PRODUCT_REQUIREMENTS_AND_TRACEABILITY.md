@@ -72,7 +72,7 @@ OT Sentinel is a low-interaction OT/ICS honeypot and analysis pipeline. It safel
 | FR-35 | Explain predicted Sigma, Wazuh and Suricata matches without presenting them as native alerts | Shipped | `detection_preview.py`, `app.py` | positive and negative preview tests |
 | FR-36 | Persist pending authenticated deliveries without storing transport secrets | Shipped as optional local feature | `SQLiteDeliverySpool`, `RemoteCollectorSink` | restart, retry, corruption, bounds, drain and secret-exclusion tests |
 | FR-37 | Validate the collector specification with an external OpenAPI 3.1 implementation | Shipped in development/CI | pinned validator and contract | external validation test and CI command |
-| FR-38 | Provide a loopback-only native Wazuh/Suricata validation path | Assets shipped; native proof pending | `tests/soc/` | static harness tests; authoritative native execution blocked by missing Docker |
+| FR-38 | Provide a loopback-only native Wazuh/Suricata validation path | Shipped and natively validated | `tests/soc/` | `suricata -T`, deterministic PCAP verifier, `wazuh-logtest` injector and native evidence record |
 | FR-39 | Provide an exact privacy-reviewed walkthrough procedure | Checklist shipped; recording pending | `RECORDING_CHECKLIST.md` | checklist test and required human review |
 
 ## 6. Non-functional requirements
@@ -108,7 +108,6 @@ OT Sentinel is a low-interaction OT/ICS honeypot and analysis pipeline. It safel
 |---|---|---|---|
 | FUT-01 | Complete the active two-to-four-week public collection | The isolated sensor began collecting on 2026-08-19, but the window and shutdown record are incomplete | final collection window, daily health/cost evidence and shutdown record |
 | FUT-02 | Publish a UAE-region observed-data report | There is no live reviewed dataset yet | privacy-reviewed observations and a report separating fact from inference |
-| FUT-03 | Complete native Wazuh and Suricata lab validation | The disposable harness exists, but Docker is not installed in the local workspace | successful `wazuh-logtest`, `suricata -T` and PCAP positive/negative outputs |
 | FUT-04 | Host a permanent public dashboard | The current dashboard is a local application | approved hosting, cost and privacy decision plus deployment health evidence |
 | FUT-05 | Complete independent analyst labeling | The current 12-case mapper fixture is a regression set, not a field benchmark | larger independently reviewed corpus and revised metrics |
 | FUT-06 | Record and publish the reviewed 5–7 minute walkthrough | Exact checklist exists; no safe recording was produced automatically | reviewed native SOC evidence, green branch CI, frame-by-frame privacy review and approved URL |

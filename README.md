@@ -66,7 +66,7 @@ For the complete record of requirements, shipped features, engineering decisions
 | Durable delivery spool | Optionally preserves pending collector forwards across restarts without storing HMAC secrets |
 | Standards validation | CI validates the collector contract with a pinned OpenAPI 3.1 implementation |
 
-The disposable Wazuh/Suricata lab files are included, but native proof is still pending because Docker is not installed in the development environment. The exact [recording checklist](docs/RECORDING_CHECKLIST.md) is ready; no public video is claimed yet.
+The disposable loopback-only Wazuh 4.14.7/Suricata 8.0.4 lab passed native positive and negative checks with synthetic fixtures; see the privacy-safe [native validation evidence](tests/soc/NATIVE_VALIDATION.md). The exact [recording checklist](docs/RECORDING_CHECKLIST.md) is ready, but no public video is claimed yet.
 
 ## Current live-study status
 

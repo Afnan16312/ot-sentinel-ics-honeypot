@@ -37,6 +37,9 @@ services:
     security_opt: ["no-new-privileges:true"]
     volumes:
       - ./suricata.yaml:/etc/suricata/suricata.yaml:ro
+      - ./classification.config:/etc/suricata/classification.config:ro
+      - ./reference.config:/etc/suricata/reference.config:ro
+      - ./threshold.config:/etc/suricata/threshold.config:ro
       - ../../detections/suricata:/etc/suricata/rules:ro
       - ./fixtures:/fixtures:ro
       - ./output:/output

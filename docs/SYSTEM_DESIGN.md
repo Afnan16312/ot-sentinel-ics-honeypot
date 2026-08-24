@@ -188,7 +188,7 @@ Current passing fixture metrics indicate agreement with the curated regression s
 
 - No authorized public live-collection dataset has been published.
 - The sensor is intentionally low interaction and implements selected protocol behaviors only.
-- Suricata, Sigma CLI, and Wazuh engine-native validation must run in destination environments.
+- Pinned Wazuh and Suricata rules passed the local native lab; destination deployments and all version/content upgrades must repeat native validation. Sigma CLI validation remains destination-specific.
 - The dashboard is a local analysis tool, not an authenticated multi-user SOC platform.
 - Technique coverage is conservative and limited by decoded evidence.
 - Continuous monitoring, cost review, collection shutdown, legal/privacy review and report publication remain operator activities.
@@ -209,6 +209,6 @@ Strict sanitization requires a private 32-character salt, replaces a raw address
 
 ### Analyst outputs
 
-The SQLite observation index can produce a private or synthetic seven-day brief and Navigator Layer 4.5. The dashboard Detection Preview reuses offline rule logic and labels all results as predictions. Authoritative native Wazuh/Suricata output remains separate and is not inferred from the preview.
+The SQLite observation index can produce a private or synthetic seven-day brief and Navigator Layer 4.5. The dashboard Detection Preview reuses offline rule logic and labels all results as predictions. Authoritative pinned Wazuh/Suricata output is recorded separately in `tests/soc/NATIVE_VALIDATION.md` and is never inferred from the preview.
 
 The future-work requirements and their evidence conditions are listed in [PRODUCT_REQUIREMENTS_AND_TRACEABILITY.md](PRODUCT_REQUIREMENTS_AND_TRACEABILITY.md).

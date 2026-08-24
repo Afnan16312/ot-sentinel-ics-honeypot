@@ -6,6 +6,10 @@ vars:
     EXTERNAL_NET: "!$HOME_NET"
 
 default-rule-path: /etc/suricata/rules
+default-log-dir: /output
+classification-file: /etc/suricata/classification.config
+reference-config-file: /etc/suricata/reference.config
+threshold-file: /etc/suricata/threshold.config
 rule-files:
   - ot_sentinel_modbus.rules
 

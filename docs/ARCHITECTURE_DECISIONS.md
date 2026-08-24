@@ -145,7 +145,7 @@ This file records the major decisions behind OT Sentinel `v0.2.0`. Each decision
 
 **Why.** The project can demonstrate the path from protocol evidence to an operational alert.
 
-**Consequences.** Offline validation is intentionally not called engine certification. Destination environments must run their native validators.
+**Consequences.** Offline validation is intentionally not called engine certification. The pinned Wazuh 4.14.7 and Suricata 8.0.4 content also has local native positive/negative evidence, but destination environments and future versions must repeat their native validators.
 
 **Evidence.** `detections/`, `scripts/validate_detections.py`, [DETECTION_ENGINEERING.md](DETECTION_ENGINEERING.md).
 
@@ -289,7 +289,7 @@ This file records the major decisions behind OT Sentinel `v0.2.0`. Each decision
 
 **Why.** Replay and delivery state must survive restarts, but replacing JSONL or adopting a broker/ORM would add unnecessary coupling. A single publication gate prevents scripts and Streamlit from applying inconsistent safety rules.
 
-**Consequences.** Auxiliary database corruption can reduce replay, indexing or delivery availability but must not erase JSONL. Private stores need protection and bounds. No new runtime dependency is introduced. Native SOC output and the public video remain separate evidence requirements.
+**Consequences.** Auxiliary database corruption can reduce replay, indexing or delivery availability but must not erase JSONL. Private stores need protection and bounds. No new runtime dependency is introduced. Native SOC output is recorded separately from offline predictions; the reviewed public video remains a human evidence requirement.
 
 **Full record.** [ADR_022_PHASE_2_DURABLE_STATE_AND_GATES.md](ADR_022_PHASE_2_DURABLE_STATE_AND_GATES.md).
 

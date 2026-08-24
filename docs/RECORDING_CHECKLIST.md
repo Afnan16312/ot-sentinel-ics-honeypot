@@ -9,8 +9,8 @@ Target length: **6 minutes 15 seconds** (acceptable range: 5–7 minutes). Use o
 - The `feature/phase-2-enhancements` branch is pushed and its GitHub Actions checks are green.
 - The public dashboard starts from `data/demo_events.jsonl` and visibly says **DEMONSTRATION DATA**.
 - `exports/ot-sentinel-demo-layer.json` is open in ATT&CK Navigator and labeled synthetic.
-- Native Wazuh `wazuh-logtest` output proves rule `110001` fires only for the synthetic Modbus write fixture; the connection-only and read fixtures remain quiet.
-- Native Suricata `-T` passes and offline PCAP processing produces SID `4200501` only for the synthetic write flow; the read flow remains quiet.
+- The reviewed [native SOC evidence](../tests/soc/NATIVE_VALIDATION.md) confirms Wazuh rule `110001` fires only for the synthetic Modbus write fixture; the connection-only and read fixtures remain quiet.
+- The same evidence confirms native Suricata `-T` passes and offline PCAP processing produces SID `4200501` only for the synthetic write flow; the read flow remains quiet.
 - Any native SOC screenshots have been reviewed to ensure they contain no hostnames, user names, local paths, container credentials, addresses or terminal history.
 
 If the native SOC evidence is not available, stop. Do not replace it with mocked/static-test output or describe it as native proof.
@@ -90,4 +90,4 @@ Confirm the video is 5–7 minutes, audio is understandable, synthetic labels ar
 
 ## 5. Human action remaining
 
-The project owner must run the native SOC lab on a machine meeting its documented requirements, capture and redact authoritative evidence, record the walkthrough, review every frame, upload the approved video, and add its URL. No recording or public video URL was produced automatically.
+The native SOC lab is complete. The project owner must create two privacy-reviewed evidence crops from the safe summary, record the walkthrough, review every frame, upload the approved video, and add its URL. No recording or public video URL was produced automatically.

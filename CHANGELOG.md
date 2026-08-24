@@ -4,7 +4,7 @@
 
 - Added durable SQLite replay reservations, privacy-reduced scanner deduplication and an optional bounded delivery spool while retaining JSONL as authoritative evidence.
 - Added deterministic ATT&CK Navigator Layer 4.5 and seven-day Markdown intelligence generators with synthetic committed examples and ignored private outputs.
-- Added a loopback-only disposable Wazuh 4.14.7/Suricata 8.0.4 lab, deterministic PCAP and positive/negative native-test drivers; native execution remains pending because Docker is unavailable locally.
+- Added and natively validated a loopback-only disposable Wazuh 4.14.7/Suricata 8.0.4 lab: four Suricata rules load, SID 4200501 fires only for the synthetic write, and Wazuh rule 110001 stays quiet for connection/read negatives.
 - Consolidated public validation into the package, removed strict-public network prefixes, recursively strips credential-like data and gives Streamlit and public STIX independent fail-closed gates.
 - Enforced an absolute 512-byte sensor payload ceiling and a 32-character minimum private pseudonymization salt.
 - Added a privacy-safe local health monitor, Streamlit Detection Preview and queue readiness metrics.

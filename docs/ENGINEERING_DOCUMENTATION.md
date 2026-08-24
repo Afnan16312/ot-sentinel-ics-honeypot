@@ -15,7 +15,7 @@ This page is the starting point for understanding exactly what OT Sentinel is, w
 | Detection formats | Sigma, Suricata and Wazuh |
 | Intelligence format | STIX 2.1 public and private profiles |
 | Stateful scenarios | Fictional water treatment, power substation and port crane |
-| Automated verification | 149 tests and 10 subtests, Ruff, dependency audit, OpenAPI/STIX/Navigator/public-data/detection validators, CodeQL and Trivy |
+| Automated verification | 151 tests and 10 subtests, Ruff, dependency audit, OpenAPI/STIX/Navigator/public-data/detection validators, CodeQL and Trivy |
 | Local demonstration cost | AED 0 |
 | Private live study | Active since 2026-08-19 on an isolated Oracle Cloud UAE East sensor |
 | Public live observations | None; public dashboard and report remain synthetic |
@@ -49,6 +49,7 @@ This page is the starting point for understanding exactly what OT Sentinel is, w
 | [Phase 2 Durable-State ADR](ADR_022_PHASE_2_DURABLE_STATE_AND_GATES.md) | Why are replay, deduplication and delivery separate SQLite stores, and why is publication centralized? |
 | [Safe Publication Pipeline](SAFE_PUBLICATION_PIPELINE.md) | How are aggregate-only public statistics created without individual records? |
 | [SOC Integration Plan](SOC_INTEGRATION_PLAN.md) | How can Wazuh and Suricata be tested without touching the live sensor? |
+| [Native SOC Validation Evidence](../tests/soc/NATIVE_VALIDATION.md) | What authoritative pinned Wazuh/Suricata positive and negative results were observed locally? |
 | [Monitoring Plan](MONITORING_PLAN.md) | Which health and capacity signals should a future monitor use? |
 | [Local Health Monitoring Runbook](HEALTH_MONITORING_RUNBOOK.md) | How are synthetic/local readiness snapshots checked without exposing telemetry? |
 | [Threat-Intelligence Report Template](THREAT_INTELLIGENCE_REPORT_TEMPLATE.md) | What must a reviewed research report contain? |
@@ -69,7 +70,7 @@ That future study requires written authorization, isolated public infrastructure
 
 ## One-paragraph system summary
 
-OT Sentinel accepts at most 512 bytes per bounded request on three industrial protocol listeners and returns limited simulated responses. It writes authoritative private JSONL, can build a privacy-reduced deduplicated SQLite index and can optionally persist pending authenticated deliveries in a bounded spool. Evidence-aware MITRE ATT&CK for ICS hypotheses feed Navigator, weekly-brief, triage, STIX and defender-rule outputs. One shared fail-closed publication gate protects scripts, Streamlit and public STIX, while Detection Preview remains explicitly separate from native-engine proof.
+OT Sentinel accepts at most 512 bytes per bounded request on three industrial protocol listeners and returns limited simulated responses. It writes authoritative private JSONL, can build a privacy-reduced deduplicated SQLite index and can optionally persist pending authenticated deliveries in a bounded spool. Evidence-aware MITRE ATT&CK for ICS hypotheses feed Navigator, weekly-brief, triage, STIX and defender-rule outputs. One shared fail-closed publication gate protects scripts, Streamlit and public STIX. Detection Preview remains explicitly offline, while pinned Wazuh/Suricata native evidence is recorded separately.
 
 ## Evidence standard used in these documents
 

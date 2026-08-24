@@ -14,7 +14,7 @@ OT Sentinel already includes tested Wazuh and Suricata rules. This plan keeps in
 
 The repository now provides this disposable harness under `tests/soc/`, including pinned Wazuh 4.14.7 and Suricata 8.0.4 definitions, a synthetic injector, deterministic write/read PCAP and verification scripts. It requires at least 4 CPU, 8 GB RAM, 50 GB free disk and a recent Docker Compose implementation. All host mappings are loopback-only, and Suricata runs offline without IPS/blocking behavior.
 
-Static harness tests pass, but native Wazuh/Suricata execution has not been performed in the current workspace because Docker is not installed. That distinction is intentional: offline matching and configuration inspection do not replace `wazuh-logtest`, `suricata -T` and `eve.json` output. Follow [tests/soc/README.md](../tests/soc/README.md) on a suitable local machine; never run this stack on Oracle.
+Static harness tests and native Wazuh/Suricata execution passed locally on 2026-08-25. The evidence remains intentionally separate from offline matching: `wazuh-logtest`, `suricata -T` and deterministic `eve.json` verification are recorded in [tests/soc/NATIVE_VALIDATION.md](../tests/soc/NATIVE_VALIDATION.md). Re-run the disposable lab after rule or engine changes; never run this stack on Oracle.
 
 ## Phase 2: controlled future integration
 

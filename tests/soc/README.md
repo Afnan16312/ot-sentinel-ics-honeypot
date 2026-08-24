@@ -11,6 +11,8 @@ This lab validates OT Sentinel rules inside native Wazuh and Suricata engines. I
 
 All published host ports bind to `127.0.0.1`. The lab is not suitable for public exposure.
 
+The pinned native positive and negative checks passed locally on 2026-08-25. See [NATIVE_VALIDATION.md](NATIVE_VALIDATION.md) for the privacy-safe evidence. Re-run the sequence below after changing rules, images or isolation settings.
+
 ## Prepare and start Wazuh
 
 From the repository root:
@@ -29,6 +31,16 @@ python tests\soc\inject_alert.py
 ```
 
 Success requires native `wazuh-logtest` output containing rule `110001` for the synthetic Modbus write and no `110001` match for connection-only or normal-read fixtures.
+
+Privacy-safe local readiness checks:
+
+```powershell
+docker compose -f tests\soc\docker-compose.yml ps
+docker compose -f tests\soc\docker-compose.yml exec -T wazuh.manager sh -c 'for process in wazuh-analysisd wazuh-remoted wazuh-db; do pgrep -x "$process" > /dev/null || exit 1; done; pgrep -f "/var/ossec/api/scripts/wazuh_apid.py" > /dev/null'
+curl.exe -k -s -o NUL -w "%{http_code}" https://127.0.0.1:5601
+```
+
+The dashboard check confirms only local TLS reachability; it does not print or store test credentials.
 
 ## Validate Suricata
 

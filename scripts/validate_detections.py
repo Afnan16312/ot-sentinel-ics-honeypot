@@ -222,6 +222,9 @@ def load_wazuh_rules(path: Path) -> tuple[list[WazuhRule], list[str]]:
             if not name or not pattern:
                 errors.append(f"{path}: Wazuh rule {rule_id} has an incomplete field")
             fields.append((name, pattern))
+        protocol_pattern = element.findtext("protocol")
+        if protocol_pattern:
+            fields.append(("protocol", protocol_pattern))
         if element.find("description") is None:
             errors.append(f"{path}: Wazuh rule {rule_id} needs a description")
         rules.append(

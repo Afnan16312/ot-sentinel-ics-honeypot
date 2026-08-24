@@ -54,3 +54,18 @@ def test_suricata_result_parser_requires_write_and_quiet_read(tmp_path):
     )
     with pytest.raises(AssertionError):
         verify(eve)
+
+
+def test_suricata_uses_the_writable_mounted_output_directory():
+    config = (ROOT / "tests" / "soc" / "suricata.yaml").read_text(encoding="utf-8")
+    assert "default-log-dir: /output" in config
+    assert "classification-file: /etc/suricata/classification.config" in config
+    assert "reference-config-file: /etc/suricata/reference.config" in config
+    assert "threshold-file: /etc/suricata/threshold.config" in config
+
+    compose = (ROOT / "tests" / "soc" / "docker-compose.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "./classification.config:/etc/suricata/classification.config:ro" in compose
+    assert "./reference.config:/etc/suricata/reference.config:ro" in compose
+    assert "./threshold.config:/etc/suricata/threshold.config:ro" in compose
