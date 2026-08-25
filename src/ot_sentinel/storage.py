@@ -40,6 +40,17 @@ def observation_fingerprint(secret: bytes, source_ip: str, protocol: str, payloa
     return hmac.new(secret, material, hashlib.sha256).hexdigest()
 
 
+def sanitized_observation_fingerprint(
+    secret: bytes, source_id: str, protocol: str, event_type: str, decoded: object
+) -> str:
+    material = json.dumps(
+        [source_id, protocol, event_type, decoded],
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    return hmac.new(secret, material, hashlib.sha256).hexdigest()
+
+
 class MemoryReplayStore:
     """Thread-safe replay reservations for tests and explicit ephemeral use."""
 
@@ -183,8 +194,82 @@ class SQLiteObservationStore:
                     confidence TEXT NOT NULL,
                     PRIMARY KEY(observation_id, technique_id, confidence)
                 );
+                CREATE TABLE IF NOT EXISTS imported_events (
+                    event_id TEXT PRIMARY KEY,
+                    input_digest TEXT NOT NULL,
+                    event_digest TEXT NOT NULL,
+                    imported_at_epoch INTEGER NOT NULL
+                );
                 """
             )
+
+    @staticmethod
+    def _insert_observation(
+        connection: sqlite3.Connection,
+        event: Mapping[str, Any],
+        *,
+        fingerprint: str,
+        source_id: str,
+        observed_epoch: int,
+        cutoff: int,
+    ) -> int:
+        existing = connection.execute(
+            """
+            SELECT id FROM observations
+            WHERE fingerprint = ? AND last_seen_epoch BETWEEN ? AND ?
+            ORDER BY last_seen_epoch DESC LIMIT 1
+            """,
+            (fingerprint, cutoff, observed_epoch),
+        ).fetchone()
+        if existing is not None:
+            observation_id = int(existing["id"])
+            connection.execute(
+                """
+                UPDATE observations
+                SET last_seen_epoch = ?, repeat_count = repeat_count + 1
+                WHERE id = ?
+                """,
+                (observed_epoch, observation_id),
+            )
+            return observation_id
+        cursor = connection.execute(
+            """
+            INSERT INTO observations(
+                fingerprint, source_id, protocol, event_type, session_id,
+                first_seen_epoch, last_seen_epoch, repeat_count, severity,
+                is_demo, decoded_json, tags_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)
+            """,
+            (
+                fingerprint,
+                source_id,
+                str(event.get("protocol", "unknown")),
+                str(event.get("event_type", "unknown")),
+                str(event.get("session_id", "")),
+                observed_epoch,
+                observed_epoch,
+                str(event.get("severity", "info")),
+                1 if event.get("is_demo") is True else 0,
+                json.dumps(event.get("decoded", {}), separators=(",", ":")),
+                json.dumps(event.get("tags", []), separators=(",", ":")),
+            ),
+        )
+        observation_id = int(cursor.lastrowid)
+        for technique in event.get("techniques", []):
+            if not isinstance(technique, Mapping):
+                continue
+            technique_id = str(technique.get("technique_id", "")).strip()
+            confidence = str(technique.get("confidence", "low")).lower()
+            if technique_id:
+                connection.execute(
+                    """
+                    INSERT OR IGNORE INTO observation_techniques(
+                        observation_id, technique_id, confidence
+                    ) VALUES (?, ?, ?)
+                    """,
+                    (observation_id, technique_id, confidence),
+                )
+        return observation_id
 
     def record(self, event: Mapping[str, Any], *, payload: bytes, now: int | None = None) -> int:
         source_ip = str(event.get("source_ip", "")).strip()
@@ -203,67 +288,81 @@ class SQLiteObservationStore:
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             try:
-                existing = connection.execute(
-                    """
-                    SELECT id FROM observations
-                    WHERE fingerprint = ? AND last_seen_epoch BETWEEN ? AND ?
-                    ORDER BY last_seen_epoch DESC LIMIT 1
-                    """,
-                    (fingerprint, cutoff, observed_epoch),
-                ).fetchone()
-                if existing is not None:
-                    observation_id = int(existing["id"])
-                    connection.execute(
-                        """
-                        UPDATE observations
-                        SET last_seen_epoch = ?, repeat_count = repeat_count + 1
-                        WHERE id = ?
-                        """,
-                        (observed_epoch, observation_id),
-                    )
-                else:
-                    cursor = connection.execute(
-                        """
-                        INSERT INTO observations(
-                            fingerprint, source_id, protocol, event_type, session_id,
-                            first_seen_epoch, last_seen_epoch, repeat_count, severity,
-                            is_demo, decoded_json, tags_json
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)
-                        """,
-                        (
-                            fingerprint,
-                            source_id,
-                            protocol,
-                            str(event.get("event_type", "unknown")),
-                            str(event.get("session_id", "")),
-                            observed_epoch,
-                            observed_epoch,
-                            str(event.get("severity", "info")),
-                            1 if event.get("is_demo") is True else 0,
-                            json.dumps(event.get("decoded", {}), separators=(",", ":")),
-                            json.dumps(event.get("tags", []), separators=(",", ":")),
-                        ),
-                    )
-                    observation_id = int(cursor.lastrowid)
-                    for technique in event.get("techniques", []):
-                        if not isinstance(technique, Mapping):
-                            continue
-                        technique_id = str(technique.get("technique_id", "")).strip()
-                        confidence = str(technique.get("confidence", "low")).lower()
-                        if technique_id:
-                            connection.execute(
-                                """
-                                INSERT OR IGNORE INTO observation_techniques(
-                                    observation_id, technique_id, confidence
-                                ) VALUES (?, ?, ?)
-                                """,
-                                (observation_id, technique_id, confidence),
-                            )
+                observation_id = self._insert_observation(
+                    connection,
+                    event,
+                    fingerprint=fingerprint,
+                    source_id=source_id,
+                    observed_epoch=observed_epoch,
+                    cutoff=cutoff,
+                )
                 connection.execute("COMMIT")
                 return observation_id
             except Exception:
                 connection.execute("ROLLBACK")
                 raise
+
+    def import_sanitized(
+        self, records: list[Mapping[str, Any]], *, input_digest: str
+    ) -> tuple[int, int]:
+        """Atomically import validated sanitized records with restart-safe idempotence."""
+        imported = 0
+        skipped = 0
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            try:
+                for event in records:
+                    if event.get("sanitized") is not True or "source_ip" in event:
+                        raise ValueError("historical import requires sanitized records")
+                    event_id = str(event.get("event_id", "")).strip()
+                    source_id = str(event.get("source_id", "")).strip()
+                    protocol = str(event.get("protocol", "")).strip()
+                    if not event_id or not source_id or not protocol:
+                        raise ValueError("historical import record is missing required identity")
+                    event_digest = hashlib.sha256(
+                        json.dumps(event, sort_keys=True, separators=(",", ":")).encode()
+                    ).hexdigest()
+                    cursor = connection.execute(
+                        """
+                        INSERT OR IGNORE INTO imported_events(
+                            event_id, input_digest, event_digest, imported_at_epoch
+                        ) VALUES (?, ?, ?, ?)
+                        """,
+                        (event_id, input_digest, event_digest, int(time.time())),
+                    )
+                    if cursor.rowcount != 1:
+                        existing = connection.execute(
+                            "SELECT event_digest FROM imported_events WHERE event_id = ?",
+                            (event_id,),
+                        ).fetchone()
+                        if existing is None or existing["event_digest"] != event_digest:
+                            raise ValueError(
+                                "event ID conflicts with an existing historical import"
+                            )
+                        skipped += 1
+                        continue
+                    observed_epoch = _epoch(str(event.get("observed_at", "")))
+                    fingerprint = sanitized_observation_fingerprint(
+                        self._fingerprint_secret,
+                        source_id,
+                        protocol,
+                        str(event.get("event_type", "unknown")),
+                        event.get("decoded", {}),
+                    )
+                    self._insert_observation(
+                        connection,
+                        event,
+                        fingerprint=fingerprint,
+                        source_id=source_id,
+                        observed_epoch=observed_epoch,
+                        cutoff=observed_epoch - self.dedup_window_seconds,
+                    )
+                    imported += 1
+                connection.execute("COMMIT")
+            except Exception:
+                connection.execute("ROLLBACK")
+                raise
+        return imported, skipped
 
     def observations(self) -> list[sqlite3.Row]:
         with self._connect() as connection:

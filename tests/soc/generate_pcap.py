@@ -2,9 +2,27 @@ from __future__ import annotations
 
 import socket
 import struct
+from hashlib import sha256
 from pathlib import Path
 
 PCAP_GLOBAL = struct.pack("<IHHIIII", 0xA1B2C3D4, 2, 4, 0, 0, 65535, 1)
+
+
+def archive_previous_output(output: Path) -> Path | None:
+    """Move a prior ignored EVE file aside so repeated native runs stay exact."""
+    if not output.exists():
+        return None
+
+    digest = sha256(output.read_bytes()).hexdigest()[:12]
+    archive_dir = output.parent / "archive"
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    counter = 1
+    while True:
+        destination = archive_dir / f"eve-{digest}-{counter}.json"
+        if not destination.exists():
+            output.replace(destination)
+            return destination
+        counter += 1
 
 
 def checksum(data: bytes) -> int:
@@ -79,5 +97,9 @@ def write_pcap(path: Path) -> None:
 
 
 if __name__ == "__main__":
-    write_pcap(Path(__file__).resolve().parent / "fixtures" / "modbus-write-read.pcap")
+    soc_dir = Path(__file__).resolve().parent
+    archived = archive_previous_output(soc_dir / "output" / "eve.json")
+    write_pcap(soc_dir / "fixtures" / "modbus-write-read.pcap")
+    if archived is not None:
+        print(f"Archived prior ignored Suricata output as {archived.name}.")
     print("Created deterministic synthetic Modbus PCAP fixture.")

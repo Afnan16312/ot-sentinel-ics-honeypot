@@ -12,6 +12,8 @@ services:
       - "127.0.0.1:55000:55000"
     volumes:
       - ../../detections/wazuh/ot_sentinel_rules.xml:/var/ossec/etc/rules/ot_sentinel_rules.xml:ro
+      - ./generated/wazuh_manager.conf:/wazuh-config-mount/etc/ossec.conf:ro
+      - ./staging:/var/ossec/logs/ot-sentinel:ro
 
   wazuh.indexer:
     extends:
