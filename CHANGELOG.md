@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added a fail-closed historical JSONL preflight, transactional idempotent privacy-reduced import, deterministic final handoff processor and privacy-safe checksum manifest.
+- Added persistent sanitized-only local Wazuh ingestion with a restart-safe staging ledger, indexed positive/negative verification and post-manager-restart evidence; no Oracle integration was added.
+- Added the beginner final-data-handoff runbook and ADR covering immutable input, human publication gates and the Suricata packet/JSON boundary.
 - Added durable SQLite replay reservations, privacy-reduced scanner deduplication and an optional bounded delivery spool while retaining JSONL as authoritative evidence.
 - Added deterministic ATT&CK Navigator Layer 4.5 and seven-day Markdown intelligence generators with synthetic committed examples and ignored private outputs.
 - Added and natively validated a loopback-only disposable Wazuh 4.14.7/Suricata 8.0.4 lab: four Suricata rules load, SID 4200501 fires only for the synthetic write, and Wazuh rule 110001 stays quiet for connection/read negatives.

@@ -28,6 +28,7 @@ This file records the major decisions behind OT Sentinel `v0.2.0`. Each decision
 | ADR-020 | Retain the framework-free collector | Two authenticated machine endpoints do not justify Flask or Django yet |
 | ADR-021 | Use an aggregate-first public dashboard handoff | Keep observed rows private and require review before public summary replacement |
 | ADR-022 | Use separate SQLite auxiliary state and one shared publication gate | Add restart durability and consistent privacy without replacing JSONL or adding an ORM |
+| ADR-023 | Use an immutable offline handoff and sanitized-only Wazuh staging | Keep final evidence reproducible, private and separate from the live sensor |
 
 ## ADR-001 — Custom low-interaction sensor
 

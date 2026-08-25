@@ -32,6 +32,21 @@ python tests\soc\inject_alert.py
 
 Success requires native `wazuh-logtest` output containing rule `110001` for the synthetic Modbus write and no `110001` match for connection-only or normal-read fixtures.
 
+## Validate persistent historical ingestion
+
+Start the lab before staging the committed synthetic dataset:
+
+```powershell
+python scripts\stage_wazuh_events.py `
+  tests\soc\fixtures\wazuh-ingest-events.jsonl `
+  --approve-local-ingestion
+python tests\soc\verify_wazuh_ingestion.py
+```
+
+The staging command accepts only privacy-validated JSONL, appends each input exactly once to an ignored fixed file and records restart state in an ignored SQLite ledger. Wazuh logcollector reads that file through a read-only bind mount. The verifier confirms that the write alert exists in both the manager alert store and the indexer used by the dashboard, while the harmless connection/read fixtures do not create a custom high-severity alert.
+
+Use [Final Data Handoff Runbook](../../docs/FINAL_DATA_HANDOFF.md) only after the authorized collection is complete. Never point this lab at Oracle and never stage raw evidence.
+
 Privacy-safe local readiness checks:
 
 ```powershell
@@ -52,13 +67,14 @@ python tests\soc\verify_suricata.py
 ```
 
 Success requires exactly one SID `4200501` alert for source port `41000` and no alert for the harmless read flow on source port `42000`.
+`generate_pcap.py` first moves any prior ignored `eve.json` into the ignored
+`tests/soc/output/archive/` directory. This preserves earlier local evidence while
+ensuring a repeated validation counts only the current run.
 
 ## Stop and clean up
 
-```powershell
-docker compose -f tests\soc\docker-compose.yml --profile suricata down --volumes --remove-orphans
-```
+Use `docker compose -f tests\soc\docker-compose.yml stop` to preserve indexed local alerts. Use `down --volumes --remove-orphans` only for an intentional disposable-lab reset.
 
-The ignored `tests/soc/vendor/` directory contains the pinned official Wazuh Docker configuration and locally generated certificates. The ignored `tests/soc/output/` directory contains native Suricata results.
+The ignored `tests/soc/vendor/` directory contains the pinned official Wazuh Docker configuration and locally generated certificates. The ignored `tests/soc/generated/` and `tests/soc/staging/` directories hold local manager configuration, sanitized staging state and no committed telemetry. The ignored `tests/soc/output/` directory contains native Suricata results.
 
 Static Python tests prove harness construction and expected-output parsing. They are not a substitute for the native commands above.

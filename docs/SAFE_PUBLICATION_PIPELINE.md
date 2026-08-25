@@ -42,3 +42,7 @@ Passing these automated checks is necessary but not sufficient for publishing li
 Do not point the summary builder at `logs/events.jsonl`. It accepts only a separately created, reviewed and validated publication candidate. The live sensor does not upload to GitHub, Streamlit or this pipeline automatically.
 
 The shared implementation is `src/ot_sentinel/publication.py`; the command-line validator, summary builder, dashboard and STIX exporter use it so they fail consistently. Phase 2 changed only local/synthetic paths and did not connect this code to Oracle.
+
+## Prepared end-of-collection command
+
+After authorized shutdown, backup and private transfer, `scripts/finalize_collection.py` performs preflight, sanitization, privacy validation, SQLite import, Wazuh-ready output, private reporting, Navigator export and a checksum manifest. It creates Streamlit and STIX review candidates only with `--approve-public-candidates`; that flag does not publish or replace the demonstration dashboard. See [Final Data Handoff Runbook](FINAL_DATA_HANDOFF.md).

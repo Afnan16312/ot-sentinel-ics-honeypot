@@ -29,6 +29,7 @@ My system then:
 7. Prioritizes stronger events with an explainable risk score and review queue.
 8. Keeps replay and pending delivery state across local restarts using optional bounded SQLite stores.
 9. Generates a synthetic ATT&CK Navigator layer and weekly intelligence brief.
+10. Prepares an immutable, checksum-led final handoff for private SQLite analysis and persistent local Wazuh ingestion.
 
 ## Why it matters
 
@@ -65,8 +66,11 @@ For the complete record of requirements, shipped features, engineering decisions
 | Local readiness monitor | Reports stale health, disk, queue, delivery and storage conditions without echoing telemetry |
 | Durable delivery spool | Optionally preserves pending collector forwards across restarts without storing HMAC secrets |
 | Standards validation | CI validates the collector contract with a pinned OpenAPI 3.1 implementation |
+| Final data handoff | Safe preflight, transactional SQLite import, Wazuh staging and a checksum manifest prepare the completed study without automatic publication |
 
 The disposable loopback-only Wazuh 4.14.7/Suricata 8.0.4 lab passed native positive and negative checks with synthetic fixtures; see the privacy-safe [native validation evidence](tests/soc/NATIVE_VALIDATION.md). The exact [recording checklist](docs/RECORDING_CHECKLIST.md) is ready, but no public video is claimed yet.
+
+The [final data handoff runbook](docs/FINAL_DATA_HANDOFF.md) prepares the offline workflow for the end of the authorized collection. It does not connect Wazuh to Oracle, publish observed records or replace the synthetic dashboard.
 
 ## Current live-study status
 
@@ -200,6 +204,7 @@ ot-sentinel export-stix data/demo_events.jsonl artifacts/public-stix.json --prof
 | `docs/DETECTION_ENGINEERING.md` | Detection logic, testing and deployment notes |
 | `docs/SAFE_PUBLICATION_PIPELINE.md` | Aggregate-only synthetic pipeline and future publication gates |
 | `docs/SOC_INTEGRATION_PLAN.md` | Safe offline Wazuh and Suricata integration phases |
+| `docs/FINAL_DATA_HANDOFF.md` | Exact private preflight, analysis, Wazuh and final-review procedure |
 | `docs/MONITORING_PLAN.md` | Future health, capacity and privacy-monitoring design |
 | `docs/THREAT_INTELLIGENCE_REPORT_TEMPLATE.md` | Privacy-reviewed live-study report structure |
 | `docs/DEMO_SCRIPT.md` | Simple five-minute explanation for project demonstrations |
