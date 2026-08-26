@@ -118,7 +118,7 @@ def test_all_map_modes_build_and_playback_has_frames():
         mode: build_threat_map(points, mode=mode, event_frame=records) for mode in MAP_MODES
     }
 
-    assert all(figure.layout.map.style == "carto-darkmatter-nolabels" for figure in figures.values())
+    assert all(figure.layout.map.style == "carto-positron-nolabels" for figure in figures.values())
     assert all(len(figure.layout.map.layers) == 1 for figure in figures.values())
     assert len(figures["Flow view"].data) > len(figures["Source bubbles"].data)
     assert any(trace.type == "densitymap" for trace in figures["Density"].data)

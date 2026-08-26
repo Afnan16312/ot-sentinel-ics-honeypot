@@ -393,8 +393,8 @@ def _base_layout(fig: go.Figure, map_style: str, revision: str) -> go.Figure:
     fig.update_layout(
         height=585,
         margin={"l": 0, "r": 0, "t": 0, "b": 0},
-        paper_bgcolor="#0B1117",
-        plot_bgcolor="#0B1117",
+        paper_bgcolor="#FFFFFF",
+        plot_bgcolor="#FFFFFF",
         map={
             "style": map_style,
             "center": {"lat": 18, "lon": 25},
@@ -408,12 +408,12 @@ def _base_layout(fig: go.Figure, map_style: str, revision: str) -> go.Figure:
             "y": 0.01,
             "xanchor": "left",
             "x": 0.015,
-            "bgcolor": "rgba(8,13,18,.78)",
-            "bordercolor": "#2B3944",
+            "bgcolor": "rgba(255,255,255,.92)",
+            "bordercolor": "#D1D5DB",
             "borderwidth": 1,
-            "font": {"color": "#D6E0E7", "size": 11},
+            "font": {"color": "#414751", "size": 11},
         },
-        hoverlabel={"bgcolor": "#111A22", "bordercolor": "#40515E", "font_color": "#EEF3F6"},
+        hoverlabel={"bgcolor": "#FFFFFF", "bordercolor": "#D1D5DB", "font_color": "#1A1C1E"},
         uirevision=revision,
         clickmode="event+select",
         dragmode="pan",
@@ -428,7 +428,7 @@ def build_threat_map(
     event_frame: pd.DataFrame | None = None,
     show_flows: bool = True,
     show_region: bool = True,
-    map_style: str = "carto-darkmatter-nolabels",
+    map_style: str = "carto-positron-nolabels",
     revision: str = "ot-sentinel-map-v1",
 ) -> go.Figure:
     """Build one of the supported MapLibre investigation views."""
@@ -492,7 +492,7 @@ def build_threat_map(
         for slider in figure.layout.sliders:
             slider.currentvalue = {
                 "prefix": "UTC window: ",
-                "font": {"color": "#D6E0E7", "size": 11},
+                "font": {"color": "#414751", "size": 11},
             }
         if show_region:
             _add_region_marker(figure)
@@ -531,9 +531,9 @@ def build_threat_map(
                 radius=34,
                 colorscale=[
                     [0.0, "rgba(14,23,30,0)"],
-                    [0.25, "#294F66"],
-                    [0.6, "#B17C47"],
-                    [1.0, "#D4A15F"],
+                    [0.25, "#9CC4E8"],
+                    [0.6, "#B8A4D6"],
+                    [1.0, "#D32F2F"],
                 ],
                 showscale=False,
                 hoverinfo="skip",

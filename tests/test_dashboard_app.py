@@ -10,18 +10,20 @@ def test_dashboard_renders_the_interactive_map_workspace_without_exceptions():
 
     assert not app.exception
     assert [tab.label for tab in app.tabs] == [
-        "OBSERVATORY",
-        "ATT&CK LAYER",
-        "DETECTION PREVIEW",
-        "TRIAGE & VALIDATION",
-        "SESSION EXPLORER",
-        "METHODOLOGY",
+        "Observatory",
+        "ATT&CK Analysis",
+        "Detection Preview",
+        "Triage",
+        "Session Explorer",
+        "Methodology",
     ]
     assert [item.label for item in app.selectbox] == ["Map mode", "Observation window"]
     assert [item.label for item in app.toggle] == ["Place labels", "Observation paths"]
     assert "Export visible map summary" in [
         item.label for item in app.get("download_button")
     ]
+    assert "Export" in [item.label for item in app.get("download_button")]
+    assert any("Current dashboard filters" in item.value for item in app.markdown)
     assert "Global observation map" in app.markdown[4].value or any(
         "Global observation map" in item.value for item in app.markdown
     )

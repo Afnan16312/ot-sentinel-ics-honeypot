@@ -47,52 +47,101 @@ st.set_page_config(
 st.markdown(
     """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap');
-html, body, [class*="css"] { font-family: 'Manrope', sans-serif; }
-.stApp { background:#090e13; }
-[data-testid="stSidebar"] { background:#0d141b; border-right:1px solid #26343e; }
-[data-testid="stMetric"] { background:#101820; border:1px solid #2a3944; border-radius:8px; padding:15px 17px; }
-[data-testid="stMetricValue"] { font-family: 'DM Mono', monospace; color: #edf3f8; }
-.eyebrow { color:#6f9fc4; font-family:'DM Mono',monospace; letter-spacing:.14em; text-transform:uppercase; font-size:.72rem; }
-.hero { padding:.45rem 0 .65rem; border-bottom:1px solid #263746; margin-bottom:.75rem; }
-.hero h1 { font-size:1.95rem; letter-spacing:-.04em; margin:.2rem 0 .18rem; color:#f3f6f9; }
-.hero p { color:#9caebb; max-width:780px; margin:0; font-size:.9rem; }
-.author-line { color:#728696; font-size:.75rem; margin-top:.38rem; }
-.author-line a, .footer-note a { color:#8eb2cf; text-decoration:none; }
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+:root { --canvas:#f9f9f9; --surface:#ffffff; --recessed:#f5f7fa; --border:#d1d5db; --text:#1a1c1e; --muted:#414751; --blue:#0060ab; --purple:#6a4da0; --red:#d32f2f; --amber:#b47c00; --green:#1b804b; }
+html, body, [class*="css"] { font-family:'Inter',sans-serif; color:var(--text); }
+.stApp { background:var(--canvas); }
+[data-testid="stHeader"] { background:transparent; }
+[data-testid="stSidebar"] { display:none; }
+.block-container { max-width:1800px; padding:0 24px 32px 244px; }
+.stitch-header { min-height:52px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border); margin:0 -24px 16px -244px; padding:0 24px; background:rgba(255,255,255,.97); }
+.stitch-brand { color:#004883; font-size:18px; font-weight:600; letter-spacing:-.02em; }
+.stTabs [role="tablist"]::before { content:'OT Sentinel'; position:absolute; top:-52px; left:20px; height:52px; display:flex; align-items:center; color:#004883; font-size:18px; font-weight:600; letter-spacing:-.02em; }
+.stitch-brand { display:none; }
+.stitch-status { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; }
+.stitch-status .dot { width:8px; height:8px; border-radius:50%; background:var(--green); display:inline-block; }
+.stitch-status .divider { color:#c1c7d3; margin:0 4px; }
+.stitch-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; }
+.header-info { width:32px; height:32px; border:1px solid var(--border); border-radius:4px; background:white; color:var(--muted); }
+.stitch-header + div { margin-top:0; }
+.hero { padding:4px 0 8px; margin-bottom:12px; }
+.hero .eyebrow { color:var(--muted); }
+.hero h1 { display:none; }
+.hero p { color:var(--muted); max-width:900px; margin:0; font-size:.85rem; }
+.author-line { color:#667085; font-size:.72rem; margin-top:4px; }
+.author-line a, .footer-note a { color:var(--blue); text-decoration:none; }
 .author-line a:hover, .footer-note a:hover { text-decoration:underline; }
-.demo-banner { border:1px solid #806a2d; background:rgba(89,67,14,.22); color:#f1d98a; padding:.55rem .85rem; border-radius:8px; font-size:.82rem; margin:.3rem 0 .75rem; }
-.live-banner { border:1px solid #436b80; background:rgba(37,70,89,.22); color:#a9c6d8; padding:.55rem .85rem; border-radius:8px; font-size:.82rem; margin:.3rem 0 .75rem; }
-.telemetry-strip { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; background:#2a3944; border:1px solid #2a3944; border-radius:9px; overflow:hidden; margin:.1rem 0 .85rem; }
-.telemetry-cell { background:#101820; padding:.72rem .85rem; min-width:0; }
-.telemetry-label { color:#7f919e; font-size:.68rem; text-transform:uppercase; letter-spacing:.075em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.telemetry-value { color:#edf3f8; font-family:'DM Mono',monospace; font-size:1.15rem; line-height:1.25; margin-top:.16rem; }
-.section-title { font-size:1.05rem; font-weight:650; color:#e8edf2; margin-top:.55rem; }
-.technique { border-left:3px solid #6f9fc4; background:rgba(19,28,38,.78); padding:.75rem .9rem; margin:.5rem 0; border-radius:0 8px 8px 0; }
-.technique .id { color:#6f9fc4; font-family:'DM Mono',monospace; font-size:.76rem; }
-.technique .name { color:#eef3f7; font-weight:650; margin-top:.16rem; }
-.technique .meta { color:#8599a8; font-size:.78rem; margin-top:.16rem; }
-.footer-note { color:#728696; font-size:.74rem; border-top:1px solid #22303d; margin-top:2rem; padding-top:1rem; }
-div[data-testid="stDataFrame"] { border:1px solid #2a3a46; border-radius:10px; overflow:hidden; }
-.stTabs [data-baseweb="tab-list"] { gap:1.25rem; border-bottom:1px solid #253443; }
-.stTabs [data-baseweb="tab"] { font-family:'DM Mono',monospace; font-size:.78rem; }
-.map-shell { background:#0b1117; border:1px solid #2a3944; border-radius:10px; padding:.8rem .9rem .35rem; }
-.map-kicker { color:#7898ad; font-family:'DM Mono',monospace; letter-spacing:.09em; text-transform:uppercase; font-size:.68rem; }
-.map-title { color:#eef3f6; font-size:1.18rem; font-weight:650; margin:.18rem 0 .15rem; }
-.map-copy { color:#8ea0ad; font-size:.82rem; margin:0 0 .75rem; max-width:850px; }
-.map-stat-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; background:#26343e; border:1px solid #26343e; border-radius:8px; overflow:hidden; margin:.2rem 0 .8rem; }
-.map-stat { background:#0f171e; padding:.65rem .75rem; }
-.map-stat .label { color:#758896; font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; }
-.map-stat .value { color:#edf2f5; font-family:'DM Mono',monospace; font-size:.94rem; margin-top:.12rem; }
-.detail-panel { background:#0f171e; border:1px solid #2a3944; border-radius:9px; padding:.9rem 1rem; min-height:210px; }
-.detail-label { color:#758896; font-family:'DM Mono',monospace; font-size:.67rem; letter-spacing:.08em; text-transform:uppercase; }
-.detail-value { color:#edf3f6; font-size:.9rem; margin:.18rem 0 .7rem; word-break:break-word; }
-.privacy-note { color:#93a4b0; border-left:2px solid #586d7b; padding:.45rem .65rem; font-size:.76rem; margin-top:.65rem; }
-@media (max-width:900px) {
-  .telemetry-strip, .map-stat-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .telemetry-cell { padding:.62rem .7rem; }
-  .telemetry-value { font-size:1rem; }
-  .hero h1 { font-size:1.65rem; }
-}
+.eyebrow, .map-kicker, .detail-label { color:var(--muted); font-family:'JetBrains Mono',monospace; letter-spacing:.12em; text-transform:uppercase; font-size:10px; font-weight:600; }
+.demo-banner, .live-banner { border:1px solid #e3c87a; background:#fff9e6; color:#755b00; padding:8px 12px; border-radius:4px; font-size:.78rem; margin:4px 0 12px; }
+.live-banner { border-color:#9ac4dc; background:#eef8ff; color:#185577; }
+.filter-bar { display:flex; align-items:center; gap:14px; min-height:58px; padding:12px 16px; background:var(--surface); border:1px solid var(--border); border-radius:4px; margin:10px 0 12px; }
+.filter-group { display:flex; align-items:center; gap:8px; white-space:nowrap; }
+.filter-label { color:var(--muted); font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; }
+.filter-chip { display:inline-flex; align-items:center; padding:5px 9px; border-radius:4px; border:1px solid var(--border); background:#fff; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:11px; }
+.filter-chip.blue { color:var(--blue); border-color:#a9c7ff; background:#eef4ff; }
+.filter-chip.purple { color:var(--purple); border-color:#d8b8ff; background:#f8efff; }
+.filter-chip.red { color:var(--red); border-color:#f2b0b0; background:#fff0f0; }
+.filter-divider { height:24px; width:1px; background:var(--border); }
+.filter-help { margin-left:auto; color:var(--muted); font-size:11px; }
+.telemetry-strip { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; background:transparent; border:0; margin:8px 0 16px; }
+.telemetry-cell { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:14px 16px; min-width:0; }
+.telemetry-label { color:var(--muted); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.telemetry-value { color:var(--text); font-family:'JetBrains Mono',monospace; font-size:1.55rem; line-height:1.2; margin-top:8px; font-variant-numeric:tabular-nums; }
+.telemetry-cell:first-child .telemetry-value { color:#2d67d8; }
+.telemetry-cell:last-child .telemetry-value { color:var(--red); }
+.section-title { font-size:1rem; font-weight:600; color:var(--text); margin-top:8px; }
+.technique { border-left:3px solid var(--blue); background:var(--surface); border-top:1px solid var(--border); border-right:1px solid var(--border); border-bottom:1px solid var(--border); padding:10px 12px; margin:8px 0; border-radius:0 4px 4px 0; }
+.technique .id { color:var(--blue); font-family:'JetBrains Mono',monospace; font-size:.7rem; }
+.technique .name { color:var(--text); font-weight:600; margin-top:3px; }
+.technique .meta { color:var(--muted); font-size:.74rem; margin-top:3px; }
+.footer-note { color:#667085; font-size:.7rem; border-top:1px solid var(--border); margin-top:24px; padding-top:12px; }
+div[data-testid="stDataFrame"] { border:1px solid var(--border); border-radius:4px; overflow:hidden; }
+.stTabs { padding-top:0; }
+.stTabs [role="tablist"] { position:fixed; z-index:20; left:0; top:52px; bottom:0; width:220px; padding:14px 10px; display:flex; flex-direction:column; align-items:stretch; gap:4px; background:var(--recessed); border-right:1px solid var(--border); }
+.stTabs [role="tab"] { width:100%; min-height:40px; justify-content:flex-start; padding:8px 12px; border-left:3px solid transparent; border-radius:4px; color:var(--muted); font-size:13px; font-weight:500; letter-spacing:0; }
+.stTabs [role="tab"] p { font-family:'Inter',sans-serif; font-size:13px; }
+.stTabs [role="tab"] p::before { display:inline-block; width:24px; margin-right:7px; color:currentColor; font-size:17px; line-height:1; vertical-align:-2px; }
+.stTabs [role="tab"]:nth-child(1) p::before { content:'▦'; }
+.stTabs [role="tab"]:nth-child(2) p::before { content:'⬟'; }
+.stTabs [role="tab"]:nth-child(3) p::before { content:'▣'; }
+.stTabs [role="tab"]:nth-child(4) p::before { content:'▢'; }
+.stTabs [role="tab"]:nth-child(5) p::before { content:'⇄'; }
+.stTabs [role="tab"]:nth-child(6) p::before { content:'▤'; }
+.stTabs [role="tab"]:hover { background:#ebf2fa; color:var(--blue); }
+.stTabs [role="tab"][aria-selected="true"] { background:#dbe3f5; color:#004883; border-left-color:#004883; font-weight:600; }
+.stTabs [role="tablist"] + div { margin-left:0; }
+.stTabs [role="tabpanel"] { padding-top:0; }
+.map-shell { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:12px 14px 4px; }
+.map-title { color:var(--text); font-size:1.15rem; font-weight:600; margin:4px 0 3px; }
+.map-copy { color:var(--muted); font-size:.8rem; margin:0 0 10px; max-width:850px; }
+.map-stat-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0; background:var(--surface); border:1px solid var(--border); border-radius:4px; overflow:hidden; margin:8px 0 12px; }
+.map-stat { background:var(--surface); padding:9px 11px; border-right:1px solid var(--border); }
+.map-stat:last-child { border-right:0; }
+.map-stat .label { color:var(--muted); font-size:.65rem; text-transform:uppercase; letter-spacing:.08em; }
+.map-stat .value { color:var(--text); font-family:'JetBrains Mono',monospace; font-size:.9rem; margin-top:3px; }
+.detail-panel { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:12px; min-height:210px; }
+.detail-value { color:var(--text); font-size:.85rem; margin:3px 0 10px; word-break:break-word; }
+.privacy-note { color:var(--muted); border-left:2px solid #9da3ad; padding:6px 8px; font-size:.72rem; margin-top:8px; }
+.rail-card { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:12px; margin-bottom:10px; }
+.rail-card.critical { border-left:4px solid var(--red); }
+.rail-label { color:var(--muted); font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; }
+.rail-value { color:var(--text); font-family:'JetBrains Mono',monospace; font-size:1.4rem; margin:4px 0 7px; }
+.rail-value.red { color:var(--red); }
+.rail-trend { color:var(--green); font-family:'JetBrains Mono',monospace; font-size:.78rem; }
+.protocol-row { margin:8px 0 10px; }
+.protocol-meta { display:flex; justify-content:space-between; color:var(--muted); font-family:'JetBrains Mono',monospace; font-size:.7rem; }
+.protocol-track { height:6px; background:#eef1f5; margin-top:4px; }
+.protocol-fill { height:100%; }
+[data-baseweb="select"] > div { background:#ffffff !important; border-color:var(--border) !important; color:var(--text) !important; }
+[data-baseweb="select"] span { color:var(--text) !important; }
+[data-baseweb="select"] svg { fill:var(--muted) !important; }
+[data-testid="stSelectbox"] div:has(> input[role="combobox"]) { background:#ffffff !important; border-color:var(--border) !important; color:var(--text) !important; }
+[data-testid="stSelectbox"] input[role="combobox"] { color:var(--text) !important; }
+.stExpander { border:1px solid var(--border); border-radius:4px; background:var(--surface); }
+.stExpander [data-testid="stExpanderToggleIcon"] { color:var(--muted); }
+.stExpander summary p { color:var(--muted); font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; }
+@media (max-width:1024px) { .block-container { padding-left:84px; } .stitch-header { margin-left:-84px; } .stTabs [role="tablist"] { width:64px; } .stTabs [role="tab"] { font-size:0; justify-content:center; padding:8px 6px; } .stTabs [role="tab"] p { font-size:0; } .stTabs [role="tab"] p:before { content:'•'; font-size:20px; } }
+@media (max-width:700px) { .block-container { padding:0 12px 24px 66px; } .stitch-header { margin:0 -12px 12px -66px; padding:0 12px 0 66px; } .stitch-status { gap:5px; font-size:8px; } .stitch-status .divider, .stitch-status span:nth-of-type(n+3) { display:none; } .stTabs [role="tablist"] { top:52px; width:54px; } .telemetry-strip { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; } .telemetry-value { font-size:1.15rem; } .filter-bar { flex-wrap:wrap; gap:8px; } .filter-help { width:100%; margin-left:0; } .map-stat-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 </style>
 """,
     unsafe_allow_html=True,
@@ -199,13 +248,81 @@ except (OSError, PublicationValidationError):
     st.stop()
 is_demo = bool(df.get("is_demo", pd.Series([False])).fillna(False).all())
 
+pending_country = st.session_state.pop("_pending_country_filter", None)
+if pending_country is not None:
+    st.session_state["filter_countries"] = pending_country
+
+protocols = sorted(df["protocol"].dropna().unique().tolist())
+severities = [item for item in ["high", "medium", "low", "info"] if item in df["severity"].unique()]
+countries = sorted(df["source_country"].dropna().unique().tolist())
+country_default = {"default": countries} if "filter_countries" not in st.session_state else {}
+
+with st.expander("Adjust filters", expanded=False):
+    filter_left, filter_mid, filter_right = st.columns(3)
+    selected_protocols = filter_left.multiselect(
+        "Protocols", protocols, default=protocols, key="filter_protocols"
+    )
+    selected_severity = filter_mid.multiselect(
+        "Severity", severities, default=severities, key="filter_severity"
+    )
+    selected_countries = filter_right.multiselect(
+        "Source country", countries, key="filter_countries", **country_default
+    )
+
+filtered = df[
+    df["protocol"].isin(selected_protocols)
+    & df["severity"].isin(selected_severity)
+    & df["source_country"].isin(selected_countries)
+].copy()
+techniques = flatten_techniques(filtered)
+
+events_count = len(filtered)
+sessions = filtered["session_id"].nunique()
+sources = filtered.get("source_id", filtered.get("source_ip", pd.Series(dtype=str))).nunique()
+commands = filtered["decoded.operation"].isin(
+    ["write_single", "write_multiple", "single_command", "setpoint_command", "program_download"]
+).sum()
+
+status_label = "DEMO DATA" if is_demo else "SANITIZED DATA"
+latest_public = df["observed_at"].max()
+latest_label = latest_public.strftime("%d %b %Y %H:%M UTC") if pd.notna(latest_public) else "No observations"
+header_export = map_points_csv(prepare_map_points(filtered))
+header_left, header_status, header_export_col, header_info_col = st.columns([2.2, 4.2, 1, .45], gap="small")
+with header_left:
+    st.markdown("<div class='stitch-brand'>OT Sentinel</div>", unsafe_allow_html=True)
+with header_status:
+    st.markdown(
+        f"<div class='stitch-status'><span class='dot'></span><span>DATA: {status_label}</span>"
+        f"<span class='divider'>|</span><span>UTC {pd.Timestamp.now(tz='UTC').strftime('%H:%M')}</span>"
+        f"<span class='divider'>|</span><span>LAST UPDATE: {latest_label}</span></div>",
+        unsafe_allow_html=True,
+    )
+with header_export_col:
+    st.download_button(
+        "Export",
+        data=header_export,
+        file_name="ot-sentinel-filtered-summary.csv",
+        mime="text/csv",
+        key="header_export",
+        width="stretch",
+        help="Download the reviewed, aggregate summary for the current filters.",
+    )
+with header_info_col:
+    if st.button("ⓘ", key="header_info", help="About this build"):
+        st.info("OT Sentinel is a low-interaction ICS research dashboard. Public views contain synthetic or sanitized fields only.")
+
 st.markdown(
-    """
-<div class="hero">
-  <div class="eyebrow">ICS THREAT RESEARCH / UAE SENSOR PROGRAM</div>
-  <h1>OT Sentinel</h1>
-  <p>A low-interaction observatory for Modbus, S7 and IEC-104 activity, with evidence-aware MITRE ATT&amp;CK for ICS mapping.</p>
-  <div class="author-line">Project by <a href="https://github.com/Afnan16312" target="_blank">Mir Afnan Ali · @Afnan16312</a></div>
+    f"""
+<div class="filter-bar" aria-label="Current dashboard filters">
+  <div class="filter-group"><span class="filter-label">Protocol</span>
+    <span class="filter-chip blue">{', '.join(item.upper() for item in selected_protocols) or 'NONE'}</span></div>
+  <span class="filter-divider"></span>
+  <div class="filter-group"><span class="filter-label">Severity</span>
+    <span class="filter-chip red">{', '.join(item.upper() for item in selected_severity) or 'NONE'}</span></div>
+  <span class="filter-divider"></span>
+  <div class="filter-group"><span class="filter-label">Country</span>
+    <span class="filter-chip purple">{len(selected_countries)} selected</span></div>
+  <span class="filter-help">Use “Adjust filters” above to change the view.</span>
 </div>
 """,
     unsafe_allow_html=True,
@@ -222,46 +339,6 @@ else:
         unsafe_allow_html=True,
     )
 
-pending_country = st.session_state.pop("_pending_country_filter", None)
-if pending_country is not None:
-    st.session_state["filter_countries"] = pending_country
-
-with st.sidebar:
-    st.markdown("<div class='eyebrow'>VIEW CONTROLS</div>", unsafe_allow_html=True)
-    protocols = sorted(df["protocol"].dropna().unique().tolist())
-    selected_protocols = st.multiselect(
-        "Protocols", protocols, default=protocols, key="filter_protocols"
-    )
-    severities = [item for item in ["high", "medium", "low", "info"] if item in df["severity"].unique()]
-    selected_severity = st.multiselect(
-        "Severity", severities, default=severities, key="filter_severity"
-    )
-    countries = sorted(df["source_country"].dropna().unique().tolist())
-    country_default = {"default": countries} if "filter_countries" not in st.session_state else {}
-    selected_countries = st.multiselect(
-        "Source country", countries, key="filter_countries", **country_default
-    )
-    st.divider()
-    st.markdown("<div class='eyebrow'>SENSOR POSTURE</div>", unsafe_allow_html=True)
-    st.caption("Low interaction · no command execution · bounded payload capture · outbound denied")
-    st.markdown("`MODBUS` 502/TCP")
-    st.markdown("`S7COMM` 102/TCP")
-    st.markdown("`IEC-104` 2404/TCP")
-
-filtered = df[
-    df["protocol"].isin(selected_protocols)
-    & df["severity"].isin(selected_severity)
-    & df["source_country"].isin(selected_countries)
-].copy()
-techniques = flatten_techniques(filtered)
-
-events_count = len(filtered)
-sessions = filtered["session_id"].nunique()
-sources = filtered.get("source_id", filtered.get("source_ip", pd.Series(dtype=str))).nunique()
-commands = filtered["decoded.operation"].isin(
-    ["write_single", "write_multiple", "single_command", "setpoint_command", "program_download"]
-).sum()
-
 st.markdown(
     f"""
 <div class="telemetry-strip" aria-label="Current filtered telemetry summary">
@@ -276,12 +353,12 @@ st.markdown(
 
 overview, attack_tab, detection_tab, triage_tab, sessions_tab, methodology = st.tabs(
     [
-        "OBSERVATORY",
-        "ATT&CK LAYER",
-        "DETECTION PREVIEW",
-        "TRIAGE & VALIDATION",
-        "SESSION EXPLORER",
-        "METHODOLOGY",
+        "Observatory",
+        "ATT&CK Analysis",
+        "Detection Preview",
+        "Triage",
+        "Session Explorer",
+        "Methodology",
     ]
 )
 
@@ -349,7 +426,7 @@ with overview:
             st.info("No safely mappable observations match the current filters and time window.")
             map_selection = None
         else:
-            map_style = "carto-darkmatter" if show_labels else "carto-darkmatter-nolabels"
+            map_style = "carto-positron" if show_labels else "carto-positron-nolabels"
             revision = f"ot-map-{st.session_state.get('_map_revision', 0)}"
             threat_map = build_threat_map(
                 map_points,
@@ -396,6 +473,50 @@ with overview:
         )
 
     with detail_column:
+        critical_count = int((filtered["severity"] == "high").sum()) if not filtered.empty else 0
+        protocol_counts = filtered["protocol"].value_counts() if not filtered.empty else pd.Series(dtype="int64")
+        protocol_total = max(int(protocol_counts.sum()), 1)
+        protocol_rows = []
+        protocol_colors = {"modbus": "#0060ab", "s7": "#6a4da0", "iec104": "#575f6e"}
+        for protocol, count in protocol_counts.items():
+            percent = round((int(count) / protocol_total) * 100)
+            protocol_rows.append(
+                f"<div class='protocol-row'><div class='protocol-meta'><span>{escape(str(protocol).upper())}</span><span>{percent}%</span></div>"
+                f"<div class='protocol-track'><div class='protocol-fill' style='width:{percent}%;background:{protocol_colors.get(protocol, '#717782')}'></div></div></div>"
+            )
+        st.markdown(
+            f"<div class='rail-card'><div class='rail-label'>Total monitored events</div><div class='rail-value'>{events_count:,}</div>"
+            f"<div class='rail-trend'>↗ {len(protocol_counts)} protocols in view</div></div>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f"<div class='rail-card critical'><div class='rail-label'>Critical anomalies</div><div class='rail-value red'>{critical_count:,}</div>"
+            "<div class='rail-trend' style='color:#d32f2f'>High-severity control evidence only</div></div>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            "<div class='rail-card'><div class='rail-label'>Protocol distribution</div>"
+            + ("".join(protocol_rows) or "<div class='detail-value'>No protocols match the current filters.</div>")
+            + "</div>",
+            unsafe_allow_html=True,
+        )
+        recent_rows = []
+        if not filtered.empty:
+            for _, item in filtered.sort_values("observed_at", ascending=False).head(4).iterrows():
+                operation = item.get("decoded.operation", "unknown")
+                severity = str(item.get("severity", "info")).lower()
+                dot_color = {"high": "#d32f2f", "medium": "#b47c00", "low": "#0060ab"}.get(severity, "#717782")
+                recent_rows.append(
+                    f"<div style='display:flex;justify-content:space-between;gap:8px;border-top:1px solid #d1d5db;padding:8px 0;font-family:JetBrains Mono,monospace;font-size:10px'>"
+                    f"<span><span style='color:{dot_color}'>●</span> {escape(str(item.get('protocol', 'unknown')).upper())}</span>"
+                    f"<span style='color:#414751;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>{escape(str(operation))}</span></div>"
+                )
+        st.markdown(
+            "<div class='rail-card'><div class='rail-label'>Recent observations</div>"
+            + ("".join(recent_rows) or "<div class='detail-value'>No observations match the current filters.</div>")
+            + "</div>",
+            unsafe_allow_html=True,
+        )
         st.markdown("<div class='map-kicker'>Investigation summary</div>", unsafe_allow_html=True)
         if selected:
             safe = {key: escape(str(value)) for key, value in selected.items()}
@@ -508,8 +629,8 @@ with overview:
             xaxis_title="",
             yaxis_title="Events / 6h",
         )
-        line.update_xaxes(gridcolor="#22384a")
-        line.update_yaxes(gridcolor="#22384a")
+        line.update_xaxes(gridcolor="#D1D5DB")
+        line.update_yaxes(gridcolor="#D1D5DB")
         st.plotly_chart(line, width="stretch")
 
 with attack_tab:
@@ -525,7 +646,7 @@ with attack_tab:
                 z=pivot.values,
                 x=pivot.columns,
                 y=pivot.index,
-                colorscale=[[0, "#111820"], [0.35, "#324e67"], [1, "#6f9fc4"]],
+                colorscale=[[0, "#F5F7FA"], [0.35, "#B9D2EE"], [1, "#0060AB"]],
                 hovertemplate="%{y}<br>%{x}: %{z} observations<extra></extra>",
             )
         )

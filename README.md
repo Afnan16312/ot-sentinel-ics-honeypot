@@ -111,7 +111,7 @@ streamlit run app.py
 
 Streamlit opens the dashboard in your browser with the included demonstration data.
 
-The observatory map supports zoom, pan, fullscreen, country focus, four analytical modes and a reviewed aggregate CSV export. Its design decisions, privacy contract, interaction model and QA evidence are documented in [Interactive Threat Map Redesign](docs/INTERACTIVE_MAP_REDESIGN.md).
+The observatory map supports zoom, pan, fullscreen, country focus, four analytical modes and a reviewed aggregate CSV export. The dashboard uses a Stitch-inspired light workstation layout with a fixed analysis rail, compact status header, filter chips and responsive KPI/map cards. Its design decisions, privacy contract, interaction model and QA evidence are documented in [Interactive Threat Map Redesign](docs/INTERACTIVE_MAP_REDESIGN.md).
 
 ## Run the honeypot locally
 

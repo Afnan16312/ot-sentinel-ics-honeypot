@@ -61,14 +61,17 @@ Groups visible public observations into six-hour UTC windows and provides a fini
 
 ## Visual direction
 
-The redesign uses an operational, industrial visual language instead of a decorative "hacker" theme:
+The Stitch-inspired pass uses a light, editorial workstation language instead of a decorative "hacker" theme:
 
-- near-black matte surfaces rather than gradients;
-- one-pixel steel-blue borders;
-- Manrope for readable interface text and DM Mono for identifiers and telemetry;
-- blue for Modbus, amber for S7 and muted violet for IEC-104;
-- restrained opacity and line weight so dense paths remain readable;
-- compact information hierarchy with no ornamental glass cards or glowing text.
+- white surfaces on a very light grey canvas, with a recessed navigation rail;
+- precise one-pixel graphite borders and small four-pixel corners instead of heavy shadows;
+- Inter for interface text and JetBrains Mono for identifiers and telemetry;
+- blue for Modbus, purple for S7/IEC-104 analysis and red/amber/green for semantic signals;
+- a compact status header, filter-chip strip, four KPI cards and a protocol/anomaly rail around the map;
+- the existing Streamlit tabs are styled as the real left navigation, so every analysis view remains reachable;
+- responsive tablet and phone rules collapse the rail and keep the KPI/map grids readable.
+
+The supplied Stitch references informed the layout and tokens; live application values still come from the validated public dataset. No decorative mock values, raw identifiers or new analyst capabilities were introduced.
 
 The implementation stays inside Streamlit and Plotly 6. Plotly's MapLibre map traces provide interaction without a paid map token, a separate JavaScript application or another deployment service. CARTO/OpenStreetMap tiles still require browser network access and carry their normal attribution.
 
