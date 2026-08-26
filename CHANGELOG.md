@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added privacy-scoped Ponytail and local code-only Graphify developer tooling; generated graphs and all telemetry/private runtime paths remain ignored.
 - Added a fail-closed historical JSONL preflight, transactional idempotent privacy-reduced import, deterministic final handoff processor and privacy-safe checksum manifest.
 - Added persistent sanitized-only local Wazuh ingestion with a restart-safe staging ledger, indexed positive/negative verification and post-manager-restart evidence; no Oracle integration was added.
 - Added the beginner final-data-handoff runbook and ADR covering immutable input, human publication gates and the Suricata packet/JSON boundary.

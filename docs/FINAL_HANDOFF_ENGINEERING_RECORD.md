@@ -42,7 +42,7 @@ This record documents the final offline data-processing and SOC-ingestion prepar
 
 ## Verification on 2026-08-25
 
-- Complete pytest suite: **173 passed, 10 subtests passed**.
+- Complete pytest suite: **175 passed, 10 subtests passed**.
 - Ruff: **passed**.
 - Public-data validator: **420 sanitized synthetic events passed**.
 - Detection validation: **4 Sigma, 4 Suricata and 4 Wazuh alert rules; 10 fixtures including 3 all-negative passed**.
