@@ -189,6 +189,20 @@ def test_flow_overlay_can_be_disabled_without_removing_interactive_sources():
     assert {trace.name for trace in figure.data} == {"MODBUS", "S7"}
 
 
+def test_offline_map_fallback_uses_tile_free_geo_and_preserves_selection_data():
+    records = frame(event("a"), event("b", protocol="s7"))
+    figure = build_threat_map(
+        prepare_map_points(records),
+        mode="Source bubbles",
+        event_frame=records,
+        offline_map=True,
+    )
+
+    assert figure.layout.geo.projection.type == "natural earth"
+    assert figure.layout.map.style is None
+    assert all(trace.customdata is not None for trace in figure.data if trace.name in {"MODBUS", "S7"})
+
+
 def test_sensor_region_uses_a_native_circle_layer_instead_of_an_external_sprite():
     records = frame(event("a"))
     figure = build_threat_map(

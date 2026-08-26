@@ -293,6 +293,7 @@ def _custom_data(points: pd.DataFrame) -> list[list[object]]:
             _safe_iso(row.last_seen),
             int(row.control_attempts),
             row.techniques,
+            max(int(row.events) - int(row.sessions), 0),
         ]
         for row in points.itertuples()
     ]
@@ -350,12 +351,123 @@ def _add_source_markers(fig: go.Figure, points: pd.DataFrame) -> None:
                     "<b>%{customdata[1]}</b><br>"
                     "%{customdata[0]} · %{customdata[2]}<br>"
                     "%{customdata[3]} events · %{customdata[4]} sessions<br>"
+                    "Repeated observations: %{customdata[10]}<br>"
                     "Highest severity: %{customdata[5]}<br>"
                     "Latest: %{customdata[7]}<br>"
                     "Select for investigation<extra></extra>"
                 ),
             )
         )
+
+
+def _add_offline_source_markers(fig: go.Figure, points: pd.DataFrame) -> None:
+    """Render selectable source aggregates without external map tiles."""
+    for protocol in sorted(points["protocol"].unique()):
+        protocol_points = points[points["protocol"] == protocol]
+        fig.add_trace(
+            go.Scattergeo(
+                lat=protocol_points["latitude"],
+                lon=protocol_points["longitude"],
+                mode="markers",
+                name=protocol.upper(),
+                marker={
+                    "size": _marker_sizes(protocol_points["events"]),
+                    "color": PROTOCOL_COLORS.get(protocol, PROTOCOL_COLORS["unknown"]),
+                    "opacity": 0.88,
+                    "line": {"color": "#FFFFFF", "width": 1},
+                },
+                customdata=_custom_data(protocol_points),
+                hovertemplate=(
+                    "<b>%{customdata[1]}</b><br>"
+                    "%{customdata[0]} · %{customdata[2]}<br>"
+                    "%{customdata[3]} events · %{customdata[4]} sessions<br>"
+                    "Repeated observations: %{customdata[10]}<br>"
+                    "Highest severity: %{customdata[5]}<br>"
+                    "Select for investigation<extra></extra>"
+                ),
+            )
+        )
+
+
+def _build_offline_map(
+    points: pd.DataFrame,
+    *,
+    mode: str,
+    show_flows: bool,
+    show_region: bool,
+    revision: str,
+) -> go.Figure:
+    """Build a tile-free geographic view for disconnected or restricted networks."""
+    figure = go.Figure()
+    if mode == "Flow view" and show_flows:
+        for row in points.nlargest(MAX_FLOW_PATHS, "events").itertuples():
+            latitudes, longitudes = _great_circle_path(
+                float(row.latitude),
+                float(row.longitude),
+                float(UAE_REGION["latitude"]),
+                float(UAE_REGION["longitude"]),
+            )
+            figure.add_trace(
+                go.Scattergeo(
+                    lat=latitudes,
+                    lon=longitudes,
+                    mode="lines",
+                    line={
+                        "width": min(3.0, 0.7 + math.log1p(float(row.events)) * 0.55),
+                        "color": PROTOCOL_COLORS.get(row.protocol, PROTOCOL_COLORS["unknown"]),
+                    },
+                    opacity=0.34,
+                    hoverinfo="skip",
+                    showlegend=False,
+                )
+            )
+    _add_offline_source_markers(figure, points)
+    if show_region:
+        figure.add_trace(
+            go.Scattergeo(
+                lat=[UAE_REGION["latitude"]],
+                lon=[UAE_REGION["longitude"]],
+                mode="markers",
+                name="Approximate UAE region",
+                marker={"size": 10, "color": "#FFFFFF", "line": {"color": "#667085", "width": 1}},
+                hovertemplate="Approximate UAE sensor region<extra></extra>",
+                showlegend=False,
+            )
+        )
+    figure.update_layout(
+        height=585,
+        margin={"l": 0, "r": 0, "t": 0, "b": 0},
+        paper_bgcolor="#FFFFFF",
+        plot_bgcolor="#FFFFFF",
+        geo={
+            "projection": {"type": "natural earth"},
+            "showland": True,
+            "landcolor": "#EEF1F5",
+            "showocean": True,
+            "oceancolor": "#F5F9FC",
+            "showlakes": True,
+            "lakecolor": "#F5F9FC",
+            "showcoastlines": True,
+            "coastlinecolor": "#B8C2CF",
+            "showframe": False,
+        },
+        legend={
+            "orientation": "h",
+            "yanchor": "bottom",
+            "y": 0.01,
+            "xanchor": "left",
+            "x": 0.015,
+            "bgcolor": "rgba(255,255,255,.92)",
+            "bordercolor": "#D1D5DB",
+            "borderwidth": 1,
+            "font": {"color": "#414751", "size": 11},
+        },
+        hoverlabel={"bgcolor": "#FFFFFF", "bordercolor": "#D1D5DB", "font_color": "#1A1C1E"},
+        uirevision=revision,
+        clickmode="event+select",
+        dragmode="pan",
+    )
+    return figure
 
 
 def _add_region_marker(fig: go.Figure) -> None:
@@ -430,6 +542,7 @@ def build_threat_map(
     show_region: bool = True,
     map_style: str = "carto-positron-nolabels",
     revision: str = "ot-sentinel-map-v1",
+    offline_map: bool = False,
 ) -> go.Figure:
     """Build one of the supported MapLibre investigation views."""
     if mode not in MAP_MODES:
@@ -438,6 +551,15 @@ def build_threat_map(
     if points.empty:
         figure = go.Figure()
         return _base_layout(figure, map_style, revision)
+
+    if offline_map and mode != "Time playback":
+        return _build_offline_map(
+            points,
+            mode=mode,
+            show_flows=show_flows,
+            show_region=show_region,
+            revision=revision,
+        )
 
     if mode == "Time playback":
         playback = prepare_playback_points(event_frame if event_frame is not None else pd.DataFrame())

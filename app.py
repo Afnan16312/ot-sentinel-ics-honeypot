@@ -36,6 +36,14 @@ from ot_sentinel.triage import assess_event, factor_summary
 
 DATA_PATH = Path(os.getenv("OT_PUBLIC_DATA_PATH", ROOT / "data" / "demo_events.jsonl"))
 EVALUATION_FIXTURE = ROOT / "tests" / "fixtures" / "evaluation" / "mapper_cases.jsonl"
+CONFIDENCE_ORDER = {"low": 0, "medium": 1, "high": 2}
+CONTROL_OPERATIONS = {
+    "write_single",
+    "write_multiple",
+    "single_command",
+    "setpoint_command",
+    "program_download",
+}
 
 st.set_page_config(
     page_title="OT Sentinel | ICS Threat Observatory",
@@ -80,6 +88,7 @@ html, body, [class*="css"] { font-family:'Inter',sans-serif; color:var(--text); 
 .filter-chip { display:inline-flex; align-items:center; padding:5px 9px; border-radius:4px; border:1px solid var(--border); background:#fff; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:11px; }
 .filter-chip.blue { color:var(--blue); border-color:#a9c7ff; background:#eef4ff; }
 .filter-chip.purple { color:var(--purple); border-color:#d8b8ff; background:#f8efff; }
+.filter-chip.green { color:var(--green); border-color:#abd9be; background:#eefaf2; }
 .filter-chip.red { color:var(--red); border-color:#f2b0b0; background:#fff0f0; }
 .filter-divider { height:24px; width:1px; background:var(--border); }
 .filter-help { margin-left:auto; color:var(--muted); font-size:11px; }
@@ -122,6 +131,13 @@ div[data-testid="stDataFrame"] { border:1px solid var(--border); border-radius:4
 .detail-panel { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:12px; min-height:210px; }
 .detail-value { color:var(--text); font-size:.85rem; margin:3px 0 10px; word-break:break-word; }
 .privacy-note { color:var(--muted); border-left:2px solid #9da3ad; padding:6px 8px; font-size:.72rem; margin-top:8px; }
+.map-legend { display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; padding:8px 10px; margin:8px 0 10px; background:#f5f7fa; border:1px solid var(--border); border-radius:4px; color:var(--muted); font-size:.7rem; }
+.map-legend span { display:inline-flex; align-items:center; gap:5px; }
+.legend-dot { width:9px; height:9px; border-radius:50%; display:inline-block; border:1px solid rgba(0,0,0,.18); }
+.legend-line { width:18px; height:0; border-top:2px solid #6a4da0; display:inline-block; }
+.context-strip { display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center; padding:8px 10px; margin:8px 0 10px; border-left:3px solid var(--blue); background:#eef4ff; color:#185577; font-size:.72rem; }
+.context-strip b { color:#004883; }
+.evidence-badge { display:inline-block; padding:3px 6px; border-radius:3px; margin:2px 3px 2px 0; border:1px solid #b9d2ee; background:#eef4ff; color:#185577; font-family:'JetBrains Mono',monospace; font-size:.68rem; }
 .rail-card { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:12px; margin-bottom:10px; }
 .rail-card.critical { border-left:4px solid var(--red); }
 .rail-label { color:var(--muted); font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; }
@@ -180,6 +196,71 @@ def flatten_techniques(frame: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def highest_confidence(value: object) -> str:
+    """Return the strongest recorded mapping confidence without guessing."""
+    if not isinstance(value, list):
+        return "none"
+    values = [str(item.get("confidence", "")).lower() for item in value if isinstance(item, dict)]
+    return max(values, key=lambda item: CONFIDENCE_ORDER.get(item, -1), default="none")
+
+
+def map_selection_from_row(row: pd.Series) -> dict[str, object]:
+    """Convert one public aggregate row to the reviewed map selection contract."""
+    return {
+        "source": str(row["source"]),
+        "country": str(row["country"]),
+        "protocol": str(row["protocol"]),
+        "events": int(row["events"]),
+        "sessions": int(row["sessions"]),
+        "max_severity": str(row["max_severity"]),
+        "first_seen": str(row["first_seen"]),
+        "last_seen": str(row["last_seen"]),
+        "control_attempts": int(row["control_attempts"]),
+        "techniques": str(row["techniques"]),
+    }
+
+
+def build_view_manifest(
+    *,
+    is_demo: bool,
+    time_preset: str,
+    filtered: pd.DataFrame,
+    map_points: pd.DataFrame,
+    quality: dict[str, int],
+    selected_protocols: list[str],
+    selected_severity: list[str],
+    selected_countries: list[str],
+    selected_confidence: list[str],
+    selected_priorities: list[str],
+    control_only: bool,
+) -> dict[str, object]:
+    """Build an aggregate-only manifest that makes a view reproducible."""
+    return {
+        "dataset_status": "synthetic" if is_demo else "sanitized",
+        "time_window": time_preset,
+        "filters": {
+            "protocols": sorted(selected_protocols),
+            "severity": sorted(selected_severity),
+            "source_countries": sorted(selected_countries),
+            "mapping_confidence": sorted(selected_confidence),
+            "triage_priorities": sorted(selected_priorities),
+            "control_actions_only": control_only,
+        },
+        "aggregate_counts": {
+            "filtered_events": len(filtered),
+            "mapped_events": int(quality["plotted_events"]),
+            "mapped_sources": int(map_points["source"].nunique()) if not map_points.empty else 0,
+            "mapped_countries": int(map_points["country"].nunique()) if not map_points.empty else 0,
+        },
+        "privacy": {
+            "coordinates": "rounded aggregate only",
+            "source_identity": "pseudonymous source groups only",
+            "raw_payloads": "excluded",
+            "raw_addresses": "excluded",
+        },
+    }
+
+
 def build_triage_queue(frame: pd.DataFrame) -> pd.DataFrame:
     """Create an explainable review queue from normalized dashboard rows."""
     rows: list[dict] = []
@@ -199,6 +280,7 @@ def build_triage_queue(frame: pd.DataFrame) -> pd.DataFrame:
         )
         rows.append(
             {
+                "event_id": event.get("event_id"),
                 "observed_at": event.get("observed_at"),
                 "source": event.get("source_id", event.get("source_ip", "redacted")),
                 "protocol": event.get("protocol"),
@@ -247,15 +329,34 @@ except (OSError, PublicationValidationError):
     st.error("The public dataset failed the safety gate and will not be displayed.")
     st.stop()
 is_demo = bool(df.get("is_demo", pd.Series([False])).fillna(False).all())
+df = df.copy()
+df["mapping_confidence"] = df.get("techniques", pd.Series([[]] * len(df))).apply(highest_confidence)
+triage_all = build_triage_queue(df)
+triage_lookup = triage_all.set_index("event_id") if not triage_all.empty else pd.DataFrame()
+df["triage_score"] = df["event_id"].map(triage_lookup["score"] if not triage_all.empty else {}).fillna(0).astype(int)
+df["triage_priority"] = df["event_id"].map(triage_lookup["priority"] if not triage_all.empty else {}).fillna("informational")
 
 pending_country = st.session_state.pop("_pending_country_filter", None)
 if pending_country is not None:
     st.session_state["filter_countries"] = pending_country
+if st.session_state.pop("_reset_analysis_filters", False):
+    for key in ("filter_protocols", "filter_severity", "filter_countries", "filter_confidence", "filter_priorities", "filter_control_only"):
+        st.session_state.pop(key, None)
 
 protocols = sorted(df["protocol"].dropna().unique().tolist())
 severities = [item for item in ["high", "medium", "low", "info"] if item in df["severity"].unique()]
 countries = sorted(df["source_country"].dropna().unique().tolist())
+confidence_levels = [item for item in ["high", "medium", "low", "none"] if item in df["mapping_confidence"].unique()]
+priority_levels = [
+    item
+    for item in ["urgent review", "high review", "elevated review", "routine review", "informational"]
+    if item in df["triage_priority"].unique()
+]
 country_default = {"default": countries} if "filter_countries" not in st.session_state else {}
+confidence_default = (
+    {"default": confidence_levels} if "filter_confidence" not in st.session_state else {}
+)
+priority_default = {"default": priority_levels} if "filter_priorities" not in st.session_state else {}
 
 with st.expander("Filters", expanded=False):
     filter_left, filter_mid, filter_right = st.columns(3)
@@ -268,11 +369,32 @@ with st.expander("Filters", expanded=False):
     selected_countries = filter_right.multiselect(
         "Source countries", countries, key="filter_countries", **country_default
     )
+    filter_confidence, filter_priority, filter_control = st.columns([1, 1, 1.1])
+    selected_confidence = filter_confidence.multiselect(
+        "Mapping confidence", confidence_levels, key="filter_confidence", **confidence_default
+    )
+    selected_priorities = filter_priority.multiselect(
+        "Triage priority", priority_levels, key="filter_priorities", **priority_default
+    )
+    control_only = filter_control.toggle(
+        "Control actions only", value=False, key="filter_control_only",
+        help="Keep events whose decoded operation can change the fictional decoy state.",
+    )
+    st.caption("All filters use reviewed public fields. Raw addresses and payloads are never used by the dashboard.")
+    if st.button("Reset analysis filters", key="reset_analysis_filters", width="stretch"):
+        st.session_state["_reset_analysis_filters"] = True
+        st.rerun()
 
 filtered = df[
     df["protocol"].isin(selected_protocols)
     & df["severity"].isin(selected_severity)
     & df["source_country"].isin(selected_countries)
+    & df["mapping_confidence"].isin(selected_confidence)
+    & df["triage_priority"].isin(selected_priorities)
+    & (
+        (not control_only)
+        | df["decoded.operation"].isin(CONTROL_OPERATIONS)
+    )
 ].copy()
 techniques = flatten_techniques(filtered)
 
@@ -280,7 +402,7 @@ events_count = len(filtered)
 sessions = filtered["session_id"].nunique()
 sources = filtered.get("source_id", filtered.get("source_ip", pd.Series(dtype=str))).nunique()
 commands = filtered["decoded.operation"].isin(
-    ["write_single", "write_multiple", "single_command", "setpoint_command", "program_download"]
+    CONTROL_OPERATIONS
 ).sum()
 
 status_label = "SYNTHETIC" if is_demo else "SANITIZED"
@@ -322,9 +444,22 @@ st.markdown(
   <span class="filter-divider"></span>
   <div class="filter-group"><span class="filter-label">Source countries</span>
     <span class="filter-chip purple">{len(selected_countries)} selected</span></div>
+  <span class="filter-divider"></span>
+  <div class="filter-group"><span class="filter-label">Evidence</span>
+    <span class="filter-chip green">{', '.join(item.upper() for item in selected_confidence) or 'NONE'}</span></div>
+  <span class="filter-divider"></span>
+  <div class="filter-group"><span class="filter-label">Priority</span>
+    <span class="filter-chip">{len(selected_priorities)} selected</span></div>
+  {'<span class="filter-chip red">CONTROL ONLY</span>' if control_only else ''}
   <span class="filter-help">Use Filters to refine the dashboard.</span>
 </div>
 """,
+    unsafe_allow_html=True,
+)
+st.markdown(
+    f"<div class='context-strip'><b>View context</b><span>{'Synthetic dataset' if is_demo else 'Sanitized observations'}</span>"
+    f"<span>{len(filtered):,} events in scope</span>"
+    f"<span>{len(selected_countries):,} source countries selected</span></div>",
     unsafe_allow_html=True,
 )
 
@@ -373,12 +508,19 @@ with overview:
 """,
         unsafe_allow_html=True,
     )
+    with st.expander("How to use this workspace", expanded=False):
+        st.markdown(
+            "**1. Observe** — choose a map mode and time window. **2. Investigate** — select a source bubble or use the accessible source table. **3. Validate** — follow the evidence into ATT&CK, Detection Preview, Triage or Session Explorer."
+        )
+        st.caption(
+            "A source group is a privacy-safe identifier, a session is one bounded connection, and a technique is an evidence-qualified hypothesis—not proof of intent or compromise."
+        )
 
     control1, control2, control3, control4, control5 = st.columns([1.25, 1.1, 1, 1.1, 0.8])
     map_mode = control1.selectbox("Map mode", MAP_MODES, key="map_mode")
     time_preset = control2.selectbox(
         "Observation window",
-        ["All observations", "Last 24 hours", "Last 7 days", "Last 14 days"],
+        ["All observations", "Last 24 hours", "Last 7 days", "Last 14 days", "Custom UTC range"],
         key="map_window",
     )
     show_labels = control3.toggle("Place labels", value=False, key="map_labels")
@@ -391,8 +533,27 @@ with overview:
     )
     if control5.button("Reset camera", width="stretch"):
         st.session_state["_map_revision"] = st.session_state.get("_map_revision", 0) + 1
+    offline_map = st.checkbox(
+        "Offline map fallback",
+        value=False,
+        key="map_offline",
+        help="Use a tile-free geographic view when external CARTO/OpenStreetMap tiles are blocked.",
+    )
 
     map_frame = filtered.copy()
+    duration = None
+    custom_dates = None
+    if time_preset == "Custom UTC range" and not filtered.empty:
+        latest_for_custom = filtered["observed_at"].max()
+        earliest_for_custom = filtered["observed_at"].min()
+        custom_dates = st.date_input(
+            "Custom UTC dates",
+            value=(earliest_for_custom.date(), latest_for_custom.date()),
+            min_value=earliest_for_custom.date(),
+            max_value=latest_for_custom.date(),
+            key="map_custom_dates",
+            help="Both dates are inclusive and interpreted as UTC.",
+        )
     latest_observation = map_frame["observed_at"].max() if not map_frame.empty else pd.NaT
     if pd.notna(latest_observation):
         window_durations = {
@@ -403,6 +564,10 @@ with overview:
         duration = window_durations.get(time_preset)
         if duration is not None:
             map_frame = filter_time_window(map_frame, latest_observation - duration, latest_observation)
+        elif time_preset == "Custom UTC range" and isinstance(custom_dates, (tuple, list)) and len(custom_dates) == 2:
+            start = pd.Timestamp(custom_dates[0], tz="UTC")
+            end = pd.Timestamp(custom_dates[1], tz="UTC") + timedelta(days=1) - timedelta(microseconds=1)
+            map_frame = filter_time_window(map_frame, start, end)
 
     map_points = prepare_map_points(map_frame)
     quality = map_quality(map_frame)
@@ -419,6 +584,43 @@ with overview:
 """,
         unsafe_allow_html=True,
     )
+    st.markdown(
+        "<div class='map-legend' aria-label='Map legend'>"
+        "<span><i class='legend-dot' style='background:#4E8FB8'></i>Modbus</span>"
+        "<span><i class='legend-dot' style='background:#6A4DA0'></i>S7</span>"
+        "<span><i class='legend-dot' style='background:#8175A8'></i>IEC-104</span>"
+        "<span><i class='legend-line'></i>Observation relationship</span>"
+        "<span>White endpoint = approximate UAE region</span>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+    if duration is not None and pd.notna(latest_observation):
+        with st.expander("Compare with the previous equal window", expanded=False):
+            previous_frame = filter_time_window(
+                filtered,
+                latest_observation - (duration * 2),
+                latest_observation - duration,
+            )
+            compare = pd.DataFrame(
+                {
+                    "metric": ["Events", "Sessions", "Control actions", "Mapped sources"],
+                    "Current window": [
+                        len(map_frame),
+                        map_frame["session_id"].nunique(),
+                        int(map_frame["decoded.operation"].isin(CONTROL_OPERATIONS).sum()),
+                        int(prepare_map_points(map_frame)["source"].nunique()),
+                    ],
+                    "Previous window": [
+                        len(previous_frame),
+                        previous_frame["session_id"].nunique(),
+                        int(previous_frame["decoded.operation"].isin(CONTROL_OPERATIONS).sum()),
+                        int(prepare_map_points(previous_frame)["source"].nunique()),
+                    ],
+                }
+            )
+            compare["Change"] = compare["Current window"] - compare["Previous window"]
+            st.dataframe(compare, width="stretch", hide_index=True)
+            st.caption("This compares recorded windows only; it is not a live-rate or attribution signal.")
 
     map_column, detail_column = st.columns([2.5, 0.9], gap="large")
     with map_column:
@@ -436,6 +638,7 @@ with overview:
                 show_region=True,
                 map_style=map_style,
                 revision=revision,
+                offline_map=offline_map,
             )
             map_state = st.plotly_chart(
                 threat_map,
@@ -453,8 +656,40 @@ with overview:
             map_selection = selection_from_plotly_state(map_state)
             if map_selection is not None:
                 st.session_state["_selected_map_source"] = map_selection
+            if offline_map and map_mode == "Time playback":
+                st.caption("Offline fallback is available for Flow, Source bubbles and Density; playback uses the tile map.")
 
-        selected = map_selection or st.session_state.get("_selected_map_source")
+        with st.expander("Accessible source table", expanded=False):
+            accessible_selection = None
+            if map_points.empty:
+                st.info("No source groups are available for the current filters and time window.")
+                accessible_choice = "No source selected"
+            else:
+                accessible_table = map_points[
+                    [
+                        "source",
+                        "country",
+                        "protocol",
+                        "events",
+                        "sessions",
+                        "control_attempts",
+                        "max_severity",
+                        "first_seen",
+                        "last_seen",
+                    ]
+                ].sort_values(["events", "source"], ascending=[False, True])
+                st.dataframe(accessible_table, width="stretch", hide_index=True)
+                accessible_choice = st.selectbox(
+                    "Inspect source group",
+                    ["No source selected"] + accessible_table["source"].astype(str).tolist(),
+                    key="map_accessible_source",
+                )
+                if accessible_choice != "No source selected":
+                    accessible_selection = map_selection_from_row(
+                        accessible_table[accessible_table["source"].astype(str) == accessible_choice].iloc[0]
+                    )
+
+        selected = map_selection or accessible_selection or st.session_state.get("_selected_map_source")
         if selected:
             selection_visible = (
                 not map_points.empty
@@ -520,23 +755,84 @@ with overview:
         st.markdown("<div class='map-kicker'>Investigation summary</div>", unsafe_allow_html=True)
         if selected:
             safe = {key: escape(str(value)) for key, value in selected.items()}
+            source_values = (
+                map_frame["source_id"]
+                if "source_id" in map_frame
+                else map_frame.get("source_ip", pd.Series(index=map_frame.index, dtype=str))
+            )
+            selected_events = map_frame[
+                source_values.astype(str).eq(str(selected["source"]))
+                & map_frame["protocol"].astype(str).eq(str(selected["protocol"]))
+            ].copy()
+            selected_techniques = flatten_techniques(selected_events)
+            confidence_values = (
+                selected_techniques["confidence"].dropna().astype(str).str.lower().unique().tolist()
+                if not selected_techniques.empty and "confidence" in selected_techniques
+                else []
+            )
+            confidence_badges = "".join(
+                f"<span class='evidence-badge'>{escape(value.upper())} confidence</span>"
+                for value in sorted(confidence_values, key=lambda item: CONFIDENCE_ORDER.get(item, -1), reverse=True)
+            ) or "<span class='evidence-badge'>No mapped confidence</span>"
             st.markdown(
                 f"""
 <div class="detail-panel">
   <div class="detail-label">Pseudonymous source</div><div class="detail-value"><code>{safe['source']}</code></div>
   <div class="detail-label">Country / protocol</div><div class="detail-value">{safe['country']} · {safe['protocol'].upper()}</div>
   <div class="detail-label">Observed activity</div><div class="detail-value">{safe['events']} events · {safe['sessions']} sessions · {safe['control_attempts']} control attempts</div>
+  <div class="detail-label">Repeat observations</div><div class="detail-value">{max(int(selected['events']) - int(selected['sessions']), 0)} after the first session</div>
   <div class="detail-label">Highest severity</div><div class="detail-value">{safe['max_severity'].upper()}</div>
   <div class="detail-label">Latest observation</div><div class="detail-value">{safe['last_seen']}</div>
   <div class="detail-label">ATT&amp;CK hypotheses</div><div class="detail-value">{safe['techniques']}</div>
+  <div class="detail-label">Evidence confidence</div><div class="detail-value">{confidence_badges}</div>
   <div class="privacy-note">This panel contains reviewed public fields only. Raw IP addresses and payloads are never exposed.</div>
 </div>
 """,
                 unsafe_allow_html=True,
             )
+            action_left, action_right = st.columns(2)
+            if action_left.button("Prepare Session Explorer", key="prepare_session_view", width="stretch"):
+                st.session_state["session_focus_source"] = selected["source"]
+                st.info("Session Explorer is ready for this source group. Open that tab to review its events.")
+            if action_right.button("Prepare ATT&CK review", key="prepare_attack_view", width="stretch"):
+                if not selected_techniques.empty:
+                    st.session_state["attack_focus_technique"] = str(selected_techniques.iloc[0]["technique_id"])
+                st.info("ATT&CK Analysis is ready for this source context. Open that tab to review the evidence.")
+            with st.expander("Private local review note", expanded=False):
+                st.selectbox(
+                    "Review state",
+                    ["Unreviewed", "Reviewed", "Needs more context", "False positive"],
+                    key="local_review_state",
+                )
+                st.text_area(
+                    "Analyst note (local session only)",
+                    key="local_review_note",
+                    height=80,
+                    placeholder="Record why this evidence needs attention. This note is not exported.",
+                )
+            if not selected_events.empty:
+                timeline = selected_events.copy()
+                timeline["techniques"] = timeline.get("technique_ids", pd.Series([[]] * len(timeline))).apply(
+                    lambda value: ", ".join(value) or "—"
+                )
+                timeline["operation"] = timeline.get("decoded.operation", "unknown")
+                timeline["source"] = timeline.get("source_id", "redacted")
+                timeline = timeline[
+                    ["observed_at", "protocol", "operation", "severity", "techniques", "session_id"]
+                ].sort_values("observed_at", ascending=False).head(20)
+                st.caption("Recent public evidence for the selected source group (maximum 20 rows).")
+                st.dataframe(
+                    timeline,
+                    width="stretch",
+                    hide_index=True,
+                    column_config={
+                        "observed_at": st.column_config.DatetimeColumn("Observed (UTC)", format="YYYY-MM-DD HH:mm:ss"),
+                    },
+                )
             if selected["country"] in countries and st.button(
                 f"Filter dashboard to {selected['country']}", width="stretch"
             ):
+                st.session_state["previous_countries"] = list(selected_countries)
                 st.session_state["_pending_country_filter"] = [selected["country"]]
                 st.rerun()
         elif not map_points.empty:
@@ -568,8 +864,36 @@ with overview:
             disabled=map_points.empty,
             help="Exports coarse, aggregate and privacy-reviewed map fields only.",
         )
+        view_manifest = build_view_manifest(
+            is_demo=is_demo,
+            time_preset=time_preset,
+            filtered=filtered,
+            map_points=map_points,
+            quality=quality,
+            selected_protocols=selected_protocols,
+            selected_severity=selected_severity,
+            selected_countries=selected_countries,
+            selected_confidence=selected_confidence,
+            selected_priorities=selected_priorities,
+            control_only=control_only,
+        )
+        st.download_button(
+            "Export view manifest",
+            data=json.dumps(view_manifest, indent=2) + "\n",
+            file_name="ot-sentinel-view-manifest.json",
+            mime="application/json",
+            width="stretch",
+            help="Exports aggregate view context and privacy guarantees; no individual event rows are included.",
+        )
         if st.button("Show all countries", width="stretch", disabled=len(selected_countries) == len(countries)):
             st.session_state["_pending_country_filter"] = countries
+            st.rerun()
+        previous_countries = st.session_state.get("previous_countries")
+        if previous_countries and previous_countries != selected_countries and st.button(
+            "Restore previous country view", width="stretch"
+        ):
+            st.session_state["_pending_country_filter"] = previous_countries
+            st.session_state.pop("previous_countries", None)
             st.rerun()
 
     with st.expander("Map coverage and privacy audit"):
@@ -635,6 +959,22 @@ with overview:
 
 with attack_tab:
     st.markdown("<div class='section-title'>Technique intensity by protocol</div>", unsafe_allow_html=True)
+    attack_technique_options = ["All techniques"] + (
+        sorted(techniques["technique_id"].dropna().astype(str).unique().tolist())
+        if not techniques.empty
+        else []
+    )
+    attack_default = st.session_state.get("attack_focus_technique", "All techniques")
+    if attack_default not in attack_technique_options:
+        attack_default = "All techniques"
+    attack_focus = st.selectbox(
+        "Technique focus",
+        attack_technique_options,
+        index=attack_technique_options.index(attack_default),
+        key="attack_technique_filter",
+    )
+    if attack_focus != "All techniques":
+        techniques = techniques[techniques["technique_id"].astype(str) == attack_focus]
     if techniques.empty:
         st.info("No mapped behaviors match the current filters.")
     else:
@@ -693,6 +1033,18 @@ with detection_tab:
         st.info("No offline detection rule matches the current sanitized event filters.")
     else:
         preview_frame = pd.DataFrame(predictions)
+        coverage = (
+            preview_frame.groupby("protocol", dropna=False)
+            .agg(
+                predicted_matches=("rule_id", "size"),
+                rules=("rule_id", "nunique"),
+                techniques=("technique", "nunique"),
+            )
+            .reset_index()
+            .sort_values("predicted_matches", ascending=False)
+        )
+        st.caption("Detection coverage summary — predictions are offline rule matches, not native engine alerts.")
+        st.dataframe(coverage, width="stretch", hide_index=True)
         engines = sorted(preview_frame["engine"].unique())
         protocols_for_preview = sorted(preview_frame["protocol"].unique())
         rules_for_preview = sorted(preview_frame["rule_id"].unique())
@@ -831,6 +1183,20 @@ with triage_tab:
 with sessions_tab:
     st.markdown("<div class='section-title'>Sanitized event ledger</div>", unsafe_allow_html=True)
     display = filtered.copy()
+    session_sources = sorted(display.get("source_id", pd.Series(dtype=str)).dropna().astype(str).unique().tolist())
+    session_focus_options = ["All source groups"] + session_sources
+    session_focus_default = st.session_state.get("session_focus_source", "All source groups")
+    if session_focus_default not in session_focus_options:
+        session_focus_default = "All source groups"
+    session_focus = st.selectbox(
+        "Source group focus",
+        session_focus_options,
+        index=session_focus_options.index(session_focus_default),
+        key="session_source_filter",
+    )
+    if session_focus != "All source groups" and "source_id" in display:
+        display = display[display["source_id"].astype(str) == session_focus]
+    st.caption("The ledger contains reviewed public fields only. Select a source on the map to prepare a focused view.")
     display["techniques"] = display["technique_ids"].apply(lambda value: ", ".join(value) or "—")
     display["operation"] = display.get("decoded.operation", "unknown")
     display["source"] = display.get("source_id", display.get("source_ip", "redacted"))

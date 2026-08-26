@@ -59,6 +59,25 @@ Groups visible public observations into six-hour UTC windows and provides a fini
 - synchronized ATT&CK, geographic concentration and activity-cadence views;
 - explicit empty states when no safely mappable records remain.
 
+### Investigation pass (shipped on `feature/stitch-ui-redesign`)
+
+The map now also provides:
+
+- a persistent legend and view-context strip that explain protocol colors, relationship lines and synthetic/sanitized provenance;
+- mapping-confidence, triage-priority and control-action-only filters;
+- a bounded custom UTC date range and previous-equal-window comparison;
+- repeat-observation counts alongside unique-session counts;
+- an accessible source table with keyboard-friendly source selection;
+- selected-source evidence confidence badges and a maximum-20-row public timeline;
+- preparation actions for Session Explorer and ATT&CK Analysis;
+- local-only review state and notes that are never exported;
+- detection-coverage summary by protocol, rule and technique;
+- an aggregate-only view manifest containing filters, counts and privacy guarantees;
+- a tile-free Natural Earth fallback for disconnected or restricted networks; and
+- a reversible country-focus action that restores the previous country view.
+
+These additions reuse the existing public event contract. They do not expose raw addresses or payloads, change the Oracle sensor, or turn synthetic playback into a live feed.
+
 ## Visual direction
 
 The Stitch-inspired pass uses a light, editorial workstation language instead of a decorative "hacker" theme:
