@@ -617,7 +617,7 @@ with overview:
             x="observed_at",
             y="events",
             color="protocol",
-            color_discrete_map={"modbus": "#4E8FB8", "s7": "#C08A4E", "iec104": "#8175A8"},
+            color_discrete_map={"modbus": "#4E8FB8", "s7": "#6A4DA0", "iec104": "#8175A8"},
         )
         line.update_traces(line_width=1.4)
         line.update_layout(

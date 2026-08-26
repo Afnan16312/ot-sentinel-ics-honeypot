@@ -13,7 +13,7 @@ import plotly.graph_objects as go
 
 PROTOCOL_COLORS = {
     "modbus": "#4E8FB8",
-    "s7": "#C08A4E",
+    "s7": "#6A4DA0",
     "iec104": "#8175A8",
     "unknown": "#70808D",
 }
