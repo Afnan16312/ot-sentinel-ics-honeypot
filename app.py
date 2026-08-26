@@ -257,7 +257,7 @@ severities = [item for item in ["high", "medium", "low", "info"] if item in df["
 countries = sorted(df["source_country"].dropna().unique().tolist())
 country_default = {"default": countries} if "filter_countries" not in st.session_state else {}
 
-with st.expander("Adjust filters", expanded=False):
+with st.expander("Filters", expanded=False):
     filter_left, filter_mid, filter_right = st.columns(3)
     selected_protocols = filter_left.multiselect(
         "Protocols", protocols, default=protocols, key="filter_protocols"
@@ -266,7 +266,7 @@ with st.expander("Adjust filters", expanded=False):
         "Severity", severities, default=severities, key="filter_severity"
     )
     selected_countries = filter_right.multiselect(
-        "Source country", countries, key="filter_countries", **country_default
+        "Source countries", countries, key="filter_countries", **country_default
     )
 
 filtered = df[
@@ -283,7 +283,7 @@ commands = filtered["decoded.operation"].isin(
     ["write_single", "write_multiple", "single_command", "setpoint_command", "program_download"]
 ).sum()
 
-status_label = "DEMO DATA" if is_demo else "SANITIZED DATA"
+status_label = "SYNTHETIC" if is_demo else "SANITIZED"
 latest_public = df["observed_at"].max()
 latest_label = latest_public.strftime("%d %b %Y %H:%M UTC") if pd.notna(latest_public) else "No observations"
 header_export = map_points_csv(prepare_map_points(filtered))
@@ -292,9 +292,9 @@ with header_left:
     st.markdown("<div class='stitch-brand'>OT Sentinel</div>", unsafe_allow_html=True)
 with header_status:
     st.markdown(
-        f"<div class='stitch-status'><span class='dot'></span><span>DATA: {status_label}</span>"
+        f"<div class='stitch-status'><span class='dot'></span><span>DATASET: {status_label}</span>"
         f"<span class='divider'>|</span><span>UTC {pd.Timestamp.now(tz='UTC').strftime('%H:%M')}</span>"
-        f"<span class='divider'>|</span><span>LAST UPDATE: {latest_label}</span></div>",
+        f"<span class='divider'>|</span><span>DATASET DATE: {latest_label}</span></div>",
         unsafe_allow_html=True,
     )
 with header_export_col:
@@ -314,15 +314,15 @@ with header_info_col:
 st.markdown(
     f"""
 <div class="filter-bar" aria-label="Current dashboard filters">
-  <div class="filter-group"><span class="filter-label">Protocol</span>
+  <div class="filter-group"><span class="filter-label">Protocols</span>
     <span class="filter-chip blue">{', '.join(item.upper() for item in selected_protocols) or 'NONE'}</span></div>
   <span class="filter-divider"></span>
   <div class="filter-group"><span class="filter-label">Severity</span>
     <span class="filter-chip red">{', '.join(item.upper() for item in selected_severity) or 'NONE'}</span></div>
   <span class="filter-divider"></span>
-  <div class="filter-group"><span class="filter-label">Country</span>
+  <div class="filter-group"><span class="filter-label">Source countries</span>
     <span class="filter-chip purple">{len(selected_countries)} selected</span></div>
-  <span class="filter-help">Use “Adjust filters” above to change the view.</span>
+  <span class="filter-help">Use Filters to refine the dashboard.</span>
 </div>
 """,
     unsafe_allow_html=True,
@@ -330,7 +330,7 @@ st.markdown(
 
 if is_demo:
     st.markdown(
-        "<div class='demo-banner'><b>DEMONSTRATION DATA</b> — Every event in this public build is synthetic. It validates the full analysis pipeline but is not presented as observed attacker activity.</div>",
+        "<div class='demo-banner'><b>SYNTHETIC DATA</b> — This public build contains synthetic events for safe pipeline testing. It is not presented as observed attacker activity.</div>",
         unsafe_allow_html=True,
     )
 else:
@@ -342,10 +342,10 @@ else:
 st.markdown(
     f"""
 <div class="telemetry-strip" aria-label="Current filtered telemetry summary">
-  <div class="telemetry-cell"><div class="telemetry-label">Protocol events</div><div class="telemetry-value">{events_count:,}</div></div>
-  <div class="telemetry-cell"><div class="telemetry-label">Distinct sessions</div><div class="telemetry-value">{sessions:,}</div></div>
-  <div class="telemetry-cell"><div class="telemetry-label">Pseudonymous sources</div><div class="telemetry-value">{sources:,}</div></div>
-  <div class="telemetry-cell" title="Requests containing a write, command, or program-transfer operation"><div class="telemetry-label">Control attempts</div><div class="telemetry-value">{commands:,}</div></div>
+  <div class="telemetry-cell"><div class="telemetry-label">Observed events</div><div class="telemetry-value">{events_count:,}</div></div>
+  <div class="telemetry-cell"><div class="telemetry-label">Sessions</div><div class="telemetry-value">{sessions:,}</div></div>
+  <div class="telemetry-cell"><div class="telemetry-label">Source groups</div><div class="telemetry-value">{sources:,}</div></div>
+  <div class="telemetry-cell" title="Requests containing a write, command, or program-transfer operation"><div class="telemetry-label">Control actions</div><div class="telemetry-value">{commands:,}</div></div>
 </div>
 """,
     unsafe_allow_html=True,
