@@ -158,6 +158,7 @@ div[data-testid="stDataFrame"] { border:1px solid var(--border); border-radius:4
 .stExpander summary p { color:var(--muted); font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; }
 @media (max-width:1024px) { .block-container { padding-left:84px; } .stitch-header { margin-left:-84px; } .stTabs [role="tablist"] { width:64px; } .stTabs [role="tab"] { font-size:0; justify-content:center; padding:8px 6px; } .stTabs [role="tab"] p { font-size:0; } .stTabs [role="tab"] p:before { content:'•'; font-size:20px; } }
 @media (max-width:700px) { .block-container { padding:0 12px 24px 66px; } .stitch-header { margin:0 -12px 12px -66px; padding:0 12px 0 66px; } .stitch-status { gap:5px; font-size:8px; } .stitch-status .divider, .stitch-status span:nth-of-type(n+3) { display:none; } .stTabs [role="tablist"] { top:52px; width:54px; } .telemetry-strip { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; } .telemetry-value { font-size:1.15rem; } .filter-bar { flex-wrap:wrap; gap:8px; } .filter-help { width:100%; margin-left:0; } .map-stat-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important; } }
 </style>
 """,
     unsafe_allow_html=True,
@@ -570,6 +571,10 @@ with overview:
             map_frame = filter_time_window(map_frame, start, end)
 
     map_points = prepare_map_points(map_frame)
+    if not map_points.empty:
+        map_points = map_points.assign(
+            repeat_observations=(map_points["events"] - map_points["sessions"]).clip(lower=0)
+        )
     quality = map_quality(map_frame)
     source_count = int(map_points["source"].nunique()) if not map_points.empty else 0
     protocol_count = int(map_points["protocol"].nunique()) if not map_points.empty else 0
@@ -582,6 +587,11 @@ with overview:
   <div class="map-stat"><div class="label">Protocols active</div><div class="value">{protocol_count:,}</div></div>
 </div>
 """,
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        f"<div class='context-strip'><b>Map window</b><span>{escape(time_preset)}</span>"
+        f"<span>{quality['plotted_events']:,} mapped events</span><span>{quality['unmapped_events']:,} excluded for coordinate quality</span></div>",
         unsafe_allow_html=True,
     )
     st.markdown(
@@ -672,6 +682,7 @@ with overview:
                         "protocol",
                         "events",
                         "sessions",
+                        "repeat_observations",
                         "control_attempts",
                         "max_severity",
                         "first_seen",
@@ -1045,6 +1056,15 @@ with detection_tab:
         )
         st.caption("Detection coverage summary — predictions are offline rule matches, not native engine alerts.")
         st.dataframe(coverage, width="stretch", hide_index=True)
+        mapped_ids = set(techniques.get("technique_id", pd.Series(dtype=str)).dropna().astype(str))
+        covered_ids = set(preview_frame.get("technique", pd.Series(dtype=str)).dropna().astype(str))
+        uncovered_ids = sorted(mapped_ids - covered_ids)
+        if uncovered_ids:
+            st.info(
+                "Mapped behaviors without an offline rule match in this view: "
+                + ", ".join(uncovered_ids)
+                + ". Review the evidence before treating this as a detection gap."
+            )
         engines = sorted(preview_frame["engine"].unique())
         protocols_for_preview = sorted(preview_frame["protocol"].unique())
         rules_for_preview = sorted(preview_frame["rule_id"].unique())
