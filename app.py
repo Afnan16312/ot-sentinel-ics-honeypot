@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import os
 import sys
+from datetime import timedelta
+from html import escape
 from pathlib import Path
 
 import pandas as pd
@@ -13,6 +15,15 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "src"))
 
+from ot_sentinel.dashboard_map import (
+    MAP_MODES,
+    build_threat_map,
+    filter_time_window,
+    map_points_csv,
+    map_quality,
+    prepare_map_points,
+    selection_from_plotly_state,
+)
 from ot_sentinel.detection_preview import preview_detections
 from ot_sentinel.evaluation import evaluate_mapper, load_labeled_jsonl
 from ot_sentinel.publication import (
@@ -30,7 +41,7 @@ st.set_page_config(
     page_title="OT Sentinel | ICS Threat Observatory",
     page_icon="◉",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
 )
 
 st.markdown(
@@ -38,19 +49,23 @@ st.markdown(
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap');
 html, body, [class*="css"] { font-family: 'Manrope', sans-serif; }
-.stApp { background: radial-gradient(circle at 70% 0%, #16212c 0, #0b1118 36%, #080c11 100%); }
-[data-testid="stSidebar"] { background: rgba(13,20,28,.97); border-right: 1px solid #263746; }
-[data-testid="stMetric"] { background: linear-gradient(145deg, rgba(21,31,42,.94), rgba(13,21,29,.94)); border: 1px solid #2a3d4a; border-radius: 12px; padding: 16px 18px; }
+.stApp { background:#090e13; }
+[data-testid="stSidebar"] { background:#0d141b; border-right:1px solid #26343e; }
+[data-testid="stMetric"] { background:#101820; border:1px solid #2a3944; border-radius:8px; padding:15px 17px; }
 [data-testid="stMetricValue"] { font-family: 'DM Mono', monospace; color: #edf3f8; }
 .eyebrow { color:#6f9fc4; font-family:'DM Mono',monospace; letter-spacing:.14em; text-transform:uppercase; font-size:.72rem; }
-.hero { padding: 1.1rem 0 1.2rem; border-bottom:1px solid #263746; margin-bottom:1.3rem; }
-.hero h1 { font-size:2.35rem; letter-spacing:-.045em; margin:.3rem 0 .25rem; color:#f3f6f9; }
-.hero p { color:#9caebb; max-width:780px; margin:0; font-size:.98rem; }
-.author-line { color:#728696; font-size:.78rem; margin-top:.6rem; }
+.hero { padding:.45rem 0 .65rem; border-bottom:1px solid #263746; margin-bottom:.75rem; }
+.hero h1 { font-size:1.95rem; letter-spacing:-.04em; margin:.2rem 0 .18rem; color:#f3f6f9; }
+.hero p { color:#9caebb; max-width:780px; margin:0; font-size:.9rem; }
+.author-line { color:#728696; font-size:.75rem; margin-top:.38rem; }
 .author-line a, .footer-note a { color:#8eb2cf; text-decoration:none; }
 .author-line a:hover, .footer-note a:hover { text-decoration:underline; }
-.demo-banner { border:1px solid #806a2d; background:rgba(89,67,14,.22); color:#f1d98a; padding:.72rem 1rem; border-radius:9px; font-size:.88rem; margin:.4rem 0 1.2rem; }
-.live-banner { border:1px solid #436b80; background:rgba(37,70,89,.22); color:#a9c6d8; padding:.72rem 1rem; border-radius:9px; font-size:.88rem; margin:.4rem 0 1.2rem; }
+.demo-banner { border:1px solid #806a2d; background:rgba(89,67,14,.22); color:#f1d98a; padding:.55rem .85rem; border-radius:8px; font-size:.82rem; margin:.3rem 0 .75rem; }
+.live-banner { border:1px solid #436b80; background:rgba(37,70,89,.22); color:#a9c6d8; padding:.55rem .85rem; border-radius:8px; font-size:.82rem; margin:.3rem 0 .75rem; }
+.telemetry-strip { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; background:#2a3944; border:1px solid #2a3944; border-radius:9px; overflow:hidden; margin:.1rem 0 .85rem; }
+.telemetry-cell { background:#101820; padding:.72rem .85rem; min-width:0; }
+.telemetry-label { color:#7f919e; font-size:.68rem; text-transform:uppercase; letter-spacing:.075em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.telemetry-value { color:#edf3f8; font-family:'DM Mono',monospace; font-size:1.15rem; line-height:1.25; margin-top:.16rem; }
 .section-title { font-size:1.05rem; font-weight:650; color:#e8edf2; margin-top:.55rem; }
 .technique { border-left:3px solid #6f9fc4; background:rgba(19,28,38,.78); padding:.75rem .9rem; margin:.5rem 0; border-radius:0 8px 8px 0; }
 .technique .id { color:#6f9fc4; font-family:'DM Mono',monospace; font-size:.76rem; }
@@ -60,6 +75,24 @@ html, body, [class*="css"] { font-family: 'Manrope', sans-serif; }
 div[data-testid="stDataFrame"] { border:1px solid #2a3a46; border-radius:10px; overflow:hidden; }
 .stTabs [data-baseweb="tab-list"] { gap:1.25rem; border-bottom:1px solid #253443; }
 .stTabs [data-baseweb="tab"] { font-family:'DM Mono',monospace; font-size:.78rem; }
+.map-shell { background:#0b1117; border:1px solid #2a3944; border-radius:10px; padding:.8rem .9rem .35rem; }
+.map-kicker { color:#7898ad; font-family:'DM Mono',monospace; letter-spacing:.09em; text-transform:uppercase; font-size:.68rem; }
+.map-title { color:#eef3f6; font-size:1.18rem; font-weight:650; margin:.18rem 0 .15rem; }
+.map-copy { color:#8ea0ad; font-size:.82rem; margin:0 0 .75rem; max-width:850px; }
+.map-stat-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; background:#26343e; border:1px solid #26343e; border-radius:8px; overflow:hidden; margin:.2rem 0 .8rem; }
+.map-stat { background:#0f171e; padding:.65rem .75rem; }
+.map-stat .label { color:#758896; font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; }
+.map-stat .value { color:#edf2f5; font-family:'DM Mono',monospace; font-size:.94rem; margin-top:.12rem; }
+.detail-panel { background:#0f171e; border:1px solid #2a3944; border-radius:9px; padding:.9rem 1rem; min-height:210px; }
+.detail-label { color:#758896; font-family:'DM Mono',monospace; font-size:.67rem; letter-spacing:.08em; text-transform:uppercase; }
+.detail-value { color:#edf3f6; font-size:.9rem; margin:.18rem 0 .7rem; word-break:break-word; }
+.privacy-note { color:#93a4b0; border-left:2px solid #586d7b; padding:.45rem .65rem; font-size:.76rem; margin-top:.65rem; }
+@media (max-width:900px) {
+  .telemetry-strip, .map-stat-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .telemetry-cell { padding:.62rem .7rem; }
+  .telemetry-value { font-size:1rem; }
+  .hero h1 { font-size:1.65rem; }
+}
 </style>
 """,
     unsafe_allow_html=True,
@@ -189,14 +222,25 @@ else:
         unsafe_allow_html=True,
     )
 
+pending_country = st.session_state.pop("_pending_country_filter", None)
+if pending_country is not None:
+    st.session_state["filter_countries"] = pending_country
+
 with st.sidebar:
     st.markdown("<div class='eyebrow'>VIEW CONTROLS</div>", unsafe_allow_html=True)
     protocols = sorted(df["protocol"].dropna().unique().tolist())
-    selected_protocols = st.multiselect("Protocols", protocols, default=protocols)
+    selected_protocols = st.multiselect(
+        "Protocols", protocols, default=protocols, key="filter_protocols"
+    )
     severities = [item for item in ["high", "medium", "low", "info"] if item in df["severity"].unique()]
-    selected_severity = st.multiselect("Severity", severities, default=severities)
+    selected_severity = st.multiselect(
+        "Severity", severities, default=severities, key="filter_severity"
+    )
     countries = sorted(df["source_country"].dropna().unique().tolist())
-    selected_countries = st.multiselect("Source country", countries, default=countries)
+    country_default = {"default": countries} if "filter_countries" not in st.session_state else {}
+    selected_countries = st.multiselect(
+        "Source country", countries, key="filter_countries", **country_default
+    )
     st.divider()
     st.markdown("<div class='eyebrow'>SENSOR POSTURE</div>", unsafe_allow_html=True)
     st.caption("Low interaction · no command execution · bounded payload capture · outbound denied")
@@ -218,11 +262,17 @@ commands = filtered["decoded.operation"].isin(
     ["write_single", "write_multiple", "single_command", "setpoint_command", "program_download"]
 ).sum()
 
-m1, m2, m3, m4 = st.columns(4)
-m1.metric("Protocol events", f"{events_count:,}")
-m2.metric("Distinct sessions", f"{sessions:,}")
-m3.metric("Pseudonymous sources", f"{sources:,}")
-m4.metric("Control attempts", f"{commands:,}", help="Requests containing a write, command, or program-transfer operation")
+st.markdown(
+    f"""
+<div class="telemetry-strip" aria-label="Current filtered telemetry summary">
+  <div class="telemetry-cell"><div class="telemetry-label">Protocol events</div><div class="telemetry-value">{events_count:,}</div></div>
+  <div class="telemetry-cell"><div class="telemetry-label">Distinct sessions</div><div class="telemetry-value">{sessions:,}</div></div>
+  <div class="telemetry-cell"><div class="telemetry-label">Pseudonymous sources</div><div class="telemetry-value">{sources:,}</div></div>
+  <div class="telemetry-cell" title="Requests containing a write, command, or program-transfer operation"><div class="telemetry-label">Control attempts</div><div class="telemetry-value">{commands:,}</div></div>
+</div>
+""",
+    unsafe_allow_html=True,
+)
 
 overview, attack_tab, detection_tab, triage_tab, sessions_tab, methodology = st.tabs(
     [
@@ -236,74 +286,231 @@ overview, attack_tab, detection_tab, triage_tab, sessions_tab, methodology = st.
 )
 
 with overview:
-    left, right = st.columns([1.55, 1], gap="large")
-    with left:
-        st.markdown("<div class='section-title'>Global source distribution</div>", unsafe_allow_html=True)
-        geo = (
-            filtered.dropna(subset=["source_latitude", "source_longitude"])
-            .groupby(["source_country", "source_latitude", "source_longitude", "protocol"])
+    st.markdown(
+        """
+<div class="map-shell">
+  <div class="map-kicker">Geographic investigation workspace</div>
+  <div class="map-title">Global observation map</div>
+  <p class="map-copy">Explore coarse public geolocation, compare protocol activity and select a source for a privacy-safe investigation summary.</p>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+    control1, control2, control3, control4, control5 = st.columns([1.25, 1.1, 1, 1.1, 0.8])
+    map_mode = control1.selectbox("Map mode", MAP_MODES, key="map_mode")
+    time_preset = control2.selectbox(
+        "Observation window",
+        ["All observations", "Last 24 hours", "Last 7 days", "Last 14 days"],
+        key="map_window",
+    )
+    show_labels = control3.toggle("Place labels", value=False, key="map_labels")
+    show_flows = control4.toggle(
+        "Observation paths",
+        value=True,
+        disabled=map_mode != "Flow view",
+        key="map_flows",
+        help="Paths indicate network observations, not a proven physical attacker route.",
+    )
+    if control5.button("Reset camera", width="stretch"):
+        st.session_state["_map_revision"] = st.session_state.get("_map_revision", 0) + 1
+
+    map_frame = filtered.copy()
+    latest_observation = map_frame["observed_at"].max() if not map_frame.empty else pd.NaT
+    if pd.notna(latest_observation):
+        window_durations = {
+            "Last 24 hours": timedelta(hours=24),
+            "Last 7 days": timedelta(days=7),
+            "Last 14 days": timedelta(days=14),
+        }
+        duration = window_durations.get(time_preset)
+        if duration is not None:
+            map_frame = filter_time_window(map_frame, latest_observation - duration, latest_observation)
+
+    map_points = prepare_map_points(map_frame)
+    quality = map_quality(map_frame)
+    source_count = int(map_points["source"].nunique()) if not map_points.empty else 0
+    protocol_count = int(map_points["protocol"].nunique()) if not map_points.empty else 0
+    st.markdown(
+        f"""
+<div class="map-stat-grid">
+  <div class="map-stat"><div class="label">Visible events</div><div class="value">{quality['events']:,}</div></div>
+  <div class="map-stat"><div class="label">Mapped sources</div><div class="value">{source_count:,}</div></div>
+  <div class="map-stat"><div class="label">Countries</div><div class="value">{quality['countries']:,}</div></div>
+  <div class="map-stat"><div class="label">Protocols active</div><div class="value">{protocol_count:,}</div></div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+    map_column, detail_column = st.columns([2.5, 0.9], gap="large")
+    with map_column:
+        if map_points.empty:
+            st.info("No safely mappable observations match the current filters and time window.")
+            map_selection = None
+        else:
+            map_style = "carto-darkmatter" if show_labels else "carto-darkmatter-nolabels"
+            revision = f"ot-map-{st.session_state.get('_map_revision', 0)}"
+            threat_map = build_threat_map(
+                map_points,
+                mode=map_mode,
+                event_frame=map_frame,
+                show_flows=show_flows,
+                show_region=True,
+                map_style=map_style,
+                revision=revision,
+            )
+            map_state = st.plotly_chart(
+                threat_map,
+                width="stretch",
+                key=f"interactive_threat_map_{map_mode}",
+                on_select="rerun",
+                selection_mode="points",
+                config={
+                    "displaylogo": False,
+                    "scrollZoom": True,
+                    "responsive": True,
+                    "modeBarButtonsToRemove": ["lasso2d", "select2d"],
+                },
+            )
+            map_selection = selection_from_plotly_state(map_state)
+            if map_selection is not None:
+                st.session_state["_selected_map_source"] = map_selection
+
+        selected = map_selection or st.session_state.get("_selected_map_source")
+        if selected:
+            selection_visible = (
+                not map_points.empty
+                and (
+                    (map_points["source"] == selected["source"])
+                    & (map_points["protocol"] == selected["protocol"])
+                ).any()
+            )
+            if not selection_visible:
+                st.session_state.pop("_selected_map_source", None)
+                selected = None
+        st.caption(
+            "White endpoint: approximate UAE sensor region. Map locations are deliberately coarse. "
+            "Paths show observed network relationships; "
+            "they do not prove attribution, travel, infrastructure ownership or operator location."
+        )
+
+    with detail_column:
+        st.markdown("<div class='map-kicker'>Investigation summary</div>", unsafe_allow_html=True)
+        if selected:
+            safe = {key: escape(str(value)) for key, value in selected.items()}
+            st.markdown(
+                f"""
+<div class="detail-panel">
+  <div class="detail-label">Pseudonymous source</div><div class="detail-value"><code>{safe['source']}</code></div>
+  <div class="detail-label">Country / protocol</div><div class="detail-value">{safe['country']} · {safe['protocol'].upper()}</div>
+  <div class="detail-label">Observed activity</div><div class="detail-value">{safe['events']} events · {safe['sessions']} sessions · {safe['control_attempts']} control attempts</div>
+  <div class="detail-label">Highest severity</div><div class="detail-value">{safe['max_severity'].upper()}</div>
+  <div class="detail-label">Latest observation</div><div class="detail-value">{safe['last_seen']}</div>
+  <div class="detail-label">ATT&amp;CK hypotheses</div><div class="detail-value">{safe['techniques']}</div>
+  <div class="privacy-note">This panel contains reviewed public fields only. Raw IP addresses and payloads are never exposed.</div>
+</div>
+""",
+                unsafe_allow_html=True,
+            )
+            if selected["country"] in countries and st.button(
+                f"Filter dashboard to {selected['country']}", width="stretch"
+            ):
+                st.session_state["_pending_country_filter"] = [selected["country"]]
+                st.rerun()
+        elif not map_points.empty:
+            top_point = map_points.iloc[0]
+            st.markdown(
+                f"""
+<div class="detail-panel">
+  <div class="detail-label">How to investigate</div><div class="detail-value">Select a source bubble to inspect its public evidence summary.</div>
+  <div class="detail-label">Most active visible source</div><div class="detail-value"><code>{escape(str(top_point['source']))}</code></div>
+  <div class="detail-label">Current concentration</div><div class="detail-value">{escape(str(top_point['country']))} · {int(top_point['events'])} events</div>
+  <div class="privacy-note">Zoom, pan, switch layers or play the time sequence. Map interaction never changes the underlying evidence.</div>
+</div>
+""",
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                "<div class='detail-panel'><div class='detail-label'>No mapped evidence</div>"
+                "<div class='detail-value'>Change the filters or observation window.</div></div>",
+                unsafe_allow_html=True,
+            )
+
+        st.download_button(
+            "Export visible map summary",
+            data=map_points_csv(map_points),
+            file_name="ot-sentinel-map-summary.csv",
+            mime="text/csv",
+            width="stretch",
+            disabled=map_points.empty,
+            help="Exports coarse, aggregate and privacy-reviewed map fields only.",
+        )
+        if st.button("Show all countries", width="stretch", disabled=len(selected_countries) == len(countries)):
+            st.session_state["_pending_country_filter"] = countries
+            st.rerun()
+
+    with st.expander("Map coverage and privacy audit"):
+        st.write(
+            f"{quality['plotted_events']:,} of {quality['events']:,} filtered events have valid "
+            f"public coordinates; {quality['unmapped_events']:,} are excluded from the map."
+        )
+        st.write(
+            "Coordinates are rounded before aggregation. The UAE marker represents a broad public "
+            "region and is not the location of a cloud instance or sensor."
+        )
+
+    insight_left, insight_right = st.columns([1.15, 1], gap="large")
+    with insight_left:
+        st.markdown("<div class='section-title'>Top ATT&CK hypotheses</div>", unsafe_allow_html=True)
+        technique_cards(flatten_techniques(map_frame))
+    with insight_right:
+        st.markdown("<div class='section-title'>Geographic concentration</div>", unsafe_allow_html=True)
+        if map_frame.empty:
+            st.info("No geographic summary is available for the current window.")
+        else:
+            concentration = (
+                map_frame.groupby("source_country", dropna=False)
+                .agg(events=("event_id", "count"), sessions=("session_id", "nunique"))
+                .sort_values("events", ascending=False)
+                .head(8)
+                .reset_index()
+                .rename(columns={"source_country": "country"})
+            )
+            st.dataframe(concentration, width="stretch", hide_index=True)
+
+    st.markdown("<div class='section-title'>Activity cadence</div>", unsafe_allow_html=True)
+    if map_frame.empty:
+        st.info("No activity matches the current map window.")
+    else:
+        timeline = (
+            map_frame.set_index("observed_at")
+            .groupby("protocol")
+            .resample("6h", include_groups=False)
             .size()
             .reset_index(name="events")
         )
-        fig = px.scatter_geo(
-            geo,
-            lat="source_latitude",
-            lon="source_longitude",
-            size="events",
+        line = px.area(
+            timeline,
+            x="observed_at",
+            y="events",
             color="protocol",
-            hover_name="source_country",
-            projection="natural earth",
-            color_discrete_map={"modbus": "#6F9FC4", "s7": "#C59A5B", "iec104": "#8D82B8"},
+            color_discrete_map={"modbus": "#4E8FB8", "s7": "#C08A4E", "iec104": "#8175A8"},
         )
-        fig.update_geos(
-            showland=True,
-            landcolor="#151f2a",
-            showocean=True,
-            oceancolor="#0b1118",
-            showcountries=True,
-            countrycolor="#354758",
-            showframe=False,
-            bgcolor="rgba(0,0,0,0)",
-        )
-        fig.update_layout(
+        line.update_traces(line_width=1.4)
+        line.update_layout(
+            height=260,
             margin={"l": 0, "r": 0, "t": 10, "b": 0},
-            height=390,
             paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
             legend_title_text="",
+            xaxis_title="",
+            yaxis_title="Events / 6h",
         )
-        st.plotly_chart(fig, width="stretch")
-    with right:
-        st.markdown("<div class='section-title'>Top ATT&CK hypotheses</div>", unsafe_allow_html=True)
-        technique_cards(techniques)
-
-    st.markdown("<div class='section-title'>Activity cadence</div>", unsafe_allow_html=True)
-    timeline = (
-        filtered.set_index("observed_at")
-        .groupby("protocol")
-        .resample("6h", include_groups=False)
-        .size()
-        .reset_index(name="events")
-    )
-    line = px.area(
-        timeline,
-        x="observed_at",
-        y="events",
-        color="protocol",
-        color_discrete_map={"modbus": "#6F9FC4", "s7": "#C59A5B", "iec104": "#8D82B8"},
-    )
-    line.update_traces(line_width=1.4)
-    line.update_layout(
-        height=260,
-        margin={"l": 0, "r": 0, "t": 10, "b": 0},
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        legend_title_text="",
-        xaxis_title="",
-        yaxis_title="Events / 6h",
-    )
-    line.update_xaxes(gridcolor="#22384a")
-    line.update_yaxes(gridcolor="#22384a")
-    st.plotly_chart(line, width="stretch")
+        line.update_xaxes(gridcolor="#22384a")
+        line.update_yaxes(gridcolor="#22384a")
+        st.plotly_chart(line, width="stretch")
 
 with attack_tab:
     st.markdown("<div class='section-title'>Technique intensity by protocol</div>", unsafe_allow_html=True)
