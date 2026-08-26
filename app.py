@@ -72,7 +72,7 @@ html, body, [class*="css"] { font-family:'Inter',sans-serif; color:var(--text); 
 .author-line a, .footer-note a { color:var(--blue); text-decoration:none; }
 .author-line a:hover, .footer-note a:hover { text-decoration:underline; }
 .eyebrow, .map-kicker, .detail-label { color:var(--muted); font-family:'JetBrains Mono',monospace; letter-spacing:.12em; text-transform:uppercase; font-size:10px; font-weight:600; }
-.demo-banner, .live-banner { border:1px solid #e3c87a; background:#fff9e6; color:#755b00; padding:8px 12px; border-radius:4px; font-size:.78rem; margin:4px 0 12px; }
+.demo-banner, .live-banner { border:1px solid #9ac4dc; background:#eef8ff; color:#185577; padding:8px 12px; border-radius:4px; font-size:.78rem; margin:4px 0 12px; }
 .live-banner { border-color:#9ac4dc; background:#eef8ff; color:#185577; }
 .filter-bar { display:flex; align-items:center; gap:14px; min-height:58px; padding:12px 16px; background:var(--surface); border:1px solid var(--border); border-radius:4px; margin:10px 0 12px; }
 .filter-group { display:flex; align-items:center; gap:8px; white-space:nowrap; }
@@ -681,7 +681,7 @@ with attack_tab:
 
 with detection_tab:
     st.markdown("<div class='section-title'>Detection Preview</div>", unsafe_allow_html=True)
-    st.warning(
+    st.info(
         "Offline prediction only. These matches use local rule logic and are not proof that a native Sigma, Wazuh or Suricata engine fired."
     )
     visible_event_ids = set(filtered["event_id"].astype(str))
@@ -795,7 +795,7 @@ with triage_tab:
         "The fixed, human-labeled fixture checks expected mapper behavior. These metrics are not a claim of accuracy on live traffic."
     )
     if not EVALUATION_FIXTURE.exists():
-        st.warning("Evaluation fixture is not available in this build.")
+        st.info("Evaluation fixture is not available in this build.")
     else:
         evaluation = load_evaluation(
             str(EVALUATION_FIXTURE), EVALUATION_FIXTURE.stat().st_mtime
