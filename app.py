@@ -1015,7 +1015,7 @@ with attack_tab:
         )
         st.plotly_chart(heat, width="stretch")
         st.caption(
-            "Counts represent telemetry matches, not unique intrusions. Confidence and rationale remain attached to each event."
+            "These numbers count matching activity records, not separate attacks. Each record still includes its confidence level and explanation."
         )
 
     st.divider()
