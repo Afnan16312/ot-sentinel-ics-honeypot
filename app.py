@@ -128,6 +128,10 @@ div[data-testid="stDataFrame"] { border:1px solid var(--border); border-radius:4
 .map-stat:last-child { border-right:0; }
 .map-stat .label { color:var(--muted); font-size:.65rem; text-transform:uppercase; letter-spacing:.08em; }
 .map-stat .value { color:var(--text); font-family:'JetBrains Mono',monospace; font-size:.9rem; margin-top:3px; }
+.metric-info { position:relative; display:inline-flex; align-items:center; justify-content:center; width:14px; height:14px; margin-left:4px; border:1px solid #aab4c0; border-radius:50%; color:#5d6b7a; font-size:9px; font-weight:700; line-height:1; letter-spacing:0; text-transform:none; cursor:help; vertical-align:1px; }
+.metric-info:focus-visible { outline:2px solid #4e8fb8; outline-offset:2px; }
+.metric-tooltip { position:absolute; z-index:30; top:calc(100% + 8px); left:0; width:210px; padding:8px 9px; border:1px solid #aab4c0; border-radius:4px; background:#1f2933; color:#fff; box-shadow:0 4px 12px rgba(20,30,40,.18); font-size:11px; font-weight:400; line-height:1.35; letter-spacing:0; text-transform:none; text-align:left; visibility:hidden; opacity:0; pointer-events:none; transition:opacity .15s ease; }
+.metric-info:hover .metric-tooltip, .metric-info:focus .metric-tooltip { visibility:visible; opacity:1; }
 .detail-panel { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:12px; min-height:210px; }
 .detail-value { color:var(--text); font-size:.85rem; margin:3px 0 10px; word-break:break-word; }
 .privacy-note { color:var(--muted); border-left:2px solid #9da3ad; padding:6px 8px; font-size:.72rem; margin-top:8px; }
@@ -581,10 +585,10 @@ with overview:
     st.markdown(
         f"""
 <div class="map-stat-grid">
-  <div class="map-stat"><div class="label">Visible events</div><div class="value">{quality['events']:,}</div></div>
-  <div class="map-stat"><div class="label">Mapped sources</div><div class="value">{source_count:,}</div></div>
-  <div class="map-stat"><div class="label">Countries</div><div class="value">{quality['countries']:,}</div></div>
-  <div class="map-stat"><div class="label">Protocols active</div><div class="value">{protocol_count:,}</div></div>
+  <div class="map-stat"><div class="label">Visible events <span class="metric-info" tabindex="0" title="Number of events matching the selected filters and observation window." aria-label="Number of events matching the selected filters and observation window.">i<span class="metric-tooltip">Number of events matching the selected filters and observation window.</span></span></div><div class="value">{quality['events']:,}</div></div>
+  <div class="map-stat"><div class="label">Mapped sources <span class="metric-info" tabindex="0" title="Unique pseudonymous source groups with valid public map coordinates." aria-label="Unique pseudonymous source groups with valid public map coordinates.">i<span class="metric-tooltip">Unique pseudonymous source groups with valid public map coordinates.</span></span></div><div class="value">{source_count:,}</div></div>
+  <div class="map-stat"><div class="label">Countries <span class="metric-info" tabindex="0" title="Countries represented by the filtered, sanitized observations." aria-label="Countries represented by the filtered, sanitized observations.">i<span class="metric-tooltip">Countries represented by the filtered, sanitized observations.</span></span></div><div class="value">{quality['countries']:,}</div></div>
+  <div class="map-stat"><div class="label">Protocols active <span class="metric-info" tabindex="0" title="Different OT protocols present in the filtered map data." aria-label="Different OT protocols present in the filtered map data.">i<span class="metric-tooltip">Different OT protocols present in the filtered map data.</span></span></div><div class="value">{protocol_count:,}</div></div>
 </div>
 """,
         unsafe_allow_html=True,
