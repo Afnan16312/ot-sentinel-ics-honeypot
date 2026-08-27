@@ -1148,8 +1148,8 @@ with triage_tab:
                 color="priority",
                 color_discrete_map={
                     "urgent review": "#B86A6A",
-                    "high review": "#C58F5B",
-                    "elevated review": "#B7A265",
+                    "high review": "#C84C6B",
+                    "elevated review": "#7A66C2",
                     "routine review": "#6F9FC4",
                     "informational": "#526778",
                 },
