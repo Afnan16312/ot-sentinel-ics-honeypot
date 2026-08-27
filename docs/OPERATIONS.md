@@ -50,9 +50,26 @@ $env:OT_ALERT_SECRET = "a-private-random-secret-of-at-least-16-characters"
 .\.venv\Scripts\python.exe -m ot_sentinel.sensor
 ```
 
-Only events with both high severity and a high-confidence ATT&CK match are eligible. The alert excludes source IPs and raw payloads, is deduplicated by session and technique, is HMAC-SHA256 signed, and uses a bounded background queue. HTTPS is required except for loopback testing.
+Only high-severity events are eligible. The alert excludes source IPs and raw payloads, is deduplicated by session and technique, is HMAC-SHA256 signed, and uses a bounded background queue. HTTPS is required except for loopback testing.
 
 The receiver should verify the `X-OT-Sentinel-Signature` header against the exact request body before processing it.
+
+### File-based alert configuration
+
+For a private indexed deployment, copy and edit [`config/alerts.yaml`](../config/alerts.yaml). It intentionally uses the JSON subset of YAML so the sensor does not need a YAML parser. Keep `enabled` as `false` until the endpoint and secret are ready; do not put secrets in this file.
+
+```powershell
+$env:OT_ALERT_SECRET = "a-private-random-secret-of-at-least-16-characters"
+.\.venv\Scripts\python.exe -m ot_sentinel.sensor `
+  --observation-db logs\observations.sqlite3 `
+  --alerts-config config\alerts.yaml
+```
+
+When enabled through this file, an event is enqueued only after its private SQLite observation has been recorded. Delivery remains asynchronous with a bounded queue: a slow, unavailable or failing webhook increments health counters but never blocks an ICS listener. The JSON sent to Slack, Discord or a SOAR endpoint contains only `observed_at`, `protocol`, `severity`, `mitre_attack_ids` and an HMAC-derived `source_hash`; it excludes raw addresses, payloads, credentials, sensor identifiers and session identifiers.
+
+### Explainable private threat score
+
+Each private observation stores `threat_score` (0–100), `threat_priority` and `threat_factors_json`. The factors are protocol action, strongest ATT&CK evidence confidence, repeat pseudonymous-source activity and payload-fingerprint novelty. Existing Streamlit **Triage** cards show the same explainable review model for sanitized dashboard records. If the private index is connected to an analyst-only dashboard later, display these three stored fields directly; do not copy the private database into the public Streamlit build.
 
 ## Central multi-sensor collector
 

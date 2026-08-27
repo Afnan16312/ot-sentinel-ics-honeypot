@@ -7,14 +7,26 @@ import sqlite3
 import threading
 import time
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from .privacy import pseudonymize_ip
+from .triage import TriageAssessment, assess_event
 
 REPLAY_TTL_SECONDS = 900
 DEDUP_WINDOW_SECONDS = 30 * 60
+
+
+@dataclass(frozen=True)
+class StoredObservation:
+    """Private-index result used for alerting and analyst prioritization."""
+
+    observation_id: int
+    assessment: TriageAssessment
+    repeat_source_count: int
+    novel_payload: bool
 
 
 def _require_secret(value: str, label: str) -> bytes:
@@ -182,12 +194,17 @@ class SQLiteObservationStore:
                     severity TEXT NOT NULL,
                     is_demo INTEGER NOT NULL CHECK(is_demo IN (0, 1)),
                     decoded_json TEXT NOT NULL,
-                    tags_json TEXT NOT NULL
+                    tags_json TEXT NOT NULL,
+                    threat_score INTEGER NOT NULL DEFAULT 0 CHECK(threat_score BETWEEN 0 AND 100),
+                    threat_priority TEXT NOT NULL DEFAULT 'informational',
+                    threat_factors_json TEXT NOT NULL DEFAULT '[]'
                 );
                 CREATE INDEX IF NOT EXISTS idx_observation_fingerprint_time
                     ON observations(fingerprint, last_seen_epoch DESC);
                 CREATE INDEX IF NOT EXISTS idx_observation_window
                     ON observations(last_seen_epoch, protocol);
+                CREATE INDEX IF NOT EXISTS idx_observation_source
+                    ON observations(source_id, last_seen_epoch DESC);
                 CREATE TABLE IF NOT EXISTS observation_techniques (
                     observation_id INTEGER NOT NULL REFERENCES observations(id) ON DELETE CASCADE,
                     technique_id TEXT NOT NULL,
@@ -202,6 +219,15 @@ class SQLiteObservationStore:
                 );
                 """
             )
+            columns = {row[1] for row in connection.execute("PRAGMA table_info(observations)")}
+            migrations = {
+                "threat_score": "ALTER TABLE observations ADD COLUMN threat_score INTEGER NOT NULL DEFAULT 0",
+                "threat_priority": "ALTER TABLE observations ADD COLUMN threat_priority TEXT NOT NULL DEFAULT 'informational'",
+                "threat_factors_json": "ALTER TABLE observations ADD COLUMN threat_factors_json TEXT NOT NULL DEFAULT '[]'",
+            }
+            for name, statement in migrations.items():
+                if name not in columns:
+                    connection.execute(statement)
 
     @staticmethod
     def _insert_observation(
@@ -212,6 +238,7 @@ class SQLiteObservationStore:
         source_id: str,
         observed_epoch: int,
         cutoff: int,
+        assessment: TriageAssessment,
     ) -> int:
         existing = connection.execute(
             """
@@ -226,10 +253,17 @@ class SQLiteObservationStore:
             connection.execute(
                 """
                 UPDATE observations
-                SET last_seen_epoch = ?, repeat_count = repeat_count + 1
+                SET last_seen_epoch = ?, repeat_count = repeat_count + 1,
+                    threat_score = ?, threat_priority = ?, threat_factors_json = ?
                 WHERE id = ?
                 """,
-                (observed_epoch, observation_id),
+                (
+                    observed_epoch,
+                    assessment.score,
+                    assessment.priority,
+                    json.dumps(assessment.to_dict()["factors"], separators=(",", ":")),
+                    observation_id,
+                ),
             )
             return observation_id
         cursor = connection.execute(
@@ -237,8 +271,8 @@ class SQLiteObservationStore:
             INSERT INTO observations(
                 fingerprint, source_id, protocol, event_type, session_id,
                 first_seen_epoch, last_seen_epoch, repeat_count, severity,
-                is_demo, decoded_json, tags_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)
+                is_demo, decoded_json, tags_json, threat_score, threat_priority, threat_factors_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 fingerprint,
@@ -252,6 +286,9 @@ class SQLiteObservationStore:
                 1 if event.get("is_demo") is True else 0,
                 json.dumps(event.get("decoded", {}), separators=(",", ":")),
                 json.dumps(event.get("tags", []), separators=(",", ":")),
+                assessment.score,
+                assessment.priority,
+                json.dumps(assessment.to_dict()["factors"], separators=(",", ":")),
             ),
         )
         observation_id = int(cursor.lastrowid)
@@ -272,6 +309,12 @@ class SQLiteObservationStore:
         return observation_id
 
     def record(self, event: Mapping[str, Any], *, payload: bytes, now: int | None = None) -> int:
+        """Store an event and return its private observation identifier for compatibility."""
+        return self.record_with_assessment(event, payload=payload, now=now).observation_id
+
+    def record_with_assessment(
+        self, event: Mapping[str, Any], *, payload: bytes, now: int | None = None
+    ) -> StoredObservation:
         source_ip = str(event.get("source_ip", "")).strip()
         protocol = str(event.get("protocol", "")).strip()
         if not source_ip or not protocol:
@@ -288,6 +331,21 @@ class SQLiteObservationStore:
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             try:
+                repeat_source_count = int(
+                    connection.execute(
+                        "SELECT COALESCE(SUM(repeat_count), 0) FROM observations WHERE source_id = ?",
+                        (source_id,),
+                    ).fetchone()[0]
+                ) + 1
+                novel_payload = (
+                    connection.execute(
+                        "SELECT 1 FROM observations WHERE fingerprint = ? LIMIT 1", (fingerprint,)
+                    ).fetchone()
+                    is None
+                )
+                assessment = assess_event(
+                    event, repeat_count=repeat_source_count, is_novel_payload=novel_payload
+                )
                 observation_id = self._insert_observation(
                     connection,
                     event,
@@ -295,9 +353,12 @@ class SQLiteObservationStore:
                     source_id=source_id,
                     observed_epoch=observed_epoch,
                     cutoff=cutoff,
+                    assessment=assessment,
                 )
                 connection.execute("COMMIT")
-                return observation_id
+                return StoredObservation(
+                    observation_id, assessment, repeat_source_count, novel_payload
+                )
             except Exception:
                 connection.execute("ROLLBACK")
                 raise
@@ -349,6 +410,23 @@ class SQLiteObservationStore:
                         str(event.get("event_type", "unknown")),
                         event.get("decoded", {}),
                     )
+                    repeat_source_count = int(
+                        connection.execute(
+                            "SELECT COALESCE(SUM(repeat_count), 0) FROM observations WHERE source_id = ?",
+                            (source_id,),
+                        ).fetchone()[0]
+                    ) + 1
+                    novel_payload = (
+                        connection.execute(
+                            "SELECT 1 FROM observations WHERE fingerprint = ? LIMIT 1", (fingerprint,)
+                        ).fetchone()
+                        is None
+                    )
+                    assessment = assess_event(
+                        event,
+                        repeat_count=repeat_source_count,
+                        is_novel_payload=novel_payload,
+                    )
                     self._insert_observation(
                         connection,
                         event,
@@ -356,6 +434,7 @@ class SQLiteObservationStore:
                         source_id=source_id,
                         observed_epoch=observed_epoch,
                         cutoff=observed_epoch - self.dedup_window_seconds,
+                        assessment=assessment,
                     )
                     imported += 1
                 connection.execute("COMMIT")
