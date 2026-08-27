@@ -8,6 +8,18 @@ This roadmap applies only to the **public, synthetic/local dashboard workflow**.
 
 The key design principle is simple: the map should help a person make a safe next decision, not merely look impressive. NIST notes that OT security must account for performance, reliability and safety requirements alongside security; that is why explanations, limits and safe handoffs matter as much as visualization. [NIST SP 800-82 Rev. 3](https://csrc.nist.gov/pubs/sp/800/82/r3/final)
 
+## Delivered roadmap update: investigation workflow
+
+The following P0 items are now implemented in the public dashboard branch:
+
+- A bounded comparison tray compares up to three **pseudonymous, aggregate-only** map observations.
+- The prior-window summary uses adjacent, non-overlapping windows and gives a cautious plain-language delta statement.
+- Selected observations show a **Public review score**, the public-safe factors behind it, and a non-automated next step.
+- A persistent data-and-privacy strip and a short in-app glossary explain synthetic/sanitized data, approximate geography, sessions, sources, control actions, and evidence confidence.
+- Local review notes are scoped to the selected source/country/protocol observation so a note cannot appear on a different selection.
+
+These changes do not connect the dashboard to the Oracle sensor, do not expose individual private events, and do not turn a score, location, or map point into attribution.
+
 ## Evidence reviewed
 
 | Source | What it establishes |
@@ -26,9 +38,9 @@ The first roadmap is not obsolete: most of its high-value map work is now alread
 | Area | Current state | What a user can do now | Remaining boundary |
 |---|---|---|---|
 | Map orientation | Shipped | Read the legend, map semantics and synthetic/sanitized status. | The first-use explanation is still passive rather than guided. |
-| Exploration | Shipped | Switch among Flow, Source Bubbles, Density and Time Playback; filter protocol, time, confidence, priority and control actions. | There is no saved-view or source-comparison workflow. |
+| Exploration | Shipped | Switch among Flow, Source Bubbles, Density and Time Playback; filter protocol, time, confidence, priority and control actions; compare up to three aggregate map observations. | There is no saved-view workflow. |
 | Investigation | Shipped | Select a pseudonymous source, inspect a safe timeline and evidence badges, then prepare Session Explorer or ATT&CK Analysis. | Investigation context is not packaged as a durable private case. |
-| Comparison | Partially shipped | Compare the selected time window with the previous equal window; inspect repeat/unique-session context. | The product does not explain the most meaningful changes in plain language. |
+| Comparison | Shipped baseline | Compare the selected time window with an adjacent, equal, non-overlapping window; read a bounded plain-language change summary and inspect aggregate sources side by side. | It does not establish a causal trend, rate, or attribution. |
 | Detection workflow | Shipped baseline | Inspect Detection Preview, rules, coverage and local Wazuh/Suricata validation context. | There is no prioritized coverage-gap worklist or tuning history. |
 | Exports | Shipped baseline | Download reviewed aggregate-only data and a view manifest. | There is no report-ready snapshot, safe permalink or private review bundle. |
 | Accessibility | Shipped baseline | Use an accessible source table, labels, tooltips and a tile-free fallback. | Mobile investigation and keyboard discovery need deliberate user testing. |

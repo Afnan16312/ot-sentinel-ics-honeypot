@@ -105,6 +105,7 @@ def prepare_map_points(frame: pd.DataFrame) -> pd.DataFrame:
         "last_seen",
         "max_severity",
         "control_attempts",
+        "public_review_score",
         "techniques",
     ]
     if frame.empty or not {"source_latitude", "source_longitude", "protocol"}.issubset(frame):
@@ -133,6 +134,9 @@ def prepare_map_points(frame: pd.DataFrame) -> pd.DataFrame:
     working["operation"] = (
         _series(working, "decoded.operation", "unknown").fillna("unknown").astype(str)
     )
+    working["review_score"] = pd.to_numeric(
+        _series(working, "triage_score", 0), errors="coerce"
+    ).fillna(0)
     working["technique_value"] = _series(working, "technique_ids", [])
     working["observed"] = pd.to_datetime(
         _series(working, "observed_at", pd.NaT), utc=True, errors="coerce"
@@ -150,11 +154,13 @@ def prepare_map_points(frame: pd.DataFrame) -> pd.DataFrame:
         last_seen=("observed", "max"),
         max_severity=("severity_value", _highest_severity),
         control_attempts=("operation", lambda values: int(values.isin(CONTROL_OPERATIONS).sum())),
+        public_review_score=("review_score", "max"),
         techniques=("technique_value", _flatten_techniques),
     ).reset_index()
     # Public visualization is intentionally coarser than the input telemetry.
     points["latitude"] = points["latitude"].round(PUBLIC_COORDINATE_PRECISION)
     points["longitude"] = points["longitude"].round(PUBLIC_COORDINATE_PRECISION)
+    points["public_review_score"] = points["public_review_score"].astype(int)
     return points[columns].sort_values(["events", "last_seen"], ascending=[False, False])
 
 
@@ -274,6 +280,84 @@ def map_quality(frame: pd.DataFrame) -> dict[str, int]:
         "unmapped_events": int((~valid).sum()),
         "countries": int(country.dropna().nunique()),
     }
+
+
+def build_window_comparison(current: pd.DataFrame, previous: pd.DataFrame) -> pd.DataFrame:
+    """Compare two recorded windows using aggregate fields only."""
+
+    def metrics(frame: pd.DataFrame) -> dict[str, int]:
+        points = prepare_map_points(frame)
+        operations = _series(frame, "decoded.operation", "unknown")
+        return {
+            "Events": len(frame),
+            "Sessions": int(_series(frame, "session_id", "unknown").nunique()),
+            "Control actions": int(operations.isin(CONTROL_OPERATIONS).sum()),
+            "Mapped sources": int(points["source"].nunique()) if not points.empty else 0,
+        }
+
+    current_metrics = metrics(current)
+    previous_metrics = metrics(previous)
+    return pd.DataFrame(
+        {
+            "metric": list(current_metrics),
+            "Current window": list(current_metrics.values()),
+            "Previous window": [previous_metrics[name] for name in current_metrics],
+        }
+    ).assign(Change=lambda result: result["Current window"] - result["Previous window"])
+
+
+def summarize_window_change(comparison: pd.DataFrame) -> str:
+    """Turn a safe aggregate comparison into cautious, readable copy."""
+
+    if comparison.empty:
+        return "No recorded-window comparison is available."
+
+    changed = comparison[comparison["Change"] != 0]
+    if changed.empty:
+        return "No aggregate count changed between these recorded windows."
+
+    phrases: list[str] = []
+    for _, row in changed.iterrows():
+        current = int(row["Current window"])
+        previous = int(row["Previous window"])
+        if previous == 0 and current > 0:
+            phrases.append(f"{row['metric']}: {current:,} in the current window; no prior records")
+            continue
+        direction = "increased" if int(row["Change"]) > 0 else "decreased"
+        phrases.append(
+            f"{row['metric']} {direction} by {abs(int(row['Change'])):,} "
+            f"({previous:,} to {current:,})"
+        )
+    return "; ".join(phrases[:2]) + ". Counts compare recorded windows only; they do not prove a rate, cause, or attribution."
+
+
+def build_source_comparison(points: pd.DataFrame) -> pd.DataFrame:
+    """Return an allowlisted comparison for selected map aggregates."""
+
+    columns = [
+        "source",
+        "country",
+        "protocol",
+        "events",
+        "sessions",
+        "control_attempts",
+        "public_review_score",
+        "latest_observation",
+        "techniques",
+    ]
+    if points.empty:
+        return pd.DataFrame(columns=columns)
+
+    result = points.reindex(columns=columns[:-2] + ["last_seen", "techniques"]).rename(
+        columns={"last_seen": "latest_observation"}
+    )
+    result["public_review_score"] = pd.to_numeric(
+        result["public_review_score"], errors="coerce"
+    ).fillna(0).astype(int)
+    result["latest_observation"] = result["latest_observation"].apply(_safe_iso)
+    return result.sort_values(
+        ["public_review_score", "events", "source"], ascending=[False, False, True]
+    ).reindex(columns=columns)
 
 
 def _marker_sizes(events: pd.Series) -> list[float]:

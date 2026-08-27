@@ -4,6 +4,7 @@ import json
 import os
 import sys
 from datetime import timedelta
+from hashlib import sha256
 from html import escape
 from pathlib import Path
 
@@ -17,12 +18,15 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from ot_sentinel.dashboard_map import (
     MAP_MODES,
+    build_source_comparison,
     build_threat_map,
+    build_window_comparison,
     filter_time_window,
     map_points_csv,
     map_quality,
     prepare_map_points,
     selection_from_plotly_state,
+    summarize_window_change,
 )
 from ot_sentinel.detection_preview import preview_detections
 from ot_sentinel.evaluation import evaluate_mapper, load_labeled_jsonl
@@ -32,7 +36,7 @@ from ot_sentinel.publication import (
     validate_public_stix_bundle,
 )
 from ot_sentinel.stix_export import export_events
-from ot_sentinel.triage import assess_event, factor_summary
+from ot_sentinel.triage import assess_event, factor_summary, next_step_for_priority
 
 DATA_PATH = Path(os.getenv("OT_PUBLIC_DATA_PATH", ROOT / "data" / "demo_events.jsonl"))
 EVALUATION_FIXTURE = ROOT / "tests" / "fixtures" / "evaluation" / "mapper_cases.jsonl"
@@ -463,9 +467,10 @@ st.markdown(
     unsafe_allow_html=True,
 )
 st.markdown(
-    f"<div class='context-strip'><b>View context</b><span>{'Synthetic dataset' if is_demo else 'Sanitized observations'}</span>"
-    f"<span>{len(filtered):,} events in scope</span>"
-    f"<span>{len(selected_countries):,} source countries selected</span></div>",
+    f"<div class='context-strip'><b>Data &amp; privacy context</b><span>{'Synthetic dataset' if is_demo else 'Sanitized observations'}</span>"
+    f"<span>Publication-validated public dataset</span><span>Dataset ends {escape(latest_label)}</span>"
+    f"<span>{len(filtered):,} events in scope</span><span>Approximate geography</span>"
+    f"<span>No raw IPs or payloads</span></div>",
     unsafe_allow_html=True,
 )
 
@@ -478,6 +483,18 @@ else:
     st.markdown(
         "<div class='live-banner'><b>SANITIZED OBSERVATIONS</b> — Source identifiers are pseudonymized and payload content is excluded from this public view.</div>",
         unsafe_allow_html=True,
+    )
+
+with st.expander("Understand these numbers", expanded=False):
+    st.markdown(
+        "- **Observed events** are individual protocol telemetry matches in the selected view.\n"
+        "- **Sessions** are bounded connections, not people or separate intrusions.\n"
+        "- **Source groups** are pseudonymous public identifiers, not verified identities.\n"
+        "- **Control actions** are requests that can change the fictional decoy state.\n"
+        "- **Evidence confidence** describes the ATT&CK mapping evidence, not certainty about intent."
+    )
+    st.caption(
+        "Counts describe recorded telemetry matches. They are not a count of unique intrusions, attackers, victims, or countries of origin."
     )
 
 st.markdown(
@@ -611,29 +628,15 @@ with overview:
     )
     if duration is not None and pd.notna(latest_observation):
         with st.expander("Compare with the previous equal window", expanded=False):
+            current_start = latest_observation - duration
             previous_frame = filter_time_window(
                 filtered,
                 latest_observation - (duration * 2),
-                latest_observation - duration,
+                current_start - timedelta(microseconds=1),
             )
-            compare = pd.DataFrame(
-                {
-                    "metric": ["Events", "Sessions", "Control actions", "Mapped sources"],
-                    "Current window": [
-                        len(map_frame),
-                        map_frame["session_id"].nunique(),
-                        int(map_frame["decoded.operation"].isin(CONTROL_OPERATIONS).sum()),
-                        int(prepare_map_points(map_frame)["source"].nunique()),
-                    ],
-                    "Previous window": [
-                        len(previous_frame),
-                        previous_frame["session_id"].nunique(),
-                        int(previous_frame["decoded.operation"].isin(CONTROL_OPERATIONS).sum()),
-                        int(prepare_map_points(previous_frame)["source"].nunique()),
-                    ],
-                }
-            )
-            compare["Change"] = compare["Current window"] - compare["Previous window"]
+            compare = build_window_comparison(map_frame, previous_frame)
+            st.markdown("<div class='detail-label'>What changed</div>", unsafe_allow_html=True)
+            st.info(summarize_window_change(compare))
             st.dataframe(compare, width="stretch", hide_index=True)
             st.caption("This compares recorded windows only; it is not a live-rate or attribution signal.")
 
@@ -695,15 +698,70 @@ with overview:
                     ]
                 ].sort_values(["events", "source"], ascending=[False, True])
                 st.dataframe(accessible_table, width="stretch", hide_index=True)
+                accessible_table = accessible_table.assign(
+                    selection_label=(
+                        accessible_table["source"].astype(str)
+                        + " · "
+                        + accessible_table["country"].astype(str)
+                        + " · "
+                        + accessible_table["protocol"].astype(str).str.upper()
+                    )
+                )
                 accessible_choice = st.selectbox(
-                    "Inspect source group",
-                    ["No source selected"] + accessible_table["source"].astype(str).tolist(),
+                    "Inspect map observation",
+                    ["No source selected"] + accessible_table["selection_label"].tolist(),
                     key="map_accessible_source",
                 )
                 if accessible_choice != "No source selected":
+                    selected_row = accessible_table[
+                        accessible_table["selection_label"] == accessible_choice
+                    ].iloc[0]
                     accessible_selection = map_selection_from_row(
-                        accessible_table[accessible_table["source"].astype(str) == accessible_choice].iloc[0]
+                        map_points[
+                            (map_points["source"] == selected_row["source"])
+                            & (map_points["country"] == selected_row["country"])
+                            & (map_points["protocol"] == selected_row["protocol"])
+                        ].iloc[0]
                     )
+
+        with st.expander("Compare map observations (up to 3)", expanded=False):
+            comparison_options = map_points.copy()
+            comparison_options["comparison_label"] = (
+                comparison_options["source"].astype(str)
+                + " · "
+                + comparison_options["country"].astype(str)
+                + " · "
+                + comparison_options["protocol"].astype(str).str.upper()
+            )
+            compare_sources = st.multiselect(
+                "Map observations to compare",
+                comparison_options["comparison_label"].tolist(),
+                max_selections=3,
+                key="map_compare_sources",
+                help="Compares only reviewed map aggregates in this map window.",
+            )
+            source_comparison = build_source_comparison(
+                comparison_options[comparison_options["comparison_label"].isin(compare_sources)]
+            )
+            if compare_sources:
+                st.dataframe(
+                    source_comparison,
+                    width="stretch",
+                    hide_index=True,
+                    column_config={
+                        "public_review_score": st.column_config.ProgressColumn(
+                            "Highest public review score", min_value=0, max_value=100
+                        ),
+                        "latest_observation": st.column_config.TextColumn("Latest observation"),
+                    },
+                )
+                st.caption(
+                    "This is an aggregate comparison, not an identity, attribution, or automatic escalation decision."
+                )
+            else:
+                st.caption(
+                    "Choose up to three map observations to compare activity, sessions, public review score, and mapped techniques."
+                )
 
         selected = map_selection or accessible_selection or st.session_state.get("_selected_map_source")
         if selected:
@@ -711,6 +769,7 @@ with overview:
                 not map_points.empty
                 and (
                     (map_points["source"] == selected["source"])
+                    & (map_points["country"] == selected["country"])
                     & (map_points["protocol"] == selected["protocol"])
                 ).any()
             )
@@ -741,8 +800,8 @@ with overview:
             unsafe_allow_html=True,
         )
         st.markdown(
-            f"<div class='rail-card critical'><div class='rail-label'>Critical anomalies</div><div class='rail-value red'>{critical_count:,}</div>"
-            "<div class='rail-trend' style='color:#d32f2f'>High-severity control evidence only</div></div>",
+            f"<div class='rail-card critical'><div class='rail-label'>High-severity observations</div><div class='rail-value red'>{critical_count:,}</div>"
+            "<div class='rail-trend' style='color:#d32f2f'>High-severity events in the current filter</div></div>",
             unsafe_allow_html=True,
         )
         st.markdown(
@@ -779,8 +838,19 @@ with overview:
             selected_events = map_frame[
                 source_values.astype(str).eq(str(selected["source"]))
                 & map_frame["protocol"].astype(str).eq(str(selected["protocol"]))
+                & map_frame["source_country"].astype(str).eq(str(selected["country"]))
             ].copy()
             selected_techniques = flatten_techniques(selected_events)
+            selected_triage = build_triage_queue(selected_events)
+            top_triage = (
+                selected_triage.sort_values(["score", "observed_at"], ascending=[False, False]).iloc[0]
+                if not selected_triage.empty
+                else None
+            )
+            review_scope = "|".join(
+                str(selected[key]) for key in ("source", "country", "protocol")
+            )
+            review_key = sha256(review_scope.encode("utf-8")).hexdigest()[:16]
             confidence_values = (
                 selected_techniques["confidence"].dropna().astype(str).str.lower().unique().tolist()
                 if not selected_techniques.empty and "confidence" in selected_techniques
@@ -801,6 +871,9 @@ with overview:
   <div class="detail-label">Latest observation</div><div class="detail-value">{safe['last_seen']}</div>
   <div class="detail-label">ATT&amp;CK hypotheses</div><div class="detail-value">{safe['techniques']}</div>
   <div class="detail-label">Evidence confidence</div><div class="detail-value">{confidence_badges}</div>
+  <div class="detail-label">Public review score</div><div class="detail-value">{int(top_triage['score']) if top_triage is not None else 0}/100 · {escape(str(top_triage['priority'])) if top_triage is not None else 'informational'}</div>
+  <div class="detail-label">Why this public score is ranked</div><div class="detail-value">{escape(str(top_triage['evidence factors'])) if top_triage is not None else 'No scored protocol evidence.'}</div>
+  <div class="detail-label">Recommended next step</div><div class="detail-value">{escape(next_step_for_priority(str(top_triage['priority'])) if top_triage is not None else 'Review the recorded evidence before deciding on any next action.')}</div>
   <div class="privacy-note">This panel contains reviewed public fields only. Raw IP addresses and payloads are never exposed.</div>
 </div>
 """,
@@ -818,11 +891,11 @@ with overview:
                 st.selectbox(
                     "Review state",
                     ["Unreviewed", "Reviewed", "Needs more context", "False positive"],
-                    key="local_review_state",
+                    key=f"local_review_state_{review_key}",
                 )
                 st.text_area(
                     "Analyst note (local session only)",
-                    key="local_review_note",
+                    key=f"local_review_note_{review_key}",
                     height=80,
                     placeholder="Record why this evidence needs attention. This note is not exported.",
                 )
@@ -1103,8 +1176,16 @@ with detection_tab:
 with triage_tab:
     st.markdown("<div class='section-title'>Evidence-based analyst review queue</div>", unsafe_allow_html=True)
     st.caption(
-        "Scores prioritize recorded decoy interactions for review. They do not establish attacker intent, identity, attribution, or compromise."
+        "Public review scores prioritize recorded decoy interactions using public-safe evidence. They do not establish attacker intent, identity, attribution, or compromise."
     )
+    with st.expander("How the public review score is calculated", expanded=False):
+        st.markdown(
+            "- **Controller program transfer:** +45; **control command:** +40.\n"
+            "- **Process read:** +15; **protocol-aware probe:** +10.\n"
+            "- **Evidence-qualified ATT&CK mapping:** +5 low, +10 medium, +20 high confidence.\n"
+            "- Private repeat and novelty indexing are intentionally excluded from this public dashboard."
+        )
+        st.caption("The result is capped at 100 and prioritizes human review. It is not a likelihood, identity, or automated-response score.")
     triage = build_triage_queue(filtered)
     if triage.empty:
         st.info("No events match the current filters.")
@@ -1115,7 +1196,7 @@ with triage_tab:
         q1, q2, q3 = st.columns(3)
         q1.metric("Scored interactions", f"{scored:,}")
         q2.metric("High / urgent review", f"{high_review:,}")
-        q3.metric("Highest review score", f"{top_score}/100")
+        q3.metric("Highest public review score", f"{top_score}/100")
 
         queue_col, chart_col = st.columns([1.65, 1], gap="large")
         with queue_col:
@@ -1125,7 +1206,7 @@ with triage_tab:
                 hide_index=True,
                 column_config={
                     "observed_at": st.column_config.DatetimeColumn("Observed (UTC)", format="YYYY-MM-DD HH:mm:ss"),
-                    "score": st.column_config.ProgressColumn("Review score", min_value=0, max_value=100),
+                    "score": st.column_config.ProgressColumn("Public review score", min_value=0, max_value=100),
                 },
             )
         with chart_col:
