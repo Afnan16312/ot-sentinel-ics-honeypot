@@ -15,7 +15,7 @@ This page is the starting point for understanding exactly what OT Sentinel is, w
 | Detection formats | Sigma, Suricata and Wazuh |
 | Intelligence format | STIX 2.1 public and private profiles |
 | Stateful scenarios | Fictional water treatment, power substation and port crane |
-| Automated verification | 175 tests and 10 subtests, Ruff, dependency audit, OpenAPI/STIX/Navigator/public-data/detection validators, CodeQL and Trivy |
+| Automated verification | 207 tests and 10 subtests, Ruff, dependency audit, OpenAPI/STIX/Navigator/public-data/detection validators, CodeQL and Trivy |
 | Local demonstration cost | AED 0 |
 | Private live study | Active since 2026-08-19 on an isolated Oracle Cloud UAE East sensor |
 | Public live observations | None; public dashboard and report remain synthetic |
@@ -59,6 +59,8 @@ This page is the starting point for understanding exactly what OT Sentinel is, w
 | [Threat-Intelligence Report Template](THREAT_INTELLIGENCE_REPORT_TEMPLATE.md) | What must a reviewed research report contain? |
 | [Five-Minute Demonstration Script](DEMO_SCRIPT.md) | How can the project be explained accurately and simply? |
 | [Recording Checklist](RECORDING_CHECKLIST.md) | What exact 5–7 minute synthetic walkthrough must a human record and review? |
+| [Phase 1 User-Centered Workflow](PHASE_1_USER_CENTERED_WORKFLOW.md) | Which research-backed clarity and investigation improvements shipped, and what remains out of scope? |
+| [User-Centered Evidence ADR](ADR_024_USER_CENTERED_EVIDENCE_WORKFLOW.md) | Why are review priority, field completeness and detection validation kept separate? |
 | [User Research and Feature Strategy](USER_RESEARCH_AND_FEATURE_STRATEGY.md) | Who uses OT Sentinel, what jobs and pain points do they have, and which minor and major features should be prioritised? |
 | [Deployment](DEPLOYMENT.md) | How can the system be demonstrated for free or deployed with protected credit? |
 | [Live Collection Runbook](LIVE_COLLECTION_RUNBOOK.md) | What must happen before a real Internet collection study? |

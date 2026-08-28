@@ -3,7 +3,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from ot_sentinel.detection_preview import preview_detections
+from ot_sentinel.detection_preview import (
+    load_native_validation_evidence,
+    preview_detections,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -55,3 +58,13 @@ def test_preview_contains_no_source_or_payload_material():
     assert "192.0.2.80" not in encoded
     assert "private-marker" not in encoded
     assert "source_ip" not in encoded
+
+
+def test_native_validation_record_is_dated_and_versioned_without_runtime_claims():
+    evidence = load_native_validation_evidence(str(ROOT / "tests" / "soc" / "NATIVE_VALIDATION.md"))
+
+    assert evidence is not None
+    assert evidence.status == "passed synthetic fixtures"
+    assert evidence.validated_on == "2026-08-25"
+    assert evidence.wazuh_version == "4.14.7"
+    assert evidence.suricata_version == "8.0.4"

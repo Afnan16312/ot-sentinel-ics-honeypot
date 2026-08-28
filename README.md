@@ -33,6 +33,7 @@ My system then:
 9. Generates a synthetic ATT&CK Navigator layer and weekly intelligence brief.
 10. Prepares an immutable, checksum-led final handoff for private SQLite analysis and persistent local Wazuh ingestion.
 11. Provides an interactive four-mode geographic investigation workspace with privacy-safe source drill-down and time playback.
+12. Separates session review priority, evidence completeness and detection-validation state so the dashboard cannot easily overstate what the records prove.
 
 ## Why it matters
 

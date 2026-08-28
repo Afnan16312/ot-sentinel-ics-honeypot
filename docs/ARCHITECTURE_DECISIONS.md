@@ -29,6 +29,7 @@ This file records the major decisions behind OT Sentinel `v0.2.0`. Each decision
 | ADR-021 | Use an aggregate-first public dashboard handoff | Keep observed rows private and require review before public summary replacement |
 | ADR-022 | Use separate SQLite auxiliary state and one shared publication gate | Add restart durability and consistent privacy without replacing JSONL or adding an ORM |
 | ADR-023 | Use an immutable offline handoff and sanitized-only Wazuh staging | Keep final evidence reproducible, private and separate from the live sensor |
+| ADR-024 | Separate evidence meaning, review priority and validation state | Prevent users from treating field completeness or historical fixture results as threat certainty |
 
 ## ADR-001 — Custom low-interaction sensor
 
@@ -293,6 +294,16 @@ This file records the major decisions behind OT Sentinel `v0.2.0`. Each decision
 **Consequences.** Auxiliary database corruption can reduce replay, indexing or delivery availability but must not erase JSONL. Private stores need protection and bounds. No new runtime dependency is introduced. Native SOC output is recorded separately from offline predictions; the reviewed public video remains a human evidence requirement.
 
 **Full record.** [ADR_022_PHASE_2_DURABLE_STATE_AND_GATES.md](ADR_022_PHASE_2_DURABLE_STATE_AND_GATES.md).
+
+## ADR-024 — Separate evidence meaning, review priority and validation state
+
+**Decision.** Keep review priority, structural evidence completeness and detection-validation state as separate concepts. Default triage to bounded sessions, preserve local notes during ordinary workspace reset and show historical native synthetic-fixture evidence separately from current offline rule prediction.
+
+**Why.** Combining these signals would invite users to read a completeness label or fixture pass as a probability of compromise. The existing Streamlit and standard-library architecture already supports the required behavior without a new framework, service or live-sensor connection.
+
+**Consequences.** Users gain clearer interpretation and reversible navigation. Completeness remains a field-availability statement, native status becomes stale after relevant changes, and local notes remain non-durable.
+
+**Full record.** [ADR_024_USER_CENTERED_EVIDENCE_WORKFLOW.md](ADR_024_USER_CENTERED_EVIDENCE_WORKFLOW.md).
 
 ## How to change a decision
 
