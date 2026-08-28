@@ -59,6 +59,7 @@ This page is the starting point for understanding exactly what OT Sentinel is, w
 | [Threat-Intelligence Report Template](THREAT_INTELLIGENCE_REPORT_TEMPLATE.md) | What must a reviewed research report contain? |
 | [Five-Minute Demonstration Script](DEMO_SCRIPT.md) | How can the project be explained accurately and simply? |
 | [Recording Checklist](RECORDING_CHECKLIST.md) | What exact 5–7 minute synthetic walkthrough must a human record and review? |
+| [User Research and Feature Strategy](USER_RESEARCH_AND_FEATURE_STRATEGY.md) | Who uses OT Sentinel, what jobs and pain points do they have, and which minor and major features should be prioritised? |
 | [Deployment](DEPLOYMENT.md) | How can the system be demonstrated for free or deployed with protected credit? |
 | [Live Collection Runbook](LIVE_COLLECTION_RUNBOOK.md) | What must happen before a real Internet collection study? |
 | [Oracle Cloud Runbook](ORACLE_CLOUD_RUNBOOK.md) | How is the verified free-tier sensor deployed and isolated? |
