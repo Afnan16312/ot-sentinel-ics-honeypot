@@ -1,8 +1,10 @@
 # OT Sentinel User Research, Pain-Point and Feature Strategy
 
-**Date:** 2026-08-28  
-**Scope:** public synthetic/sanitized dashboard, local analysis workflow, and possible future private analyst workflow  
-**Status:** product research and recommendations; proposed features are not shipped unless explicitly marked  
+**Date:** 2026-08-28
+
+**Scope:** public synthetic/sanitized dashboard, local analysis workflow, and possible future private analyst workflow
+
+**Status:** product research and recommendations; proposed features are not shipped unless explicitly marked
 **Safety boundary:** this document does not authorize access to the Oracle sensor, publication of private telemetry, automated action against observed sources, or changes to cloud, Docker, Wazuh, Suricata, or network controls
 
 ## 1. Executive conclusion
@@ -976,4 +978,3 @@ The most valuable immediate work is to make evidence concepts unmistakable, grou
 - `src/ot_sentinel/privacy.py`
 - `src/ot_sentinel/publication.py`
 - dashboard, privacy, mapping, detection, operations, and supply-chain tests
-
