@@ -74,6 +74,10 @@ OT Sentinel is a low-interaction OT/ICS honeypot and analysis pipeline. It safel
 | FR-37 | Validate the collector specification with an external OpenAPI 3.1 implementation | Shipped in development/CI | pinned validator and contract | external validation test and CI command |
 | FR-38 | Provide a loopback-only native Wazuh/Suricata validation path | Shipped and natively validated | `tests/soc/` | `suricata -T`, deterministic PCAP verifier, `wazuh-logtest` injector and native evidence record |
 | FR-39 | Provide an exact privacy-reviewed walkthrough procedure | Checklist shipped; recording pending | `RECORDING_CHECKLIST.md` | checklist test and required human review |
+| FR-40 | Fail closed before historical JSONL analysis without displaying private values | Shipped locally | `handoff.py`, `preflight_events.py` | malformed, incomplete, oversized, duplicate, schema, classification and privacy-safe error tests |
+| FR-41 | Import sanitized historical observations transactionally and idempotently | Shipped locally | `SQLiteObservationStore.import_sanitized`, `import_observations.py` | restart, rerun, rollback, secret, output and database privacy tests |
+| FR-42 | Persist and index sanitized historical OT Sentinel alerts in loopback-only Wazuh | Shipped and natively validated | `wazuh_ingest.py`, fixed localfile mount, Wazuh verifier | write positive, connection/read negatives, index search and post-restart validation |
+| FR-43 | Produce a deterministic private final handoff and checksum manifest without automatic publication | Shipped locally | `finalize.py`, `finalize_collection.py`, handoff runbook | dry-run, classification, approval, collision, idempotence, output and manifest-safety tests |
 
 ## 6. Non-functional requirements
 
@@ -91,10 +95,12 @@ OT Sentinel is a low-interaction OT/ICS honeypot and analysis pipeline. It safel
 | NFR-10 Cost | Local development and demonstration must require no paid service | Python, Streamlit and local JSONL architecture | local launcher and deployment guide |
 | NFR-11 Portability | Core sensor must have no required third-party runtime dependency | Python standard-library sensor and collector | package metadata and container build |
 | NFR-12 Honesty | Synthetic, inferred and observed information must remain distinguishable | `is_demo`, STIX labels and repeated notices | dataset validation, dashboard and documentation |
+| NFR-13 Evidence integrity | Original historical JSONL must remain unchanged and every generated artifact must be checksum-verifiable | read-only input, SHA-256 preflight, transactional/atomic outputs and manifest | handoff pipeline tests and synthetic end-to-end run |
+| NFR-14 Human publication control | Processing must never imply that candidate creation equals publication approval | explicit candidate flag, private output directories, publication false in manifest | approval-gate and manifest tests |
 
 ## 7. Acceptance evidence for v0.2.0
 
-- 86 automated tests and ten subtests pass, including two public/private STIX validator subtests.
+- 173 automated tests and ten subtests pass, including public/private STIX and collector-contract standards validation.
 - Four Sigma, four Suricata and four Wazuh alert rules pass ten positive/negative fixtures.
 - All three fictional profiles pass schema and safety validation.
 - The dashboard and sensor each pass local process smoke tests.

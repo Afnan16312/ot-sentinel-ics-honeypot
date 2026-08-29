@@ -115,6 +115,10 @@ For a same-machine demonstration only, the collector accepts `--allow-insecure-l
 - In-memory delivery makes three bounded attempts; the optional durable spool reschedules failed rows with capped exponential backoff.
 - Local JSONL remains the evidence source when a remote integration is unavailable.
 
+## Final offline handoff
+
+The post-collection preflight, sanitized SQLite import, persistent local Wazuh staging, reports, STIX, Navigator and manifest are documented in [Final Data Handoff Runbook](FINAL_DATA_HANDOFF.md). These commands operate only on a separately transferred local file. They do not connect to Oracle, publish automatically or replace the Streamlit demonstration dataset.
+
 ## Oracle host daily check
 
 Run these commands only from the private SSH session:

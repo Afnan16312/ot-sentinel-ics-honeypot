@@ -16,16 +16,18 @@ The repository now provides this disposable harness under `tests/soc/`, includin
 
 Static harness tests and native Wazuh/Suricata execution passed locally on 2026-08-25. The evidence remains intentionally separate from offline matching: `wazuh-logtest`, `suricata -T` and deterministic `eve.json` verification are recorded in [tests/soc/NATIVE_VALIDATION.md](../tests/soc/NATIVE_VALIDATION.md). Re-run the disposable lab after rule or engine changes; never run this stack on Oracle.
 
-## Phase 2: controlled future integration
+## Phase 2: prepared historical integration
 
-Do not start this phase during active collection without a change window and rollback approval.
+The local implementation is prepared and natively tested with synthetic fixtures. Do not use observed data until the authorized collection is finished, the original evidence is backed up and the sanitized candidate passes review.
 
-1. Choose Wazuh log ingestion or Suricata network inspection; they solve different problems.
-2. Back up private evidence and configuration.
-3. Define resource limits, retention, redaction and destination access.
-4. Test the exact configuration on a cloned or disposable environment.
-5. Start in alert-only mode with no automatic blocking.
-6. Monitor resource use, event loss and false-positive volume.
-7. Roll back immediately if collection, storage or isolation controls degrade.
+1. Run privacy-safe preflight and preserve the evidence checksum.
+2. Use `scripts/finalize_collection.py` to create the private sanitized handoff.
+3. Start the loopback-only Wazuh lab.
+4. Stage only the handoff's validated `wazuh/events.jsonl`.
+5. Use alert-only mode with no automatic blocking.
+6. Search the indexed `ot_sentinel` rule group and review false positives.
+7. Stop the local lab without deleting volumes when analysis is complete.
 
-Detailed rule behavior and tool-specific commands remain in [Detection Engineering](DETECTION_ENGINEERING.md). No SOC agent, rule or service is deployed by this document.
+Wazuh consumes structured JSONL. Suricata consumes packets or PCAP, so historical Oracle JSONL is not imported into Suricata. Follow the exact [Final Data Handoff Runbook](FINAL_DATA_HANDOFF.md).
+
+Detailed rule behavior remains in [Detection Engineering](DETECTION_ENGINEERING.md). No SOC agent, rule or service is deployed to Oracle by this workflow.

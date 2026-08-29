@@ -57,6 +57,15 @@ The committed injector ran `/var/ossec/bin/wazuh-logtest` three times and confir
 
 Result: **passed**. The built-in JSON decoder was sufficient; no custom decoder was added.
 
+The committed historical-ingestion fixture was also staged through the ignored fixed JSONL file monitored by `wazuh-logcollector`. Native verification confirmed:
+
+- the synthetic write produced rule `110001` in the manager alert store;
+- the connection and harmless read produced no custom high-severity OT Sentinel alert;
+- the write alert was indexed and searchable through the Wazuh indexer;
+- the stored/indexed result remained available after a local manager restart.
+
+Result: **passed**. This validates persistent local synthetic ingestion, not a connection to Oracle or approval to ingest observed telemetry.
+
 ## Native defects found and corrected
 
 Native execution caught issues that static matching could not prove:
@@ -64,6 +73,7 @@ Native execution caught issues that static matching could not prove:
 1. the hardened Suricata container needed an explicitly writable `/output` log directory;
 2. its classification, reference and empty threshold files needed explicit read-only mounts;
 3. Wazuh requires the reserved static JSON field `protocol` to use the native `<protocol>` rule element rather than `<field name="protocol">`.
+4. Suricata appends to an existing EVE file, which made repeated validations count an earlier synthetic alert again; the PCAP generator now archives the prior ignored EVE file before each run.
 
 Regression tests now assert these configurations. Detection Preview remains an offline explanation and is not substituted for this native evidence.
 

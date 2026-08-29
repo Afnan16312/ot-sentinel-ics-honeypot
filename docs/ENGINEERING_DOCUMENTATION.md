@@ -15,7 +15,7 @@ This page is the starting point for understanding exactly what OT Sentinel is, w
 | Detection formats | Sigma, Suricata and Wazuh |
 | Intelligence format | STIX 2.1 public and private profiles |
 | Stateful scenarios | Fictional water treatment, power substation and port crane |
-| Automated verification | 151 tests and 10 subtests, Ruff, dependency audit, OpenAPI/STIX/Navigator/public-data/detection validators, CodeQL and Trivy |
+| Automated verification | 173 tests and 10 subtests, Ruff, dependency audit, OpenAPI/STIX/Navigator/public-data/detection validators, CodeQL and Trivy |
 | Local demonstration cost | AED 0 |
 | Private live study | Active since 2026-08-19 on an isolated Oracle Cloud UAE East sensor |
 | Public live observations | None; public dashboard and report remain synthetic |
@@ -50,6 +50,9 @@ This page is the starting point for understanding exactly what OT Sentinel is, w
 | [Safe Publication Pipeline](SAFE_PUBLICATION_PIPELINE.md) | How are aggregate-only public statistics created without individual records? |
 | [SOC Integration Plan](SOC_INTEGRATION_PLAN.md) | How can Wazuh and Suricata be tested without touching the live sensor? |
 | [Native SOC Validation Evidence](../tests/soc/NATIVE_VALIDATION.md) | What authoritative pinned Wazuh/Suricata positive and negative results were observed locally? |
+| [Final Data Handoff](FINAL_DATA_HANDOFF.md) | How is completed private evidence checked, sanitized, analyzed and staged for local Wazuh without automatic publication? |
+| [Offline Handoff ADR](ADR_023_OFFLINE_HANDOFF_AND_WAZUH_STAGING.md) | Why are immutable input, digest-named runs and sanitized-only Wazuh staging required? |
+| [Final Handoff Engineering Record](FINAL_HANDOFF_ENGINEERING_RECORD.md) | What was shipped, which problems were solved and what exact verification passed? |
 | [Monitoring Plan](MONITORING_PLAN.md) | Which health and capacity signals should a future monitor use? |
 | [Local Health Monitoring Runbook](HEALTH_MONITORING_RUNBOOK.md) | How are synthetic/local readiness snapshots checked without exposing telemetry? |
 | [Threat-Intelligence Report Template](THREAT_INTELLIGENCE_REPORT_TEMPLATE.md) | What must a reviewed research report contain? |
@@ -66,7 +69,7 @@ This page is the starting point for understanding exactly what OT Sentinel is, w
 
 The software, tests, dashboard, detection content, STIX export and deployment assets are real and working. A private live sensor is operating, but the included public observations remain synthetic demonstration records. OT Sentinel does not claim that observed sources are attackers or that the two-to-four-week study and publication review are complete.
 
-That future study requires written authorization, isolated public infrastructure, an agreed retention period and a privacy review. The exact process is documented in the [Live Collection Runbook](LIVE_COLLECTION_RUNBOOK.md).
+That future study requires written authorization, isolated public infrastructure, an agreed retention period and a privacy review. Collection governance is documented in the [Live Collection Runbook](LIVE_COLLECTION_RUNBOOK.md), and the prepared offline closeout is in the [Final Data Handoff Runbook](FINAL_DATA_HANDOFF.md).
 
 ## One-paragraph system summary
 
