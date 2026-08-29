@@ -173,10 +173,38 @@
             "type": "string",
             "format": "date-time"
           },
+          "configuration_version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional non-secret sensor configuration label. Envelope version remains 1."
+          },
+          "heartbeat": {
+            "$ref": "#/components/schemas/Heartbeat"
+          },
           "event": {
             "$ref": "#/components/schemas/Event"
           }
         }
+      },
+      "Heartbeat": {
+        "type": "object",
+        "description": "Optional privacy-safe delivery-queue readiness metadata.",
+        "required": [
+          "queue_depth",
+          "oldest_age_seconds"
+        ],
+        "properties": {
+          "queue_depth": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "oldest_age_seconds": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
       },
       "Event": {
         "type": "object",

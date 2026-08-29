@@ -11,11 +11,11 @@ This page is the starting point for understanding exactly what OT Sentinel is, w
 | Purpose | Safe OT/ICS deception, evidence analysis and defender-ready outputs |
 | Simulated protocols | Modbus/TCP, Siemens S7 over ISO-on-TCP and IEC-104 |
 | Public demonstration data | 420 deterministic synthetic events |
-| Dashboard views | Observatory, ATT&CK Layer, Triage & Validation, Session Explorer and Methodology |
+| Dashboard views | Observatory, ATT&CK Layer, Detection Preview, Triage & Validation, Session Explorer and Methodology |
 | Detection formats | Sigma, Suricata and Wazuh |
 | Intelligence format | STIX 2.1 public and private profiles |
 | Stateful scenarios | Fictional water treatment, power substation and port crane |
-| Automated verification | 86 tests, ten subtests (including two STIX validations), Ruff, dependency audit, CodeQL and Trivy |
+| Automated verification | 151 tests and 10 subtests, Ruff, dependency audit, OpenAPI/STIX/Navigator/public-data/detection validators, CodeQL and Trivy |
 | Local demonstration cost | AED 0 |
 | Private live study | Active since 2026-08-19 on an isolated Oracle Cloud UAE East sensor |
 | Public live observations | None; public dashboard and report remain synthetic |
@@ -45,11 +45,16 @@ This page is the starting point for understanding exactly what OT Sentinel is, w
 | [Collector Threat Model](COLLECTOR_THREAT_MODEL.md) | Which collector assets, actors, threats, controls and residual risks exist? |
 | [Collector Framework ADR](ADR_020_COLLECTOR_FRAMEWORK.md) | Why does the collector remain framework-free and when should that change? |
 | [Collector Hardening](COLLECTOR_HARDENING.md) | What must a future production deployment add and verify? |
+| [Phase 2 Engineering Record](PHASE_2_ENGINEERING_RECORD.md) | What was added locally, why, how it is tested and what was intentionally not deployed? |
+| [Phase 2 Durable-State ADR](ADR_022_PHASE_2_DURABLE_STATE_AND_GATES.md) | Why are replay, deduplication and delivery separate SQLite stores, and why is publication centralized? |
 | [Safe Publication Pipeline](SAFE_PUBLICATION_PIPELINE.md) | How are aggregate-only public statistics created without individual records? |
 | [SOC Integration Plan](SOC_INTEGRATION_PLAN.md) | How can Wazuh and Suricata be tested without touching the live sensor? |
+| [Native SOC Validation Evidence](../tests/soc/NATIVE_VALIDATION.md) | What authoritative pinned Wazuh/Suricata positive and negative results were observed locally? |
 | [Monitoring Plan](MONITORING_PLAN.md) | Which health and capacity signals should a future monitor use? |
+| [Local Health Monitoring Runbook](HEALTH_MONITORING_RUNBOOK.md) | How are synthetic/local readiness snapshots checked without exposing telemetry? |
 | [Threat-Intelligence Report Template](THREAT_INTELLIGENCE_REPORT_TEMPLATE.md) | What must a reviewed research report contain? |
 | [Five-Minute Demonstration Script](DEMO_SCRIPT.md) | How can the project be explained accurately and simply? |
+| [Recording Checklist](RECORDING_CHECKLIST.md) | What exact 5–7 minute synthetic walkthrough must a human record and review? |
 | [Deployment](DEPLOYMENT.md) | How can the system be demonstrated for free or deployed with protected credit? |
 | [Live Collection Runbook](LIVE_COLLECTION_RUNBOOK.md) | What must happen before a real Internet collection study? |
 | [Oracle Cloud Runbook](ORACLE_CLOUD_RUNBOOK.md) | How is the verified free-tier sensor deployed and isolated? |
@@ -65,7 +70,7 @@ That future study requires written authorization, isolated public infrastructure
 
 ## One-paragraph system summary
 
-OT Sentinel accepts bounded network requests on three industrial protocol listeners and returns limited simulated responses. It converts each interaction into a structured event, applies evidence-aware MITRE ATT&CK for ICS hypotheses and calculates an explainable review priority. Private events can remain in JSONL, be sent to an authenticated collector or trigger a narrowly selected redacted alert. Before publication, source identifiers and payloads are removed or pseudonymized. Sanitized events can be viewed in Streamlit, exported as STIX 2.1 and converted into tested Sigma, Suricata and Wazuh detection content.
+OT Sentinel accepts at most 512 bytes per bounded request on three industrial protocol listeners and returns limited simulated responses. It writes authoritative private JSONL, can build a privacy-reduced deduplicated SQLite index and can optionally persist pending authenticated deliveries in a bounded spool. Evidence-aware MITRE ATT&CK for ICS hypotheses feed Navigator, weekly-brief, triage, STIX and defender-rule outputs. One shared fail-closed publication gate protects scripts, Streamlit and public STIX. Detection Preview remains explicitly offline, while pinned Wazuh/Suricata native evidence is recorded separately.
 
 ## Evidence standard used in these documents
 

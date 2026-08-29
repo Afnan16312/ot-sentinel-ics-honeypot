@@ -26,6 +26,8 @@ This file records the major decisions behind OT Sentinel `v0.2.0`. Each decision
 | ADR-018 | Keep public-cloud deployment optional | Avoid making paid infrastructure a prerequisite |
 | ADR-019 | Use an Oracle edge bridge plus a host egress guard | Publish the decoy ports on the verified Docker host without permitting container-initiated Internet connections |
 | ADR-020 | Retain the framework-free collector | Two authenticated machine endpoints do not justify Flask or Django yet |
+| ADR-021 | Use an aggregate-first public dashboard handoff | Keep observed rows private and require review before public summary replacement |
+| ADR-022 | Use separate SQLite auxiliary state and one shared publication gate | Add restart durability and consistent privacy without replacing JSONL or adding an ORM |
 
 ## ADR-001 — Custom low-interaction sensor
 
@@ -143,7 +145,7 @@ This file records the major decisions behind OT Sentinel `v0.2.0`. Each decision
 
 **Why.** The project can demonstrate the path from protocol evidence to an operational alert.
 
-**Consequences.** Offline validation is intentionally not called engine certification. Destination environments must run their native validators.
+**Consequences.** Offline validation is intentionally not called engine certification. The pinned Wazuh 4.14.7 and Suricata 8.0.4 content also has local native positive/negative evidence, but destination environments and future versions must repeat their native validators.
 
 **Evidence.** `detections/`, `scripts/validate_detections.py`, [DETECTION_ENGINEERING.md](DETECTION_ENGINEERING.md).
 
@@ -278,6 +280,18 @@ This file records the major decisions behind OT Sentinel `v0.2.0`. Each decision
 **Consequences.** Aggregate output cannot support public row-level investigation. A separately authorized analyst workflow must retain private evidence, and small-count disclosure still needs human review.
 
 **Evidence.** `scripts/build_public_summary.py`, `tests/test_public_summary.py`, `data/demo_summary.json`, [Safe Publication Pipeline](SAFE_PUBLICATION_PIPELINE.md).
+
+## ADR-022 — Durable auxiliary state and shared safety gates
+
+**Status.** Accepted for the Phase 2 feature branch.
+
+**Decision.** Keep JSONL as authoritative private evidence and use separate standard-library SQLite databases only for replay reservations, privacy-reduced observation deduplication and an optional delivery spool. Centralize public record and STIX privacy validation in the package. Keep Detection Preview explicitly offline.
+
+**Why.** Replay and delivery state must survive restarts, but replacing JSONL or adopting a broker/ORM would add unnecessary coupling. A single publication gate prevents scripts and Streamlit from applying inconsistent safety rules.
+
+**Consequences.** Auxiliary database corruption can reduce replay, indexing or delivery availability but must not erase JSONL. Private stores need protection and bounds. No new runtime dependency is introduced. Native SOC output is recorded separately from offline predictions; the reviewed public video remains a human evidence requirement.
+
+**Full record.** [ADR_022_PHASE_2_DURABLE_STATE_AND_GATES.md](ADR_022_PHASE_2_DURABLE_STATE_AND_GATES.md).
 
 ## How to change a decision
 

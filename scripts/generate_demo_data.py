@@ -80,7 +80,6 @@ def generate(count: int = 420) -> list[dict]:
                 "observed_at": observed.isoformat(timespec="seconds"),
                 "protocol": protocol,
                 "source_id": source_id,
-                "source_network": "RFC5737-DEMO",
                 "source_port": rng.randint(1024, 65535),
                 "destination_port": {"modbus": 502, "s7": 102, "iec104": 2404}[protocol],
                 "source_country": country,
@@ -118,4 +117,3 @@ def count_lines(path: Path) -> int:
 
 if __name__ == "__main__":
     main()
-

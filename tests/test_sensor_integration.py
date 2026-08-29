@@ -8,6 +8,19 @@ from ot_sentinel.sensor import JsonlWriter, LowInteractionSensor
 
 
 class SensorIntegrationTests(unittest.IsolatedAsyncioTestCase):
+    async def test_configured_payload_limit_cannot_exceed_512_bytes(self):
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            self.assertRaisesRegex(ValueError, "hard 512-byte limit"),
+        ):
+            LowInteractionSensor(
+                host="127.0.0.1",
+                ports={"modbus": 0},
+                writer=JsonlWriter(Path(directory) / "events.jsonl"),
+                sensor_id="integration-test",
+                max_payload=513,
+            )
+
     async def test_modbus_request_creates_bounded_events_and_reply(self):
         with tempfile.TemporaryDirectory() as directory:
             log_path = Path(directory) / "events.jsonl"
@@ -41,4 +54,3 @@ class SensorIntegrationTests(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

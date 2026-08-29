@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from .storage import MemoryReplayStore, SQLiteReplayStore
 from .transport import canonical_signature
 
 
@@ -31,15 +32,19 @@ class CollectorPayloadError(CollectorError):
 
 
 class CollectorVerifier:
-    def __init__(self, sensor_secrets: Mapping[str, str], max_clock_skew: int = 300) -> None:
+    def __init__(
+        self,
+        sensor_secrets: Mapping[str, str],
+        max_clock_skew: int = 300,
+        replay_store: MemoryReplayStore | SQLiteReplayStore | None = None,
+    ) -> None:
         if not sensor_secrets:
             raise CollectorError("at least one sensor credential is required")
         if any(len(secret) < 16 for secret in sensor_secrets.values()):
             raise CollectorError("all sensor secrets must contain at least 16 characters")
         self.sensor_secrets = {key: value.encode() for key, value in sensor_secrets.items()}
         self.max_clock_skew = min(max(max_clock_skew, 30), 900)
-        self._seen: dict[str, float] = {}
-        self._lock = threading.Lock()
+        self.replay_store = replay_store or MemoryReplayStore()
 
     def verify(self, headers: Mapping[str, str], body: bytes) -> dict:
         if len(body) > 64 * 1024:
@@ -82,14 +87,8 @@ class CollectorVerifier:
         if any(not isinstance(event[field], str) or not event[field] for field in required):
             raise CollectorPayloadError("event required fields must be non-empty strings")
         replay_key = f"{sensor_id}:{event['event_id']}"
-        now = time.monotonic()
-        with self._lock:
-            self._seen = {
-                key: observed for key, observed in self._seen.items() if now - observed < 900
-            }
-            if replay_key in self._seen:
-                raise CollectorReplayError("duplicate event")
-            self._seen[replay_key] = now
+        if not self.replay_store.reserve(replay_key, now=int(time.time())):
+            raise CollectorReplayError("duplicate event")
         return {
             "received_at": datetime.now(UTC).isoformat(timespec="milliseconds"),
             "transport_authenticated": True,
@@ -103,8 +102,7 @@ class CollectorVerifier:
         event_id = str(event.get("event_id", ""))
         if not sensor_id or not event_id:
             return
-        with self._lock:
-            self._seen.pop(f"{sensor_id}:{event_id}", None)
+        self.replay_store.release(f"{sensor_id}:{event_id}")
 
 
 class CollectorStore:
@@ -243,6 +241,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--port", type=int, default=9443)
     parser.add_argument("--credentials", required=True, help="JSON object mapping sensor IDs to secrets")
     parser.add_argument("--output", default="logs/collector-events.jsonl")
+    parser.add_argument(
+        "--replay-db",
+        default="logs/collector-replay.sqlite3",
+        help="Private SQLite replay-reservation database",
+    )
     parser.add_argument("--tls-cert")
     parser.add_argument("--tls-key")
     parser.add_argument("--allow-insecure-loopback", action="store_true")
@@ -252,7 +255,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = build_parser().parse_args()
     credentials = json.loads(Path(args.credentials).read_text(encoding="utf-8"))
-    verifier = CollectorVerifier(credentials)
+    verifier = CollectorVerifier(credentials, replay_store=SQLiteReplayStore(Path(args.replay_db)))
     server = CollectorHTTPServer(
         (args.host, args.port), make_handler(verifier, CollectorStore(Path(args.output)))
     )

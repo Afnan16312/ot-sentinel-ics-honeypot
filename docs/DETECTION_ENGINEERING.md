@@ -34,6 +34,8 @@ detections/
 
 `scripts/validate_detections.py` performs structural checks, detects duplicate identifiers and evaluates every rule against declared positive and negative fixtures. `tests/test_detections.py` adds regression checks for evidence requirements and Modbus rule behavior.
 
+The Streamlit **Detection Preview** reuses these offline matchers to show rule ID, title, severity, ATT&CK mapping and a safe evidence reason for sanitized events. It is labeled an offline prediction and is never presented as native-engine output. Connection-only and normal-read cases remain free of high-severity predictions.
+
 ## Run the offline validation
 
 From the repository root:
@@ -71,6 +73,8 @@ suricata -T -c /etc/suricata/suricata.yaml
 
 The Python validator checks identifiers and intended matching behavior, but `suricata -T` remains the authoritative engine syntax check. Suricata documents the supported function, access and unit syntax in its [Modbus keyword guide](https://docs.suricata.io/en/suricata-8.0.0/rules/modbus-keyword.html).
 
+The disposable `tests/soc/` lab pins Suricata 8.0.4, runs alert-only/offline PCAP processing and verifies that the synthetic Modbus write produces SID `4200501` while the harmless read remains quiet. Native `suricata -T` loaded all four rules with zero failures, and the deterministic PCAP produced exactly one write alert and no read alert on 2026-08-25. See the [native evidence](../tests/soc/NATIVE_VALIDATION.md).
+
 The broadcast and function 43 alerts may be normal in some industrial networks. Tune them against an approved asset and communication baseline before enabling operational notifications.
 
 ## Use the Wazuh rules
@@ -84,6 +88,8 @@ Wazuh includes a JSON decoder, so a complete OT Sentinel JSON event can be analy
 The parent rule has level 0 and groups OT Sentinel events without alerting. Four child rules generate alerts only when their complete field conditions match. The IDs use Wazuh's documented custom range of 100000–120000.
 
 The child rules include ATT&CK for ICS IDs. Confirm that the Wazuh manager's bundled MITRE database recognizes those IDs during `wazuh-logtest`; database coverage varies by Wazuh release. The field conditions and `ot_sentinel` rule groups still identify the alert independently of the dashboard's MITRE enrichment.
+
+The disposable `tests/soc/` Compose harness extends the official Wazuh 4.14.7 single-node manager/indexer/dashboard stack, binds host services to loopback and mounts the custom rules read-only. Native `wazuh-logtest` proved rule `110001` fires for the synthetic write and remains quiet for connection/read negatives. The built-in JSON decoder was sufficient; the reserved static `protocol` field uses Wazuh's native `<protocol>` rule element. See the [native evidence](../tests/soc/NATIVE_VALIDATION.md).
 
 See Wazuh's official guidance for the [JSON decoder](https://documentation.wazuh.com/current/user-manual/ruleset/decoders/json-decoder.html), [custom rules](https://documentation.wazuh.com/current/user-manual/ruleset/rules/custom.html) and [rule field syntax](https://documentation.wazuh.com/current/user-manual/ruleset/ruleset-xml-syntax/rules.html).
 

@@ -62,6 +62,13 @@ class DetectionPackTests(unittest.TestCase):
             {4200501, 4200502},
         )
 
+    def test_wazuh_static_protocol_uses_the_native_rule_element(self):
+        path = Path(ROOT, "detections", "wazuh", "ot_sentinel_rules.xml")
+        content = path.read_text(encoding="utf-8")
+
+        self.assertNotIn('<field name="protocol"', content)
+        self.assertEqual(content.count('<protocol type="pcre2">'), 3)
+
 
 if __name__ == "__main__":
     unittest.main()

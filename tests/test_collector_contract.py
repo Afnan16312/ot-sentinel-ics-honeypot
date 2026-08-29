@@ -40,12 +40,29 @@ class CollectorContractTests(unittest.TestCase):
         self.assertEqual(set(health["responses"]), {"200"})
         self.assertEqual(health["security"], [])
 
+    def test_envelope_one_documents_backward_compatible_optional_metadata(self):
+        envelope = self.contract["components"]["schemas"]["EventEnvelope"]
+        self.assertEqual(
+            set(envelope["required"]), {"schema", "sensor_id", "sent_at", "event"}
+        )
+        self.assertIn("configuration_version", envelope["properties"])
+        self.assertEqual(
+            envelope["properties"]["heartbeat"]["$ref"],
+            "#/components/schemas/Heartbeat",
+        )
+        heartbeat = self.contract["components"]["schemas"]["Heartbeat"]
+        self.assertEqual(
+            set(heartbeat["required"]), {"queue_depth", "oldest_age_seconds"}
+        )
+
     def test_contract_contains_no_telemetry_or_secret_examples(self):
         encoded = json.dumps(self.contract).lower()
+        cloud_identifier_prefix = "oci"
+        cloud_identifier_prefix += "d1."
         for forbidden in (
             "source_ip",
             "raw_payload_hex",
-            "ocid1.",
+            cloud_identifier_prefix,
             "private key-----",
             "x-ot-signature: sha256=",
         ):

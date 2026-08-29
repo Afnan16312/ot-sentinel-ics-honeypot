@@ -28,6 +28,9 @@ class HealthTracker:
     alert_queue_drops: int = 0
     collector_queue_drops: int = 0
     delivery_failures: int = 0
+    collector_queue_depth: int = 0
+    collector_queue_age_seconds: float = 0.0
+    collector_storage_ready: bool | None = None
     protocol_events: Counter[str] = field(default_factory=Counter)
     event_types: Counter[str] = field(default_factory=Counter)
 
@@ -37,7 +40,9 @@ class HealthTracker:
         self.protocol_events[event.protocol] += 1
         self.event_types[event.event_type] += 1
 
-    def snapshot(self, queue_depth: int = 0, collector_queue_depth: int = 0) -> dict:
+    def snapshot(
+        self, queue_depth: int = 0, collector_queue_depth: int | None = None
+    ) -> dict:
         return {
             "status": "ok",
             "sensor_id": self.sensor_id,
@@ -47,15 +52,21 @@ class HealthTracker:
             "protocol_events": dict(sorted(self.protocol_events.items())),
             "event_types": dict(sorted(self.event_types.items())),
             "alert_queue_depth": queue_depth,
-            "collector_queue_depth": collector_queue_depth,
+            "collector_queue_depth": (
+                self.collector_queue_depth
+                if collector_queue_depth is None
+                else collector_queue_depth
+            ),
             "alert_queue_drops": self.alert_queue_drops,
             "collector_queue_drops": self.collector_queue_drops,
             "delivery_failures": self.delivery_failures,
+            "collector_queue_age_seconds": round(self.collector_queue_age_seconds, 3),
+            "collector_storage_ready": self.collector_storage_ready,
             "generated_at": _utc_now(),
         }
 
     def write(
-        self, path: Path, queue_depth: int = 0, collector_queue_depth: int = 0
+        self, path: Path, queue_depth: int = 0, collector_queue_depth: int | None = None
     ) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         temporary = path.with_suffix(path.suffix + ".tmp")

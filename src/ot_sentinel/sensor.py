@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import binascii
 import json
 import os
+import sqlite3
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -21,6 +23,7 @@ from .protocols import (
     parse_s7,
     s7_response,
 )
+from .storage import SQLiteObservationStore
 from .transport import RemoteCollectorSink
 
 Parser = Callable[[bytes], dict[str, Any]]
@@ -28,16 +31,29 @@ Responder = Callable[[bytes, dict[str, Any]], bytes]
 
 
 class JsonlWriter:
-    def __init__(self, path: Path) -> None:
+    def __init__(
+        self, path: Path, observation_store: SQLiteObservationStore | None = None
+    ) -> None:
         self.path = path
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = asyncio.Lock()
+        self.observation_store = observation_store
+        self.database_failures = 0
 
     async def append(self, event: Event) -> None:
         line = json.dumps(event.to_dict(), separators=(",", ":"), sort_keys=True)
         async with self._lock:
             with self.path.open("a", encoding="utf-8") as handle:
                 handle.write(line + "\n")
+        if self.observation_store is not None:
+            try:
+                payload = bytes.fromhex(event.raw_payload_hex)
+                await asyncio.to_thread(
+                    self.observation_store.record, event.to_dict(), payload=payload
+                )
+            except (binascii.Error, OSError, sqlite3.Error, ValueError):
+                # JSONL is authoritative; an optional analysis-index failure must not lose it.
+                self.database_failures += 1
 
 
 class LowInteractionSensor:
@@ -58,7 +74,9 @@ class LowInteractionSensor:
         self.ports = ports
         self.writer = writer
         self.sensor_id = sensor_id
-        self.max_payload = min(max(max_payload, 64), 4096)
+        if not 1 <= max_payload <= 512:
+            raise ValueError("max_payload must be between 1 and the hard 512-byte limit")
+        self.max_payload = max_payload
         self.timeout = min(max(timeout, 1.0), 30.0)
         self.profile = profile
         self.health_path = health_path
@@ -117,7 +135,9 @@ class LowInteractionSensor:
             await self.collector.submit(event)
         if self.health_path is not None:
             alert_depth = self.alerter.queue.qsize() if self.alerter is not None else 0
-            collector_depth = self.collector.queue.qsize() if self.collector is not None else 0
+            collector_depth = self.collector.queue_depth if self.collector is not None else 0
+            if self.collector is not None:
+                self.health.collector_queue_age_seconds = self.collector.queue_age_seconds
             self.health.write(self.health_path, alert_depth, collector_depth)
 
     async def handle(
@@ -239,6 +259,45 @@ def build_parser() -> argparse.ArgumentParser:
         default=os.getenv("OT_COLLECTOR_SECRET", ""),
         help=argparse.SUPPRESS,
     )
+    parser.add_argument(
+        "--collector-spool",
+        default=os.getenv("OT_COLLECTOR_SPOOL", ""),
+        help="Optional private SQLite queue for restart-safe collector delivery",
+    )
+    parser.add_argument(
+        "--collector-spool-max-rows",
+        type=int,
+        default=int(os.getenv("OT_COLLECTOR_SPOOL_MAX_ROWS", "5000")),
+    )
+    parser.add_argument(
+        "--collector-spool-max-bytes",
+        type=int,
+        default=int(os.getenv("OT_COLLECTOR_SPOOL_MAX_BYTES", str(32 * 1024 * 1024))),
+    )
+    parser.add_argument(
+        "--configuration-version",
+        default=os.getenv("OT_CONFIGURATION_VERSION", ""),
+    )
+    parser.add_argument(
+        "--collector-heartbeat",
+        action="store_true",
+        default=os.getenv("OT_COLLECTOR_HEARTBEAT", "").lower() in {"1", "true", "yes"},
+    )
+    parser.add_argument(
+        "--observation-db",
+        default=os.getenv("OT_OBSERVATION_DB", ""),
+        help="Optional private SQLite analysis index",
+    )
+    parser.add_argument(
+        "--fingerprint-secret",
+        default=os.getenv("OT_FINGERPRINT_SECRET", ""),
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "--privacy-salt",
+        default=os.getenv("OT_PRIVACY_SALT", ""),
+        help=argparse.SUPPRESS,
+    )
     return parser
 
 
@@ -256,12 +315,31 @@ def main() -> None:
         if not args.collector_secret:
             raise SystemExit("Set OT_COLLECTOR_SECRET when OT_COLLECTOR_URL is configured.")
         collector = RemoteCollectorSink(
-            args.collector_url, args.sensor_id, args.collector_secret, health
+            args.collector_url,
+            args.sensor_id,
+            args.collector_secret,
+            health,
+            spool_path=Path(args.collector_spool) if args.collector_spool else None,
+            spool_max_rows=args.collector_spool_max_rows,
+            spool_max_bytes=args.collector_spool_max_bytes,
+            configuration_version=args.configuration_version or None,
+            include_heartbeat=args.collector_heartbeat,
+        )
+    observation_store = None
+    if args.observation_db:
+        if not args.fingerprint_secret or not args.privacy_salt:
+            raise SystemExit(
+                "Set OT_FINGERPRINT_SECRET and OT_PRIVACY_SALT when observation indexing is enabled."
+            )
+        observation_store = SQLiteObservationStore(
+            Path(args.observation_db),
+            fingerprint_secret=args.fingerprint_secret,
+            privacy_salt=args.privacy_salt,
         )
     sensor = LowInteractionSensor(
         host=args.host,
         ports={"modbus": args.modbus_port, "s7": args.s7_port, "iec104": args.iec104_port},
-        writer=JsonlWriter(Path(args.log)),
+        writer=JsonlWriter(Path(args.log), observation_store),
         sensor_id=args.sensor_id,
         max_payload=args.max_payload,
         timeout=args.timeout,

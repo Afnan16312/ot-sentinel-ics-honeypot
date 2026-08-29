@@ -14,7 +14,7 @@ This record explains the important engineering and delivery problems encountered
 | PS-006 | Mapping every connection to ATT&CK would produce false certainty. | Required protocol evidence and emitted confidence, rationale, and evidence; unsupported events remain unmapped. | Mapper rules, tests, labeled evaluation fixtures | Mapping is still an analyst hypothesis, not proof of intent or compromise. |
 | PS-007 | Raw IP addresses and payloads could leak through public reports or STIX. | Separated private evidence from sanitized public artifacts and added a fail-closed validator. | Privacy tests and public-data script | Human legal and contextual review is still required. |
 | PS-008 | The project needed a convincing demo before authorized live data existed. | Generated 420 deterministic events and labeled every demonstration artifact as synthetic. | Demo generator and sample data | Synthetic data cannot support real regional threat conclusions. |
-| PS-009 | Logs alone do not become operational detections. | Added Sigma, Suricata, and Wazuh packs with positive, negative, and all-negative fixtures. | Detection files, validator, tests | Native destination-engine validation is still required. |
+| PS-009 | Logs alone do not become operational detections. | Added Sigma, Suricata, and Wazuh packs with positive, negative, and all-negative fixtures. | Detection files, offline validator, pinned native Wazuh/Suricata evidence | Sigma conversion and every destination/version change still require native validation. |
 | PS-010 | Project-specific JSON is difficult to exchange with other threat-intelligence tools. | Added deterministic STIX 2.1 public/private export profiles and schema tests. | STIX module, tests, documentation | Custom properties can require consumer mapping. |
 | PS-011 | Analysts could not quickly tell which event deserved review. | Added a deterministic score based only on protocol evidence and exposed every factor. | Triage module, tests, dashboard queue | It is a prioritization heuristic, not a predictive risk model. |
 | PS-012 | ATT&CK mapping changes could silently regress. | Added human-labeled cases and exact/per-technique confusion metrics. | Evaluation harness and tests | The 12-case fixture set is intentionally small. |
@@ -101,15 +101,15 @@ This record explains the important engineering and delivery problems encountered
 
 **Residual.** The live report remains incomplete until the stated collection window ends and the candidate public material passes privacy and methodology review.
 
-### PS-024 — Security engines unavailable in the local development environment
+### PS-024 — Static checks could not prove native security-engine behavior
 
-**Problem.** Suricata, Sigma CLI, and `wazuh-logtest` were not installed locally, preventing authoritative native compilation/tests for all three formats.
+**Problem.** Suricata, Sigma CLI, and `wazuh-logtest` were initially unavailable locally, preventing authoritative native compilation/tests for all three formats.
 
-**Solution.** Added an offline structural/semantic validator and positive/negative fixtures, while documenting the exact destination-native checks and refusing to label offline checks as engine certification.
+**Solution.** Added an offline structural/semantic validator and positive/negative fixtures, then added a pinned loopback-only Wazuh/Suricata Docker lab and kept offline predictions explicitly separate from engine evidence.
 
-**Proof.** `scripts/validate_detections.py`, detection tests, [DETECTION_ENGINEERING.md](DETECTION_ENGINEERING.md).
+**Proof.** `scripts/validate_detections.py`, detection tests, [DETECTION_ENGINEERING.md](DETECTION_ENGINEERING.md) and [native Wazuh/Suricata evidence](../tests/soc/NATIVE_VALIDATION.md).
 
-**Residual.** A destination lab must run `suricata -T`, Sigma conversion/validation, and `wazuh-logtest` before production use.
+**Residual.** The native evidence applies only to pinned Wazuh 4.14.7 and Suricata 8.0.4. Sigma conversion and all destination/version changes must still run their authoritative validators before production use.
 
 ### PS-025 — Docker 29 did not publish ports from an internal-only network
 
@@ -154,6 +154,66 @@ This record explains the important engineering and delivery problems encountered
 **Proof.** Public-summary tests reject raw address, payload and literal network-prefix fields; the complete suite and public-data validator pass.
 
 **Residual.** Aggregation does not replace human disclosure review, especially for small counts or sensitive collection windows. No live data was processed or connected automatically.
+
+### PS-029 — Restart-sensitive replay and delivery state
+
+**Problem.** Process memory forgot collector replay keys and pending forwards after restart.
+
+**Solution.** Added separate, bounded SQLite replay and delivery stores. Replay insertion is atomic; spool signatures are generated only during transmission and no transport secret is stored.
+
+**Proof.** Restart, concurrent replay, queue-bound, retry, corrupt-row, successful-drain and secret-exclusion tests.
+
+**Residual.** SQLite files are private auxiliary state and need protected storage; JSONL remains the authoritative record.
+
+### PS-030 — Repeated scanners inflated analytical rows
+
+**Problem.** Exact repeated protocol payloads from one source could obscure the number of distinct observations.
+
+**Solution.** Calculate a keyed HMAC-SHA256 over source, protocol and exact bounded payload, then increment `repeat_count` within 30 minutes while storing only a salted pseudonym and normalized evidence.
+
+**Proof.** Fingerprint, expiry, concurrency, repeat-count and database-content tests.
+
+**Residual.** A fingerprint identifies repeat equality only; it does not identify a person or prove common control.
+
+### PS-031 — Publication rules could drift by consumer
+
+**Problem.** A script, Streamlit and STIX could apply different definitions of public-safe content.
+
+**Solution.** Moved validation into `ot_sentinel.publication`, recursively removed credential-like fields, removed `source_network` during strict sanitization and added a second public-STIX gate.
+
+**Proof.** End-to-end address, prefix, payload, nested-credential, pseudonym and mixed-provenance tests.
+
+**Residual.** Technical validation cannot replace legal, ethical or small-cell disclosure review.
+
+### PS-032 — Static detection tests were easy to overstate
+
+**Problem.** Offline matching is useful but does not prove destination-engine parsing or execution.
+
+**Solution.** Added an explicitly labeled Detection Preview plus a pinned disposable native Wazuh/Suricata lab with positive and negative fixtures.
+
+**Proof.** Preview/harness tests pass; native Wazuh rule `110001` fires only for the write fixture, and Suricata loads 4/4 rules then emits one write alert and zero harmless-read alerts.
+
+**Residual.** Native proof applies only to pinned Wazuh 4.14.7 and Suricata 8.0.4. Re-run it after rule, image or isolation changes and before destination deployment.
+
+### PS-033 — Local readiness had no actionable exit status
+
+**Problem.** A JSON snapshot alone did not distinguish warning from critical conditions or check disk and storage readiness.
+
+**Solution.** Added a redacted local checker for process/snapshot/event freshness, disk, queues, delivery and collector storage with exit codes 0, 1 and 2.
+
+**Proof.** Healthy, stale, disk, queue, process and storage-failure tests.
+
+**Residual.** No scheduler or cloud monitor was installed; deployment remains a separate operator decision.
+
+### PS-034 — A written demo script was not a reviewed video
+
+**Problem.** The repository could not truthfully claim a recorded walkthrough from an environment without screen capture and native SOC evidence.
+
+**Solution.** Prepared an exact 6:15 storyboard, prerequisites and frame-by-frame privacy review.
+
+**Proof.** Checklist content test.
+
+**Residual.** The project owner must record, review, upload and approve the final URL.
 
 ## Problem-solving method used
 

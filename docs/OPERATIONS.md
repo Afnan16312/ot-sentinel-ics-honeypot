@@ -35,7 +35,8 @@ Set `OT_HEALTH_PATH=logs/health.json` or pass `--health-file`. After each event 
 - total and per-protocol event counts,
 - event-type counts,
 - alert and collector queue depth/drop counters,
-- delivery failures.
+- delivery failures,
+- oldest collector-queue age and optional spool storage readiness.
 
 The file contains operational health only. It is not an availability guarantee.
 
@@ -83,6 +84,26 @@ $env:OT_SENSOR_ID = "remote-sensor-02"
 
 The transport signs the timestamp and exact JSON body. The collector rejects unknown sensors, invalid signatures, stale timestamps, oversized requests, identity mismatches and duplicate event IDs. It writes `transport_authenticated: true` only after those checks pass.
 
+Collector replay reservations default to a private SQLite file, so an accepted sensor/event pair remains rejected through a local collector restart until expiry. This database stores replay keys and expiry only; collector event JSONL remains the private evidence output.
+
+### Optional local durable delivery spool
+
+For a local controlled test, set a private ignored spool path before starting the sensor:
+
+```powershell
+$env:OT_COLLECTOR_SPOOL = "logs/collector-delivery.sqlite3"
+$env:OT_COLLECTOR_SPOOL_MAX_ROWS = "5000"
+$env:OT_COLLECTOR_SPOOL_MAX_BYTES = "33554432"
+$env:OT_CONFIGURATION_VERSION = "local-synthetic-v1"
+$env:OT_COLLECTOR_HEARTBEAT = "true"
+```
+
+The spool persists pending event JSON across restarts, rejects the newest enqueue when its row or byte bound is full and retries due rows with bounded exponential backoff. It never stores `OT_COLLECTOR_SECRET` or a request signature; both are used only when transmitting. Disable the feature by leaving `OT_COLLECTOR_SPOOL` unset. This option was tested locally and was not deployed to Oracle.
+
+### Local health checker
+
+Use [Local Health Monitoring Runbook](HEALTH_MONITORING_RUNBOOK.md) for synthetic/local snapshots. The checker reports warning (`1`) and critical (`2`) states without echoing event data, addresses, payloads or paths. No monitor or scheduler was installed in cloud infrastructure.
+
 The machine-readable request and response contract is [OpenAPI 3.1](api/collector.openapi.json). The [collector threat model](COLLECTOR_THREAT_MODEL.md) explains what the controls do and do not protect. The [operational hardening guide](COLLECTOR_HARDENING.md) covers TLS termination, gateways, rate limits, supervision, rotation, monitoring, backup, migration and rollback without treating those deployment activities as already completed.
 
 For a same-machine demonstration only, the collector accepts `--allow-insecure-loopback` while bound to `127.0.0.1`. Plain HTTP is deliberately refused for remote addresses.
@@ -91,7 +112,7 @@ For a same-machine demonstration only, the collector accepts `--allow-insecure-l
 
 - `Ctrl+C` closes the sensor or collector cleanly.
 - Alert and collector delivery never blocks protocol handling; bounded queues absorb short interruptions.
-- After three failed deliveries the health counter increases and the sensor continues locally.
+- In-memory delivery makes three bounded attempts; the optional durable spool reschedules failed rows with capped exponential backoff.
 - Local JSONL remains the evidence source when a remote integration is unavailable.
 
 ## Oracle host daily check

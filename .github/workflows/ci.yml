@@ -25,6 +25,7 @@ jobs:
       - run: python -m ruff check .
       - run: python -m pytest -q
       - run: python -m json.tool docs/api/collector.openapi.json > /dev/null
+      - run: python -m openapi_spec_validator docs/api/collector.openapi.json
       - run: python scripts/validate_detections.py
       - run: python scripts/generate_demo_data.py
       - run: python scripts/validate_public_data.py data/demo_events.jsonl

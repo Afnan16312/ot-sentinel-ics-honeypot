@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Added durable SQLite replay reservations, privacy-reduced scanner deduplication and an optional bounded delivery spool while retaining JSONL as authoritative evidence.
+- Added deterministic ATT&CK Navigator Layer 4.5 and seven-day Markdown intelligence generators with synthetic committed examples and ignored private outputs.
+- Added and natively validated a loopback-only disposable Wazuh 4.14.7/Suricata 8.0.4 lab: four Suricata rules load, SID 4200501 fires only for the synthetic write, and Wazuh rule 110001 stays quiet for connection/read negatives.
+- Consolidated public validation into the package, removed strict-public network prefixes, recursively strips credential-like data and gives Streamlit and public STIX independent fail-closed gates.
+- Enforced an absolute 512-byte sensor payload ceiling and a 32-character minimum private pseudonymization salt.
+- Added a privacy-safe local health monitor, Streamlit Detection Preview and queue readiness metrics.
+- Added pinned external OpenAPI 3.1 validation to development dependencies and CI; sensor runtime dependencies remain empty.
+- Added the exact synthetic-only recording checklist; the reviewed video remains a human deliverable and no video link is claimed.
 - Added synthetic black-box collector assurance tests for authentication, replay, malformed HTTP, concurrency, timeout, storage failure, privacy and shutdown.
 - Added a machine-readable OpenAPI 3.1 collector contract, dedicated threat model, framework ADR and operational hardening guide.
 - Added privacy-safe collector error handling, media/length enforcement and retry release after failed storage.

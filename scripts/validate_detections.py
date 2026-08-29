@@ -29,6 +29,9 @@ class SigmaRule:
     name: str
     rule_id: str
     selection: dict[str, Any]
+    title: str = ""
+    level: str = "unknown"
+    techniques: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -37,12 +40,17 @@ class WazuhRule:
     level: int
     parent_id: int | None
     fields: tuple[tuple[str, str], ...]
+    description: str = ""
+    techniques: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
 class SuricataRule:
     sid: int
     expression: str
+    title: str = ""
+    severity: str = "medium"
+    techniques: tuple[str, ...] = ()
 
 
 def _scalar(value: str) -> Any:
@@ -130,7 +138,28 @@ def load_sigma_rules(directory: Path) -> tuple[list[SigmaRule], list[str]]:
             errors.append(f"{path}: offline validator supports condition: selection")
         if not selection:
             errors.append(f"{path}: detection selection is empty")
-        rules.append(SigmaRule(path.stem, rule_id, selection))
+        title_match = re.search(r"^title:\s*(.+?)\s*$", text, re.MULTILINE)
+        level_match = re.search(r"^level:\s*(\S+)\s*$", text, re.MULTILINE)
+        techniques = tuple(
+            sorted(
+                {
+                    match.upper()
+                    for match in re.findall(
+                        r"attack\.(t\d{4}(?:\.\d{3})?)", text, re.IGNORECASE
+                    )
+                }
+            )
+        )
+        rules.append(
+            SigmaRule(
+                path.stem,
+                rule_id,
+                selection,
+                title_match.group(1) if title_match else path.stem,
+                level_match.group(1) if level_match else "unknown",
+                techniques,
+            )
+        )
 
     if not rules:
         errors.append(f"{directory}: no Sigma rules found")
@@ -193,9 +222,25 @@ def load_wazuh_rules(path: Path) -> tuple[list[WazuhRule], list[str]]:
             if not name or not pattern:
                 errors.append(f"{path}: Wazuh rule {rule_id} has an incomplete field")
             fields.append((name, pattern))
+        protocol_pattern = element.findtext("protocol")
+        if protocol_pattern:
+            fields.append(("protocol", protocol_pattern))
         if element.find("description") is None:
             errors.append(f"{path}: Wazuh rule {rule_id} needs a description")
-        rules.append(WazuhRule(rule_id, level, parent_id, tuple(fields)))
+        rules.append(
+            WazuhRule(
+                rule_id,
+                level,
+                parent_id,
+                tuple(fields),
+                element.findtext("description", default=f"Wazuh rule {rule_id}"),
+                tuple(
+                    child.text.strip()
+                    for child in element.findall("./mitre/id")
+                    if child.text and child.text.strip()
+                ),
+            )
+        )
 
     for rule in rules:
         if rule.parent_id is not None and rule.parent_id not in ids:
@@ -256,7 +301,23 @@ def load_suricata_rules(path: Path) -> tuple[list[SuricataRule], list[str]]:
         if sid in sids:
             errors.append(f"{prefix}: duplicate Suricata sid {sid}")
         sids.add(sid)
-        rules.append(SuricataRule(sid, expression_match.group(1).strip()))
+        title_match = re.search(r'msg:"([^"]+)";', line)
+        technique_match = re.search(
+            r"metadata:[^;]*attack_technique\s+(T\d{4}(?:\.\d{3})?)",
+            line,
+            re.IGNORECASE,
+        )
+        classtype_match = re.search(r"classtype:([^;]+);", line)
+        severity = "high" if classtype_match and "attempted-admin" in classtype_match.group(1) else "medium"
+        rules.append(
+            SuricataRule(
+                sid,
+                expression_match.group(1).strip(),
+                title_match.group(1) if title_match else f"Suricata SID {sid}",
+                severity,
+                (technique_match.group(1).upper(),) if technique_match else (),
+            )
+        )
     if not rules:
         errors.append(f"{path}: no active Suricata rules found")
     return rules, errors
