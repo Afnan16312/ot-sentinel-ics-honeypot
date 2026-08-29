@@ -15,7 +15,7 @@ This page is the starting point for understanding exactly what OT Sentinel is, w
 | Detection formats | Sigma, Suricata and Wazuh |
 | Intelligence format | STIX 2.1 public and private profiles |
 | Stateful scenarios | Fictional water treatment, power substation and port crane |
-| Automated verification | 173 tests and 10 subtests, Ruff, dependency audit, OpenAPI/STIX/Navigator/public-data/detection validators, CodeQL and Trivy |
+| Automated verification | 175 tests and 10 subtests, Ruff, dependency audit, OpenAPI/STIX/Navigator/public-data/detection validators, CodeQL and Trivy |
 | Local demonstration cost | AED 0 |
 | Private live study | Active since 2026-08-19 on an isolated Oracle Cloud UAE East sensor |
 | Public live observations | None; public dashboard and report remain synthetic |
@@ -53,6 +53,7 @@ This page is the starting point for understanding exactly what OT Sentinel is, w
 | [Final Data Handoff](FINAL_DATA_HANDOFF.md) | How is completed private evidence checked, sanitized, analyzed and staged for local Wazuh without automatic publication? |
 | [Offline Handoff ADR](ADR_023_OFFLINE_HANDOFF_AND_WAZUH_STAGING.md) | Why are immutable input, digest-named runs and sanitized-only Wazuh staging required? |
 | [Final Handoff Engineering Record](FINAL_HANDOFF_ENGINEERING_RECORD.md) | What was shipped, which problems were solved and what exact verification passed? |
+| [Ponytail and Graphify](DEVELOPER_ASSISTANTS.md) | How are the optional local developer assistants installed, kept private and used without affecting Oracle? |
 | [Monitoring Plan](MONITORING_PLAN.md) | Which health and capacity signals should a future monitor use? |
 | [Local Health Monitoring Runbook](HEALTH_MONITORING_RUNBOOK.md) | How are synthetic/local readiness snapshots checked without exposing telemetry? |
 | [Threat-Intelligence Report Template](THREAT_INTELLIGENCE_REPORT_TEMPLATE.md) | What must a reviewed research report contain? |

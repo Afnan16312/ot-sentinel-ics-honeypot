@@ -1,0 +1,20 @@
+# Never index collected or generated telemetry.
+data/
+logs/
+reports/private/
+exports/private/
+
+# Never index disposable SOC runtime state or vendor checkouts.
+tests/soc/vendor/
+tests/soc/output/
+tests/soc/generated/
+tests/soc/staging/
+
+# Ignore local environments, caches and generated graph artifacts.
+.git/
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+graphify-out/
+graph.json

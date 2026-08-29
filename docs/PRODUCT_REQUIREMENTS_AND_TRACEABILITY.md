@@ -100,7 +100,7 @@ OT Sentinel is a low-interaction OT/ICS honeypot and analysis pipeline. It safel
 
 ## 7. Acceptance evidence for v0.2.0
 
-- 173 automated tests and ten subtests pass, including public/private STIX and collector-contract standards validation.
+- 175 automated tests and ten subtests pass, including public/private STIX, collector-contract standards validation and local Graphify privacy configuration.
 - Four Sigma, four Suricata and four Wazuh alert rules pass ten positive/negative fixtures.
 - All three fictional profiles pass schema and safety validation.
 - The dashboard and sensor each pass local process smoke tests.

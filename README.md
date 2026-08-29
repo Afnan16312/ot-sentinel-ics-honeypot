@@ -41,6 +41,8 @@ I also documented how OT Sentinel compares with established honeypot projects an
 
 For the complete record of requirements, shipped features, engineering decisions, system design, and solved problems, start with the [engineering documentation](docs/ENGINEERING_DOCUMENTATION.md).
 
+Development uses the optional, local-only [Ponytail and Graphify workflow](docs/DEVELOPER_ASSISTANTS.md); neither tool runs on the Oracle sensor.
+
 ## What is included in version 0.2
 
 | Feature | Plain-language purpose |
