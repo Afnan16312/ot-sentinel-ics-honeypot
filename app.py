@@ -134,7 +134,7 @@ html, body, [class*="css"] { font-family:'Inter',sans-serif; color:var(--text); 
 .filter-help { display:block; margin-left:0; color:var(--muted); font-size:11px; line-height:1.35; white-space:nowrap; }
 .telemetry-strip { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; background:transparent; border:0; margin:8px 0 16px; }
 .telemetry-cell { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:14px 16px; min-width:0; }
-.telemetry-label { color:var(--muted); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.telemetry-label { color:var(--muted); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; white-space:nowrap; overflow:visible; text-overflow:clip; }
 .telemetry-value { color:var(--text); font-family:'JetBrains Mono',monospace; font-size:1.55rem; line-height:1.2; margin-top:8px; font-variant-numeric:tabular-nums; }
 .telemetry-cell:first-child .telemetry-value { color:#2d67d8; }
 .telemetry-cell:last-child .telemetry-value { color:var(--red); }
@@ -168,10 +168,12 @@ div[data-testid="stDataFrame"] { border:1px solid var(--border); border-radius:4
 .map-stat:last-child { border-right:0; }
 .map-stat .label { color:var(--muted); font-size:.65rem; text-transform:uppercase; letter-spacing:.08em; }
 .map-stat .value { color:var(--text); font-family:'JetBrains Mono',monospace; font-size:.9rem; margin-top:3px; }
-.metric-info { position:relative; display:inline-flex; align-items:center; justify-content:center; width:14px; height:14px; margin-left:4px; border:1px solid #aab4c0; border-radius:50%; color:#5d6b7a; font-size:9px; font-weight:700; line-height:1; letter-spacing:0; text-transform:none; cursor:help; vertical-align:1px; }
-.metric-info:focus-visible { outline:2px solid #4e8fb8; outline-offset:2px; }
-.metric-tooltip { position:absolute; z-index:30; top:calc(100% + 8px); left:0; width:210px; padding:8px 9px; border:1px solid #aab4c0; border-radius:4px; background:#1f2933; color:#fff; box-shadow:0 4px 12px rgba(20,30,40,.18); font-size:11px; font-weight:400; line-height:1.35; letter-spacing:0; text-transform:none; text-align:left; visibility:hidden; opacity:0; pointer-events:none; transition:opacity .15s ease; }
-.metric-info:hover .metric-tooltip, .metric-info:focus .metric-tooltip { visibility:visible; opacity:1; }
+.metric-info { position:relative; display:inline-flex; align-items:center; justify-content:center; width:16px; min-height:16px; margin-left:4px; border:1px solid #aab4c0; border-radius:50%; color:#5d6b7a; font-size:9px; font-weight:700; line-height:1; letter-spacing:0; text-transform:none; vertical-align:1px; }
+.metric-info > summary { display:flex; align-items:center; justify-content:center; width:100%; min-height:16px; cursor:pointer; list-style:none; }
+.metric-info > summary::-webkit-details-marker { display:none; }
+.metric-info:focus-within { outline:2px solid #4e8fb8; outline-offset:2px; }
+.metric-tooltip { position:absolute; z-index:30; top:calc(100% + 8px); left:0; width:230px; max-width:calc(100vw - 32px); padding:8px 9px; border:1px solid #aab4c0; border-radius:4px; background:#1f2933; color:#fff; box-shadow:0 4px 12px rgba(20,30,40,.18); font-size:11px; font-weight:400; line-height:1.35; letter-spacing:0; text-transform:none; text-align:left; white-space:normal; overflow-wrap:anywhere; visibility:hidden; opacity:0; pointer-events:none; transition:opacity .15s ease; }
+.metric-info:hover .metric-tooltip, .metric-info[open] .metric-tooltip { visibility:visible; opacity:1; pointer-events:auto; }
 .detail-panel { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:12px; min-height:210px; }
 .detail-value { color:var(--text); font-size:.85rem; margin:3px 0 10px; word-break:break-word; }
 .privacy-note { color:var(--muted); border-left:2px solid #9da3ad; padding:6px 8px; font-size:.72rem; margin-top:8px; }
@@ -337,6 +339,15 @@ def render_scope_panel(title: str, can_prove: list[str], cannot_prove: list[str]
             f"<div class='scope-card'><strong>Cannot establish</strong><ul>{cannot_items}</ul></div></div>",
             unsafe_allow_html=True,
         )
+
+
+def info_badge(label: str, explanation: str) -> str:
+    """Return a keyboard-accessible click-to-open explanation badge."""
+
+    return (
+        f"<details class='metric-info'><summary aria-label='{escape(label)}'>i</summary>"
+        f"<span class='metric-tooltip'>{escape(explanation)}</span></details>"
+    )
 
 
 def build_triage_queue(frame: pd.DataFrame) -> pd.DataFrame:
@@ -608,7 +619,12 @@ with st.expander("Understand these numbers", expanded=False):
         "- **Sessions** are bounded connections, not people or separate intrusions.\n"
         "- **Source groups** are pseudonymous public identifiers, not verified identities.\n"
         "- **Control actions** are requests that can change the fictional decoy state.\n"
-        "- **Evidence confidence** describes the ATT&CK mapping evidence, not certainty about intent."
+        "- **Evidence confidence** describes the ATT&CK mapping evidence, not certainty about intent.\n"
+        "- **Severity** is a label for the recorded protocol behavior; it is not a probability of harm.\n"
+        "- **Priority** is the recommended order for human review; it is not a prediction of compromise.\n"
+        "- **ATT&CK hypothesis** is a standardized behavior description supported by the record; it is not proof that an attack succeeded.\n"
+        "- **Detection Preview** is an offline rule match; it is not a live alert from Wazuh, Suricata or a SIEM.\n"
+        "- **STIX** is a portable JSON format for sharing structured security observations."
     )
     st.caption(
         "Counts describe recorded telemetry matches. They are not a count of unique intrusions, attackers, victims, or countries of origin."
@@ -617,10 +633,10 @@ with st.expander("Understand these numbers", expanded=False):
 st.markdown(
     f"""
 <div class="telemetry-strip" aria-label="Current filtered telemetry summary">
-  <div class="telemetry-cell"><div class="telemetry-label">Observed events <span class="metric-info" tabindex="0" aria-label="Individual telemetry records matching the current filters.">i<span class="metric-tooltip">Individual telemetry records matching the current filters; not unique attacks.</span></span></div><div class="telemetry-value">{events_count:,}</div></div>
-  <div class="telemetry-cell"><div class="telemetry-label">Sessions <span class="metric-info" tabindex="0" aria-label="Bounded network connections in the current filters.">i<span class="metric-tooltip">Bounded network connections; not people or confirmed intrusions.</span></span></div><div class="telemetry-value">{sessions:,}</div></div>
-  <div class="telemetry-cell"><div class="telemetry-label">Source groups <span class="metric-info" tabindex="0" aria-label="Unique pseudonymous public source identifiers.">i<span class="metric-tooltip">Unique pseudonymous identifiers; not verified identities.</span></span></div><div class="telemetry-value">{sources:,}</div></div>
-  <div class="telemetry-cell"><div class="telemetry-label">Control actions <span class="metric-info" tabindex="0" aria-label="Requests able to change the fictional decoy state.">i<span class="metric-tooltip">Write, command or program-transfer requests against the fictional decoy; not proof of real-world impact.</span></span></div><div class="telemetry-value">{commands:,}</div></div>
+  <div class="telemetry-cell"><div class="telemetry-label">Observed events {info_badge('Observed events', 'Individual protocol records matching the current filters. Several records can come from one session, so this is not a count of attacks.')}</div><div class="telemetry-value">{events_count:,}</div></div>
+  <div class="telemetry-cell"><div class="telemetry-label">Sessions {info_badge('Sessions', 'Bounded network connections to the decoy. A session is not a person, attacker or confirmed intrusion.')}</div><div class="telemetry-value">{sessions:,}</div></div>
+  <div class="telemetry-cell"><div class="telemetry-label">Source groups {info_badge('Source groups', 'Privacy-safe labels that group records from the same source. They are pseudonyms, not verified identities.')}</div><div class="telemetry-value">{sources:,}</div></div>
+  <div class="telemetry-cell"><div class="telemetry-label">Control actions {info_badge('Control actions', 'Write, command or program-transfer requests sent to the fictional decoy. They do not prove that a real machine or process was changed.')}</div><div class="telemetry-value">{commands:,}</div></div>
 </div>
 """,
     unsafe_allow_html=True,
@@ -731,10 +747,10 @@ with overview:
     st.markdown(
         f"""
 <div class="map-stat-grid">
-  <div class="map-stat"><div class="label">Visible events <span class="metric-info" tabindex="0" title="Number of events matching the selected filters and observation window." aria-label="Number of events matching the selected filters and observation window.">i<span class="metric-tooltip">Number of events matching the selected filters and observation window.</span></span></div><div class="value">{quality['events']:,}</div></div>
-  <div class="map-stat"><div class="label">Mapped sources <span class="metric-info" tabindex="0" title="Unique pseudonymous source groups with valid public map coordinates." aria-label="Unique pseudonymous source groups with valid public map coordinates.">i<span class="metric-tooltip">Unique pseudonymous source groups with valid public map coordinates.</span></span></div><div class="value">{source_count:,}</div></div>
-  <div class="map-stat"><div class="label">Countries <span class="metric-info" tabindex="0" title="Countries represented by the filtered, sanitized observations." aria-label="Countries represented by the filtered, sanitized observations.">i<span class="metric-tooltip">Countries represented by the filtered, sanitized observations.</span></span></div><div class="value">{quality['countries']:,}</div></div>
-  <div class="map-stat"><div class="label">Protocols active <span class="metric-info" tabindex="0" title="Different OT protocols present in the filtered map data." aria-label="Different OT protocols present in the filtered map data.">i<span class="metric-tooltip">Different OT protocols present in the filtered map data.</span></span></div><div class="value">{protocol_count:,}</div></div>
+  <div class="map-stat"><div class="label">Visible events {info_badge('Visible events', 'Number of events matching the selected filters and observation window. This is not a count of unique attacks.')}</div><div class="value">{quality['events']:,}</div></div>
+  <div class="map-stat"><div class="label">Mapped sources {info_badge('Mapped sources', 'Unique pseudonymous source groups with usable, deliberately coarse public map coordinates. Locations are approximate.')}</div><div class="value">{source_count:,}</div></div>
+  <div class="map-stat"><div class="label">Countries {info_badge('Countries', 'Countries represented by the filtered, sanitized records. A country does not identify a person or organization.')}</div><div class="value">{quality['countries']:,}</div></div>
+  <div class="map-stat"><div class="label">Protocols active {info_badge('Protocols active', 'Different OT protocols present in the filtered map data: Modbus, S7 or IEC-104.')}</div><div class="value">{protocol_count:,}</div></div>
 </div>
 """,
         unsafe_allow_html=True,
