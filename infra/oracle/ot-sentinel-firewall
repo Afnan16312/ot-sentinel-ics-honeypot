@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+EDGE_NETWORK="${OT_SENTINEL_EDGE_NETWORK:-ot-sentinel-edge}"
+EDGE_SUBNET="${OT_SENTINEL_EDGE_SUBNET:-172.31.250.0/29}"
+
+if ! /usr/bin/docker network inspect "${EDGE_NETWORK}" >/dev/null 2>&1; then
+  /usr/bin/docker network create \
+    --driver bridge \
+    --subnet "${EDGE_SUBNET}" \
+    "${EDGE_NETWORK}" >/dev/null
+fi
+
+ACTUAL_DRIVER="$(/usr/bin/docker network inspect \
+  --format '{{.Driver}}' "${EDGE_NETWORK}")"
+ACTUAL_SUBNET="$(/usr/bin/docker network inspect \
+  --format '{{(index .IPAM.Config 0).Subnet}}' "${EDGE_NETWORK}")"
+
+if [[ "${ACTUAL_DRIVER}" != "bridge" || "${ACTUAL_SUBNET}" != "${EDGE_SUBNET}" ]]; then
+  echo "Existing edge network does not match the required bridge/subnet; refusing to start." >&2
+  exit 1
+fi
+
+if ! /usr/sbin/iptables -n -L DOCKER-USER >/dev/null 2>&1; then
+  echo "DOCKER-USER is unavailable; refusing to start without the outbound guard." >&2
+  exit 1
+fi
+
+while /usr/sbin/iptables -C DOCKER-USER \
+  -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT 2>/dev/null; do
+  /usr/sbin/iptables -D DOCKER-USER \
+    -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+done
+
+while /usr/sbin/iptables -C DOCKER-USER \
+  -s "${EDGE_SUBNET}" -m conntrack --ctstate NEW -j DROP 2>/dev/null; do
+  /usr/sbin/iptables -D DOCKER-USER \
+    -s "${EDGE_SUBNET}" -m conntrack --ctstate NEW -j DROP
+done
+
+/usr/sbin/iptables -I DOCKER-USER 1 \
+  -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+/usr/sbin/iptables -I DOCKER-USER 2 \
+  -s "${EDGE_SUBNET}" -m conntrack --ctstate NEW -j DROP

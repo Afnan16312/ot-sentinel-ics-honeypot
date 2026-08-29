@@ -24,6 +24,8 @@ This file records the major decisions behind OT Sentinel `v0.2.0`. Each decision
 | ADR-016 | Do not require ELK or Wazuh to run the project | Preserve a free, low-resource default path |
 | ADR-017 | Treat CI and release evidence as product features | Make security and reproducibility visible |
 | ADR-018 | Keep public-cloud deployment optional | Avoid making paid infrastructure a prerequisite |
+| ADR-019 | Use an Oracle edge bridge plus a host egress guard | Publish the decoy ports on the verified Docker host without permitting container-initiated Internet connections |
+| ADR-020 | Retain the framework-free collector | Two authenticated machine endpoints do not justify Flask or Django yet |
 
 ## ADR-001 — Custom low-interaction sensor
 
@@ -231,15 +233,51 @@ This file records the major decisions behind OT Sentinel `v0.2.0`. Each decision
 
 ## ADR-018 — Optional public cloud
 
+**Status.** Accepted for the release baseline; operational deployment details are extended by ADR-019.
+
 **Context.** Azure UAE regions are relevant to a future regional study, but cloud deployment can incur cost and increases operational responsibility.
 
 **Decision.** Make local execution the default and keep Azure/systemd/container deployment as optional templates.
 
 **Why.** Development, testing, reporting, and demonstration remain free; an operator can later add a deliberately budgeted collection host.
 
-**Consequences.** There is no always-on public sensor or permanent hosted dashboard in the current release.
+**Consequences.** At the `v0.2.0` release point there was no always-on public sensor. A later private study can use an isolated host without changing the free local demonstration or publishing its raw data.
 
 **Evidence.** `infra/`, [DEPLOYMENT.md](DEPLOYMENT.md), [LIVE_COLLECTION_RUNBOOK.md](LIVE_COLLECTION_RUNBOOK.md).
+
+## ADR-019 — Oracle edge bridge with host egress guard
+
+**Context.** The Oracle ARM64 deployment uses Docker 29. Port bindings were recorded but not exposed when the sensor was attached only to its `internal: true` Compose network. Attaching a normal bridge restored publication, but a normal bridge also creates a possible outbound route.
+
+**Decision.** Keep the internal sensor network, add one small externally managed edge bridge for host port publication and install fail-closed `DOCKER-USER` rules before systemd starts the container. Allow established/related response traffic and drop new connections originating from the edge subnet.
+
+**Why.** The honeypot must accept inbound sessions on standard OT ports without gaining the ability to initiate arbitrary Internet connections.
+
+**Consequences.** The host now owns a Docker network and firewall policy outside the base Compose lifecycle. The helper must run at boot, and the outbound test must be repeated after Docker or firewall-backend changes. The current helper targets Docker's iptables backend and is not automatically valid for the nftables backend.
+
+**Evidence.** `infra/oracle/`, [ORACLE_CLOUD_RUNBOOK.md](ORACLE_CLOUD_RUNBOOK.md), [LIVE_DEPLOYMENT_RECORD.md](LIVE_DEPLOYMENT_RECORD.md), deployment invariant tests.
+
+## ADR-020 — Retain the framework-free collector
+
+**Decision.** Keep the two-endpoint collector on Python's standard library. Do not add Flask, Django or Django REST Framework while the API remains limited to authenticated event ingestion and process health.
+
+**Why.** The current collector already implements exact-body HMAC, freshness, identity, replay, size, timeout, concurrency and privacy controls, and those behaviors are covered by synthetic black-box tests. A framework would add dependencies without removing the need for those controls.
+
+**Migration triggers.** Reconsider when complex resources, analyst accounts/roles, browser workflows, case data, major SIEM/SOAR consumers or unsafe scaling limits become real requirements.
+
+**Full record.** [ADR_020_COLLECTOR_FRAMEWORK.md](ADR_020_COLLECTOR_FRAMEWORK.md).
+
+## ADR-021 — Aggregate-first public dashboard handoff
+
+**Context.** Even pseudonymized event rows can disclose timing, stable identifiers or small-group patterns that a public dashboard does not need.
+
+**Decision.** Add a separate publication step that accepts only validated sanitized input and emits aggregate counts plus calendar-date boundaries. Keep individual live records private and require a human review before any observed summary replaces the synthetic dashboard source.
+
+**Why.** The public presentation can show protocol and ATT&CK trends with less disclosure risk and without creating an automatic path from the Oracle sensor to GitHub or Streamlit.
+
+**Consequences.** Aggregate output cannot support public row-level investigation. A separately authorized analyst workflow must retain private evidence, and small-count disclosure still needs human review.
+
+**Evidence.** `scripts/build_public_summary.py`, `tests/test_public_summary.py`, `data/demo_summary.json`, [Safe Publication Pipeline](SAFE_PUBLICATION_PIPELINE.md).
 
 ## How to change a decision
 

@@ -53,3 +53,8 @@ The risk score uses protocol action, evidence strength, mapping confidence, repe
 - Health output records parser errors, queue drops, delivery failures and last-event time.
 - Public datasets, STIX bundles and release evidence are created through repeatable local commands.
 
+## Collector assurance
+
+The optional collector intentionally exposes only `POST /v1/events` and `GET /health`. Its contract is published as [OpenAPI 3.1](api/collector.openapi.json), and synthetic black-box tests exercise authentication, freshness, identity, replay, malformed framing, concurrency, timeouts, storage failure, privacy-safe errors and shutdown through real loopback sockets.
+
+The design remains framework-free because two machine endpoints do not currently justify the dependency and operational surface of Flask or Django. See [ADR-020](ADR_020_COLLECTOR_FRAMEWORK.md), the [collector threat model](COLLECTOR_THREAT_MODEL.md) and [collector hardening guide](COLLECTOR_HARDENING.md).

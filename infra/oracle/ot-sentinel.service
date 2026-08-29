@@ -1,0 +1,17 @@
+[Unit]
+Description=OT Sentinel Oracle Docker deployment
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/ot-sentinel
+ExecStartPre=/usr/local/sbin/ot-sentinel-firewall
+ExecStart=/usr/bin/docker compose -f docker-compose.yml -f infra/oracle/docker-compose.oracle.yml up -d
+ExecStop=/usr/bin/docker compose -f docker-compose.yml -f infra/oracle/docker-compose.oracle.yml stop
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

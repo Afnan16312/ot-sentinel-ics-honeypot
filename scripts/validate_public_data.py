@@ -47,6 +47,15 @@ def validate(path: Path) -> tuple[int, list[str]]:
                         pass
                     else:
                         errors.append(f"line {line_number}: literal IP found in {field_path}")
+                if isinstance(value, str) and key.lower() == "source_network":
+                    try:
+                        ipaddress.ip_network(value, strict=False)
+                    except ValueError:
+                        pass
+                    else:
+                        errors.append(
+                            f"line {line_number}: literal network prefix found in {field_path}"
+                        )
     if count == 0:
         errors.append("dataset is empty")
     return count, errors
@@ -64,4 +73,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

@@ -15,8 +15,10 @@ This page is the starting point for understanding exactly what OT Sentinel is, w
 | Detection formats | Sigma, Suricata and Wazuh |
 | Intelligence format | STIX 2.1 public and private profiles |
 | Stateful scenarios | Fictional water treatment, power substation and port crane |
-| Automated verification | 49 tests, two STIX validation subtests, Ruff, dependency audit, CodeQL and Trivy |
+| Automated verification | 86 tests, ten subtests (including two STIX validations), Ruff, dependency audit, CodeQL and Trivy |
 | Local demonstration cost | AED 0 |
+| Private live study | Active since 2026-08-19 on an isolated Oracle Cloud UAE East sensor |
+| Public live observations | None; public dashboard and report remain synthetic |
 
 ## Read the documents in this order
 
@@ -39,14 +41,25 @@ This page is the starting point for understanding exactly what OT Sentinel is, w
 | [STIX Export](STIX_EXPORT.md) | How are public and private intelligence bundles produced? |
 | [Triage and Evaluation](TRIAGE_AND_EVALUATION.md) | How is review priority calculated and mapper agreement measured? |
 | [Operations](OPERATIONS.md) | How are profiles, health, alerts and remote collection operated? |
+| [Collector OpenAPI](api/collector.openapi.json) | What exact requests, headers, schemas, limits and responses does the collector support? |
+| [Collector Threat Model](COLLECTOR_THREAT_MODEL.md) | Which collector assets, actors, threats, controls and residual risks exist? |
+| [Collector Framework ADR](ADR_020_COLLECTOR_FRAMEWORK.md) | Why does the collector remain framework-free and when should that change? |
+| [Collector Hardening](COLLECTOR_HARDENING.md) | What must a future production deployment add and verify? |
+| [Safe Publication Pipeline](SAFE_PUBLICATION_PIPELINE.md) | How are aggregate-only public statistics created without individual records? |
+| [SOC Integration Plan](SOC_INTEGRATION_PLAN.md) | How can Wazuh and Suricata be tested without touching the live sensor? |
+| [Monitoring Plan](MONITORING_PLAN.md) | Which health and capacity signals should a future monitor use? |
+| [Threat-Intelligence Report Template](THREAT_INTELLIGENCE_REPORT_TEMPLATE.md) | What must a reviewed research report contain? |
+| [Five-Minute Demonstration Script](DEMO_SCRIPT.md) | How can the project be explained accurately and simply? |
 | [Deployment](DEPLOYMENT.md) | How can the system be demonstrated for free or deployed with protected credit? |
 | [Live Collection Runbook](LIVE_COLLECTION_RUNBOOK.md) | What must happen before a real Internet collection study? |
+| [Oracle Cloud Runbook](ORACLE_CLOUD_RUNBOOK.md) | How is the verified free-tier sensor deployed and isolated? |
+| [Live Deployment Record](LIVE_DEPLOYMENT_RECORD.md) | What privacy-safe evidence proves the current sensor is operating? |
 | [Competitive Analysis and Roadmap](COMPETITIVE_ANALYSIS_AND_ROADMAP.md) | How does the project compare and what remains future work? |
 | [Changelog](../CHANGELOG.md) | What changed between releases? |
 
 ## The most important honesty boundary
 
-The software, tests, dashboard, detection content, STIX export and deployment assets are real and working. The included public observations are synthetic demonstration records. OT Sentinel does not currently claim that it captured real UAE attackers or completed a two-to-four-week public study.
+The software, tests, dashboard, detection content, STIX export and deployment assets are real and working. A private live sensor is operating, but the included public observations remain synthetic demonstration records. OT Sentinel does not claim that observed sources are attackers or that the two-to-four-week study and publication review are complete.
 
 That future study requires written authorization, isolated public infrastructure, an agreed retention period and a privacy review. The exact process is documented in the [Live Collection Runbook](LIVE_COLLECTION_RUNBOOK.md).
 

@@ -2,6 +2,8 @@
 
 This guide covers the optional state profile, health, alert and multi-sensor features. The basic local dashboard remains available through `run_dashboard.ps1`.
 
+The verified Oracle Cloud operating procedure, including systemd, Docker networking, outbound blocking and log rotation, is in [ORACLE_CLOUD_RUNBOOK.md](ORACLE_CLOUD_RUNBOOK.md). The current privacy-safe study status is in [LIVE_DEPLOYMENT_RECORD.md](LIVE_DEPLOYMENT_RECORD.md).
+
 ## Safe stateful profiles
 
 Three fictional profiles are included:
@@ -81,6 +83,8 @@ $env:OT_SENSOR_ID = "remote-sensor-02"
 
 The transport signs the timestamp and exact JSON body. The collector rejects unknown sensors, invalid signatures, stale timestamps, oversized requests, identity mismatches and duplicate event IDs. It writes `transport_authenticated: true` only after those checks pass.
 
+The machine-readable request and response contract is [OpenAPI 3.1](api/collector.openapi.json). The [collector threat model](COLLECTOR_THREAT_MODEL.md) explains what the controls do and do not protect. The [operational hardening guide](COLLECTOR_HARDENING.md) covers TLS termination, gateways, rate limits, supervision, rotation, monitoring, backup, migration and rollback without treating those deployment activities as already completed.
+
 For a same-machine demonstration only, the collector accepts `--allow-insecure-loopback` while bound to `127.0.0.1`. Plain HTTP is deliberately refused for remote addresses.
 
 ## Shutdown and failure behavior
@@ -90,6 +94,22 @@ For a same-machine demonstration only, the collector accepts `--allow-insecure-l
 - After three failed deliveries the health counter increases and the sensor continues locally.
 - Local JSONL remains the evidence source when a remote integration is unavailable.
 
+## Oracle host daily check
+
+Run these commands only from the private SSH session:
+
+```bash
+cd /opt/ot-sentinel
+sudo systemctl is-active ot-sentinel.service
+sudo docker compose -f docker-compose.yml \
+  -f infra/oracle/docker-compose.oracle.yml ps
+sudo cat logs/health.json
+df -h /
+sudo du -sh logs
+```
+
+The service should be `active`, the container should be `Up`, health should be `ok`, and disk growth should remain bounded. Do not paste or publish `logs/events.jsonl`.
+
 ## Production limits
 
 - Store HMAC secrets in a real secret manager and rotate them.
@@ -97,3 +117,6 @@ For a same-machine demonstration only, the collector accepts `--allow-insecure-l
 - Monitor disk space and ship private logs to approved storage.
 - Do not expose the collector or sensor from a personal network.
 - Do not place any component on the same network as production OT.
+- Treat `GET /health` as process liveness only; monitor successful storage and disk state separately.
+- Preserve the exact request bytes through any gateway because HMAC verification covers the exact body.
+- Use the tested 64 KiB application limit even if an upstream proxy permits larger generic requests.

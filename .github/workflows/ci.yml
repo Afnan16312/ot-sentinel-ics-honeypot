@@ -2,7 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - "feature/**"
   pull_request:
 
 permissions:
@@ -19,11 +21,14 @@ jobs:
           cache: pip
       - run: pip install -r requirements-dev.txt
       - run: pip install -e .
+      - run: python -m pip check
       - run: python -m ruff check .
       - run: python -m pytest -q
+      - run: python -m json.tool docs/api/collector.openapi.json > /dev/null
       - run: python scripts/validate_detections.py
       - run: python scripts/generate_demo_data.py
       - run: python scripts/validate_public_data.py data/demo_events.jsonl
-      - run: python -m pip_audit -r requirements.txt
+      - run: python scripts/build_public_summary.py data/demo_events.jsonl data/demo_summary.json
+      - run: python -m pip_audit -r requirements-dev.txt
       - name: Verify generated data is reproducible
-        run: git diff --exit-code -- data/demo_events.jsonl
+        run: git diff --exit-code -- data/demo_events.jsonl data/demo_summary.json

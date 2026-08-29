@@ -1,0 +1,16 @@
+services:
+  sensor:
+    # systemd owns restart behavior on the Oracle host.
+    restart: "no"
+    networks:
+      - sensor_net
+      - sensor_edge
+
+networks:
+  # Docker 29 on the deployed ARM host did not publish ports while the
+  # container was attached only to an internal network. This dedicated edge
+  # bridge enables host port publication. Host DOCKER-USER rules below block
+  # container-initiated outbound connections on this bridge.
+  sensor_edge:
+    external: true
+    name: ot-sentinel-edge
