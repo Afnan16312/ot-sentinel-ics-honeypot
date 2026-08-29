@@ -111,7 +111,7 @@ streamlit run app.py
 
 Streamlit opens the dashboard in your browser with the included demonstration data.
 
-The observatory map supports zoom, pan, fullscreen, country focus, four analytical modes and a reviewed aggregate CSV export. Its design decisions, privacy contract, interaction model and QA evidence are documented in [Interactive Threat Map Redesign](docs/INTERACTIVE_MAP_REDESIGN.md).
+The observatory map supports zoom, pan, fullscreen, country focus, four analytical modes and a reviewed aggregate CSV export. The dashboard uses a Stitch-inspired light workstation layout with a fixed analysis rail, compact status header, filter chips and responsive KPI/map cards. Its design decisions, privacy contract, interaction model and QA evidence are documented in [Interactive Threat Map Redesign](docs/INTERACTIVE_MAP_REDESIGN.md).
 
 ## Run the honeypot locally
 
@@ -218,6 +218,7 @@ ot-sentinel export-stix data/demo_events.jsonl artifacts/public-stix.json --prof
 | `docs/DEMO_SCRIPT.md` | Simple five-minute explanation for project demonstrations |
 | `docs/RECORDING_CHECKLIST.md` | Exact synthetic-only 5–7 minute recording and privacy-review procedure |
 | `docs/INTERACTIVE_MAP_REDESIGN.md` | Map gap analysis, shipped interactions, privacy controls and QA matrix |
+| `docs/PRODUCT_GAP_ANALYSIS.md` | Comprehensive user pain-point audit and prioritized map/product roadmap |
 | `docs/PHASE_2_ENGINEERING_RECORD.md` | Phase 2 decisions, features, tests, limitations and non-deployment record |
 | `docs/HEALTH_MONITORING_RUNBOOK.md` | Local privacy-safe readiness checker instructions |
 | `docs/STIX_EXPORT.md` | Public and private STIX export rules |

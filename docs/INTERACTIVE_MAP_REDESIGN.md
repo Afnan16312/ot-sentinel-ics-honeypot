@@ -59,16 +59,38 @@ Groups visible public observations into six-hour UTC windows and provides a fini
 - synchronized ATT&CK, geographic concentration and activity-cadence views;
 - explicit empty states when no safely mappable records remain.
 
+### Investigation pass (shipped on `feature/stitch-ui-redesign`)
+
+The map now also provides:
+
+- a persistent legend and view-context strip that explain protocol colors, relationship lines and synthetic/sanitized provenance;
+- mapping-confidence, triage-priority and control-action-only filters;
+- a bounded custom UTC date range and previous-equal-window comparison;
+- repeat-observation counts alongside unique-session counts;
+- an accessible source table with keyboard-friendly source selection;
+- selected-source evidence confidence badges and a maximum-20-row public timeline;
+- preparation actions for Session Explorer and ATT&CK Analysis;
+- local-only review state and notes that are never exported;
+- detection-coverage summary by protocol, rule and technique;
+- an aggregate-only view manifest containing filters, counts and privacy guarantees;
+- a tile-free Natural Earth fallback for disconnected or restricted networks; and
+- a reversible country-focus action that restores the previous country view.
+
+These additions reuse the existing public event contract. They do not expose raw addresses or payloads, change the Oracle sensor, or turn synthetic playback into a live feed.
+
 ## Visual direction
 
-The redesign uses an operational, industrial visual language instead of a decorative "hacker" theme:
+The Stitch-inspired pass uses a light, editorial workstation language instead of a decorative "hacker" theme:
 
-- near-black matte surfaces rather than gradients;
-- one-pixel steel-blue borders;
-- Manrope for readable interface text and DM Mono for identifiers and telemetry;
-- blue for Modbus, amber for S7 and muted violet for IEC-104;
-- restrained opacity and line weight so dense paths remain readable;
-- compact information hierarchy with no ornamental glass cards or glowing text.
+- white surfaces on a very light grey canvas, with a recessed navigation rail;
+- precise one-pixel graphite borders and small four-pixel corners instead of heavy shadows;
+- Inter for interface text and JetBrains Mono for identifiers and telemetry;
+- blue for Modbus, purple for S7/IEC-104 analysis and red/amber/green for semantic signals;
+- a compact status header, filter-chip strip, four KPI cards and a protocol/anomaly rail around the map;
+- the existing Streamlit tabs are styled as the real left navigation, so every analysis view remains reachable;
+- responsive tablet and phone rules collapse the rail and keep the KPI/map grids readable.
+
+The supplied Stitch references informed the layout and tokens; live application values still come from the validated public dataset. No decorative mock values, raw identifiers or new analyst capabilities were introduced.
 
 The implementation stays inside Streamlit and Plotly 6. Plotly's MapLibre map traces provide interaction without a paid map token, a separate JavaScript application or another deployment service. CARTO/OpenStreetMap tiles still require browser network access and carry their normal attribution.
 

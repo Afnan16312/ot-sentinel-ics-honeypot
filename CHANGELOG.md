@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added the Map Investigation pass: unified evidence/triage/control filters, custom UTC windows, previous-window comparison, map legend and context, repeat visibility, accessible source selection, selected-source evidence timelines, local review notes, detection coverage, reproducible view manifests, reversible country focus and a tile-free geographic fallback.
+- Added a Stitch-inspired light workstation UI: fixed analysis navigation, compact status/export header, filter chips, paper-grade KPI cards, protocol/anomaly rail and responsive pale map surfaces. Existing map modes, exports, ATT&CK, detection, triage, session and methodology views are unchanged.
 - Rebuilt the observatory as a four-mode MapLibre investigation workspace with flow, source-bubble, density and UTC playback views, responsive telemetry, point drill-down, country focus, coverage auditing and privacy-safe aggregate export.
 - Added privacy-scoped Ponytail and local code-only Graphify developer tooling; generated graphs and all telemetry/private runtime paths remain ignored.
 - Added a fail-closed historical JSONL preflight, transactional idempotent privacy-reduced import, deterministic final handoff processor and privacy-safe checksum manifest.
