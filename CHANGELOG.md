@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Rebuilt the observatory as a four-mode MapLibre investigation workspace with flow, source-bubble, density and UTC playback views, responsive telemetry, point drill-down, country focus, coverage auditing and privacy-safe aggregate export.
 - Added privacy-scoped Ponytail and local code-only Graphify developer tooling; generated graphs and all telemetry/private runtime paths remain ignored.
 - Added a fail-closed historical JSONL preflight, transactional idempotent privacy-reduced import, deterministic final handoff processor and privacy-safe checksum manifest.
 - Added persistent sanitized-only local Wazuh ingestion with a restart-safe staging ledger, indexed positive/negative verification and post-manager-restart evidence; no Oracle integration was added.

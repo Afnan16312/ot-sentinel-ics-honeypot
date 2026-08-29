@@ -8,6 +8,8 @@
 
 > **Honest data notice:** The public dashboard uses clearly labeled, computer-generated demonstration data. A separate isolated Oracle Cloud sensor began a private live collection on 2026-08-19, but no unreviewed live record is published or presented as attacker activity. See the [privacy-safe deployment record](docs/LIVE_DEPLOYMENT_RECORD.md).
 
+![OT Sentinel interactive geographic investigation workspace](docs/assets/dashboard.png)
+
 ## Project author
 
 OT Sentinel is my OT/ICS security research project.
@@ -30,6 +32,7 @@ My system then:
 8. Keeps replay and pending delivery state across local restarts using optional bounded SQLite stores.
 9. Generates a synthetic ATT&CK Navigator layer and weekly intelligence brief.
 10. Prepares an immutable, checksum-led final handoff for private SQLite analysis and persistent local Wazuh ingestion.
+11. Provides an interactive four-mode geographic investigation workspace with privacy-safe source drill-down and time playback.
 
 ## Why it matters
 
@@ -69,6 +72,7 @@ Development uses the optional, local-only [Ponytail and Graphify workflow](docs/
 | Durable delivery spool | Optionally preserves pending collector forwards across restarts without storing HMAC secrets |
 | Standards validation | CI validates the collector contract with a pinned OpenAPI 3.1 implementation |
 | Final data handoff | Safe preflight, transactional SQLite import, Wazuh staging and a checksum manifest prepare the completed study without automatic publication |
+| Interactive threat map | Compares bounded flow paths, source bubbles, density and UTC playback, then opens a privacy-safe source investigation summary |
 
 The disposable loopback-only Wazuh 4.14.7/Suricata 8.0.4 lab passed native positive and negative checks with synthetic fixtures; see the privacy-safe [native validation evidence](tests/soc/NATIVE_VALIDATION.md). The exact [recording checklist](docs/RECORDING_CHECKLIST.md) is ready, but no public video is claimed yet.
 
@@ -106,6 +110,8 @@ streamlit run app.py
 ```
 
 Streamlit opens the dashboard in your browser with the included demonstration data.
+
+The observatory map supports zoom, pan, fullscreen, country focus, four analytical modes and a reviewed aggregate CSV export. Its design decisions, privacy contract, interaction model and QA evidence are documented in [Interactive Threat Map Redesign](docs/INTERACTIVE_MAP_REDESIGN.md).
 
 ## Run the honeypot locally
 
@@ -211,6 +217,7 @@ ot-sentinel export-stix data/demo_events.jsonl artifacts/public-stix.json --prof
 | `docs/THREAT_INTELLIGENCE_REPORT_TEMPLATE.md` | Privacy-reviewed live-study report structure |
 | `docs/DEMO_SCRIPT.md` | Simple five-minute explanation for project demonstrations |
 | `docs/RECORDING_CHECKLIST.md` | Exact synthetic-only 5–7 minute recording and privacy-review procedure |
+| `docs/INTERACTIVE_MAP_REDESIGN.md` | Map gap analysis, shipped interactions, privacy controls and QA matrix |
 | `docs/PHASE_2_ENGINEERING_RECORD.md` | Phase 2 decisions, features, tests, limitations and non-deployment record |
 | `docs/HEALTH_MONITORING_RUNBOOK.md` | Local privacy-safe readiness checker instructions |
 | `docs/STIX_EXPORT.md` | Public and private STIX export rules |
