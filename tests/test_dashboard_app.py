@@ -35,6 +35,11 @@ def test_dashboard_renders_the_interactive_map_workspace_without_exceptions():
     assert "Global observation map" in app.markdown[4].value or any(
         "Global observation map" in item.value for item in app.markdown
     )
+    rendered_markdown = "\n".join(item.value for item in app.markdown)
+    assert "Number of events matching the selected filters" in rendered_markdown
+    assert "Unique pseudonymous source groups" in rendered_markdown
+    assert "Countries represented by the filtered" in rendered_markdown
+    assert "Different OT protocols present" in rendered_markdown
 
 
 def test_time_and_density_modes_render_without_exceptions():
