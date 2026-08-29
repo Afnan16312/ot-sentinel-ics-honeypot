@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Mapping
 from dataclasses import asdict, dataclass
 from functools import lru_cache
@@ -29,6 +30,38 @@ class DetectionPrediction:
 
     def to_dict(self) -> dict[str, str]:
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class NativeValidationEvidence:
+    """Privacy-safe summary of the last recorded native synthetic validation."""
+
+    status: str
+    validated_on: str
+    wazuh_version: str
+    suricata_version: str
+
+
+@lru_cache(maxsize=4)
+def load_native_validation_evidence(path_text: str) -> NativeValidationEvidence | None:
+    """Read the committed validation record without implying current engine health."""
+
+    path = Path(path_text)
+    if not path.exists():
+        return None
+    text = path.read_text(encoding="utf-8")
+    status = re.search(r"Status:\s+\*\*(.+?)\*\*", text)
+    date = re.search(r"\b(20\d{2}-\d{2}-\d{2})\b", status.group(1) if status else "")
+    wazuh = re.search(r"Wazuh manager, indexer and dashboard images pinned to `([^`]+)`", text)
+    suricata = re.search(r"Suricata image pinned to `([^`]+)`", text)
+    if not (status and date and wazuh and suricata):
+        return None
+    return NativeValidationEvidence(
+        status="passed synthetic fixtures" if "passed" in status.group(1).lower() else "recorded",
+        validated_on=date.group(1),
+        wazuh_version=wazuh.group(1),
+        suricata_version=suricata.group(1),
+    )
 
 
 def _wazuh_severity(level: int) -> str:

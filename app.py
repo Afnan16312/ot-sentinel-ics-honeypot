@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+from collections.abc import MutableMapping
 from datetime import timedelta
 from hashlib import sha256
 from html import escape
@@ -28,7 +29,7 @@ from ot_sentinel.dashboard_map import (
     selection_from_plotly_state,
     summarize_window_change,
 )
-from ot_sentinel.detection_preview import preview_detections
+from ot_sentinel.detection_preview import load_native_validation_evidence, preview_detections
 from ot_sentinel.evaluation import evaluate_mapper, load_labeled_jsonl
 from ot_sentinel.publication import (
     PublicationValidationError,
@@ -36,10 +37,16 @@ from ot_sentinel.publication import (
     validate_public_stix_bundle,
 )
 from ot_sentinel.stix_export import export_events
-from ot_sentinel.triage import assess_event, factor_summary, next_step_for_priority
+from ot_sentinel.triage import (
+    assess_event,
+    assess_evidence_completeness,
+    factor_summary,
+    next_step_for_priority,
+)
 
 DATA_PATH = Path(os.getenv("OT_PUBLIC_DATA_PATH", ROOT / "data" / "demo_events.jsonl"))
 EVALUATION_FIXTURE = ROOT / "tests" / "fixtures" / "evaluation" / "mapper_cases.jsonl"
+NATIVE_VALIDATION_RECORD = ROOT / "tests" / "soc" / "NATIVE_VALIDATION.md"
 CONFIDENCE_ORDER = {"low": 0, "medium": 1, "high": 2}
 CONTROL_OPERATIONS = {
     "write_single",
@@ -47,6 +54,34 @@ CONTROL_OPERATIONS = {
     "single_command",
     "setpoint_command",
     "program_download",
+}
+WORKSPACE_STATE_KEYS = {
+    "filter_protocols",
+    "filter_severity",
+    "filter_countries",
+    "filter_confidence",
+    "filter_priorities",
+    "filter_control_only",
+    "map_mode",
+    "map_window",
+    "map_labels",
+    "map_flows",
+    "map_offline",
+    "map_custom_dates",
+    "map_accessible_source",
+    "map_compare_sources",
+    "attack_focus_technique",
+    "attack_technique_filter",
+    "session_focus_source",
+    "session_source_filter",
+    "triage_group_sessions",
+    "detection_engines",
+    "detection_protocols",
+    "detection_rules",
+    "reset_workspace_clear_notes",
+    "previous_countries",
+    "_pending_country_filter",
+    "_selected_map_source",
 }
 
 st.set_page_config(
@@ -99,7 +134,7 @@ html, body, [class*="css"] { font-family:'Inter',sans-serif; color:var(--text); 
 .filter-help { display:block; margin-left:0; color:var(--muted); font-size:11px; line-height:1.35; white-space:nowrap; }
 .telemetry-strip { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; background:transparent; border:0; margin:8px 0 16px; }
 .telemetry-cell { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:14px 16px; min-width:0; }
-.telemetry-label { color:var(--muted); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.telemetry-label { color:var(--muted); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; white-space:nowrap; overflow:visible; text-overflow:clip; }
 .telemetry-value { color:var(--text); font-family:'JetBrains Mono',monospace; font-size:1.55rem; line-height:1.2; margin-top:8px; font-variant-numeric:tabular-nums; }
 .telemetry-cell:first-child .telemetry-value { color:#2d67d8; }
 .telemetry-cell:last-child .telemetry-value { color:var(--red); }
@@ -133,10 +168,12 @@ div[data-testid="stDataFrame"] { border:1px solid var(--border); border-radius:4
 .map-stat:last-child { border-right:0; }
 .map-stat .label { color:var(--muted); font-size:.65rem; text-transform:uppercase; letter-spacing:.08em; }
 .map-stat .value { color:var(--text); font-family:'JetBrains Mono',monospace; font-size:.9rem; margin-top:3px; }
-.metric-info { position:relative; display:inline-flex; align-items:center; justify-content:center; width:14px; height:14px; margin-left:4px; border:1px solid #aab4c0; border-radius:50%; color:#5d6b7a; font-size:9px; font-weight:700; line-height:1; letter-spacing:0; text-transform:none; cursor:help; vertical-align:1px; }
-.metric-info:focus-visible { outline:2px solid #4e8fb8; outline-offset:2px; }
-.metric-tooltip { position:absolute; z-index:30; top:calc(100% + 8px); left:0; width:210px; padding:8px 9px; border:1px solid #aab4c0; border-radius:4px; background:#1f2933; color:#fff; box-shadow:0 4px 12px rgba(20,30,40,.18); font-size:11px; font-weight:400; line-height:1.35; letter-spacing:0; text-transform:none; text-align:left; visibility:hidden; opacity:0; pointer-events:none; transition:opacity .15s ease; }
-.metric-info:hover .metric-tooltip, .metric-info:focus .metric-tooltip { visibility:visible; opacity:1; }
+.metric-info { position:relative; display:inline-flex; align-items:center; justify-content:center; width:16px; min-height:16px; margin-left:4px; border:1px solid #aab4c0; border-radius:50%; color:#5d6b7a; font-size:9px; font-weight:700; line-height:1; letter-spacing:0; text-transform:none; vertical-align:1px; }
+.metric-info > summary { display:flex; align-items:center; justify-content:center; width:100%; min-height:16px; cursor:pointer; list-style:none; }
+.metric-info > summary::-webkit-details-marker { display:none; }
+.metric-info:focus-within { outline:2px solid #4e8fb8; outline-offset:2px; }
+.metric-tooltip { position:absolute; z-index:30; top:calc(100% + 8px); left:0; width:230px; max-width:calc(100vw - 32px); padding:8px 9px; border:1px solid #aab4c0; border-radius:4px; background:#1f2933; color:#fff; box-shadow:0 4px 12px rgba(20,30,40,.18); font-size:11px; font-weight:400; line-height:1.35; letter-spacing:0; text-transform:none; text-align:left; white-space:normal; overflow-wrap:anywhere; visibility:hidden; opacity:0; pointer-events:none; transition:opacity .15s ease; }
+.metric-info:hover .metric-tooltip, .metric-info[open] .metric-tooltip { visibility:visible; opacity:1; pointer-events:auto; }
 .detail-panel { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:12px; min-height:210px; }
 .detail-value { color:var(--text); font-size:.85rem; margin:3px 0 10px; word-break:break-word; }
 .privacy-note { color:var(--muted); border-left:2px solid #9da3ad; padding:6px 8px; font-size:.72rem; margin-top:8px; }
@@ -146,6 +183,11 @@ div[data-testid="stDataFrame"] { border:1px solid var(--border); border-radius:4
 .legend-line { width:18px; height:0; border-top:2px solid #6a4da0; display:inline-block; }
 .context-strip { display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center; padding:8px 10px; margin:8px 0 10px; border-left:3px solid var(--blue); background:#eef4ff; color:#185577; font-size:.72rem; }
 .context-strip b { color:#004883; }
+.scope-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.scope-card { border:1px solid var(--border); border-radius:4px; background:#fff; padding:10px 12px; color:var(--muted); font-size:.78rem; }
+.scope-card strong { display:block; color:var(--text); margin-bottom:5px; }
+.scope-card ul { margin:0; padding-left:18px; }
+.scope-card li { margin:3px 0; }
 .evidence-badge { display:inline-block; padding:3px 6px; border-radius:3px; margin:2px 3px 2px 0; border:1px solid #b9d2ee; background:#eef4ff; color:#185577; font-family:'JetBrains Mono',monospace; font-size:.68rem; }
 .rail-card { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:12px; margin-bottom:10px; }
 .rail-card.critical { border-left:4px solid var(--red); }
@@ -166,7 +208,7 @@ div[data-testid="stDataFrame"] { border:1px solid var(--border); border-radius:4
 .stExpander [data-testid="stExpanderToggleIcon"] { color:var(--muted); }
 .stExpander summary p { color:var(--muted); font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; }
 @media (max-width:1024px) { .block-container { padding-left:84px; } .stitch-header { margin-left:-84px; } .stTabs [role="tablist"] { width:64px; } .stTabs [role="tab"] { font-size:0; justify-content:center; padding:8px 6px; } .stTabs [role="tab"] p { font-size:0; } .stTabs [role="tab"] p:before { content:'•'; font-size:20px; } }
-@media (max-width:700px) { .block-container { padding:0 12px 24px 66px; } .stitch-header { margin:0 -12px 12px -66px; padding:0 12px 0 66px; } .stitch-status { gap:5px; font-size:8px; } .stitch-status .divider, .stitch-status span:nth-of-type(n+3) { display:none; } .stTabs [role="tablist"] { top:52px; width:54px; } .telemetry-strip { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; } .telemetry-value { font-size:1.15rem; } .filter-bar { gap:8px; } .filter-bar > p { flex-basis:100%; min-width:0; } .filter-help { white-space:normal; } .map-stat-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:700px) { .block-container { padding:0 12px 24px 66px; } .stitch-header { margin:0 -12px 12px -66px; padding:0 12px 0 66px; } .stitch-status { gap:5px; font-size:8px; } .stitch-status .divider, .stitch-status span:nth-of-type(n+3) { display:none; } .stTabs [role="tablist"] { top:52px; width:54px; } .telemetry-strip { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; } .telemetry-value { font-size:1.15rem; } .filter-bar { gap:8px; } .filter-bar > p { flex-basis:100%; min-width:0; } .filter-help { white-space:normal; } .map-stat-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .scope-grid { grid-template-columns:1fr; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important; } }
 </style>
 """,
@@ -271,6 +313,43 @@ def build_view_manifest(
     }
 
 
+def reset_workspace_state(
+    state: MutableMapping[str, object], *, clear_notes: bool = False
+) -> None:
+    """Clear transient investigation state while preserving local notes by default."""
+
+    keys = list(state)
+    for key in keys:
+        is_workspace_key = key in WORKSPACE_STATE_KEYS or key.startswith(
+            "interactive_threat_map_"
+        )
+        is_note_key = key.startswith(("local_review_note_", "local_review_state_"))
+        if is_workspace_key or (clear_notes and is_note_key):
+            state.pop(key, None)
+
+
+def render_scope_panel(title: str, can_prove: list[str], cannot_prove: list[str]) -> None:
+    """Render view-specific interpretation boundaries."""
+
+    with st.expander(f"What {title} can and cannot prove", expanded=False):
+        can_items = "".join(f"<li>{escape(item)}</li>" for item in can_prove)
+        cannot_items = "".join(f"<li>{escape(item)}</li>" for item in cannot_prove)
+        st.markdown(
+            f"<div class='scope-grid'><div class='scope-card'><strong>Can show</strong><ul>{can_items}</ul></div>"
+            f"<div class='scope-card'><strong>Cannot establish</strong><ul>{cannot_items}</ul></div></div>",
+            unsafe_allow_html=True,
+        )
+
+
+def info_badge(label: str, explanation: str) -> str:
+    """Return a keyboard-accessible click-to-open explanation badge."""
+
+    return (
+        f"<details class='metric-info'><summary aria-label='{escape(label)}'>i</summary>"
+        f"<span class='metric-tooltip'>{escape(explanation)}</span></details>"
+    )
+
+
 def build_triage_queue(frame: pd.DataFrame) -> pd.DataFrame:
     """Create an explainable review queue from normalized dashboard rows."""
     rows: list[dict] = []
@@ -281,13 +360,18 @@ def build_triage_queue(frame: pd.DataFrame) -> pd.DataFrame:
             for column in decoded_columns
             if pd.notna(event[column])
         }
-        assessment = assess_event(
-            {
-                "event_type": event.get("event_type"),
-                "decoded": decoded,
-                "techniques": event.get("techniques", []),
-            }
-        )
+        event_record = {
+            "event_type": event.get("event_type"),
+            "decoded": decoded,
+            "techniques": event.get("techniques", []),
+            "session_id": event.get("session_id"),
+            "source_country_code": event.get("source_country_code"),
+            "source_latitude": event.get("source_latitude"),
+            "source_longitude": event.get("source_longitude"),
+        }
+        assessment = assess_event(event_record)
+        completeness = assess_evidence_completeness(event_record)
+        mapped = bool(event_record["techniques"])
         rows.append(
             {
                 "event_id": event.get("event_id"),
@@ -297,12 +381,46 @@ def build_triage_queue(frame: pd.DataFrame) -> pd.DataFrame:
                 "operation": decoded.get("operation", "unknown"),
                 "score": assessment.score,
                 "priority": assessment.priority,
+                "evidence completeness": completeness.label,
+                "evidence fields": f"{completeness.checks_met}/{completeness.checks_total}",
+                "mapping state": (
+                    "mapped hypothesis" if mapped else "insufficient for ATT&CK conclusion"
+                ),
                 "evidence factors": factor_summary(assessment),
                 "analyst note": assessment.analyst_note,
                 "session_id": event.get("session_id"),
             }
         )
     return pd.DataFrame(rows)
+
+
+def build_session_triage_queue(event_queue: pd.DataFrame) -> pd.DataFrame:
+    """Group event-level review evidence into bounded sessions."""
+
+    if event_queue.empty:
+        return event_queue.copy()
+    rows: list[dict[str, object]] = []
+    for session_id, session in event_queue.groupby("session_id", dropna=False):
+        ranked = session.sort_values(["score", "observed_at"], ascending=[False, False])
+        top = ranked.iloc[0]
+        incomplete = int((session["evidence completeness"] != "complete fields").sum())
+        rows.append(
+            {
+                "session_id": session_id or "missing-session-id",
+                "first_seen": session["observed_at"].min(),
+                "last_seen": session["observed_at"].max(),
+                "source": ", ".join(sorted(session["source"].dropna().astype(str).unique())),
+                "protocols": ", ".join(sorted(session["protocol"].dropna().astype(str).unique())),
+                "events": len(session),
+                "highest score": int(top["score"]),
+                "priority": top["priority"],
+                "incomplete evidence events": incomplete,
+                "top evidence factors": top["evidence factors"],
+            }
+        )
+    return pd.DataFrame(rows).sort_values(
+        ["highest score", "last_seen"], ascending=[False, False]
+    )
 
 
 @st.cache_data(show_spinner=False)
@@ -352,6 +470,9 @@ if pending_country is not None:
 if st.session_state.pop("_reset_analysis_filters", False):
     for key in ("filter_protocols", "filter_severity", "filter_countries", "filter_confidence", "filter_priorities", "filter_control_only"):
         st.session_state.pop(key, None)
+if st.session_state.pop("_reset_workspace", False):
+    clear_notes = bool(st.session_state.pop("_reset_workspace_clear_notes", False))
+    reset_workspace_state(st.session_state, clear_notes=clear_notes)
 
 protocols = sorted(df["protocol"].dropna().unique().tolist())
 severities = [item for item in ["high", "medium", "low", "info"] if item in df["severity"].unique()]
@@ -391,8 +512,15 @@ with st.expander("Filters", expanded=False):
         help="Keep events whose decoded operation can change the fictional decoy state.",
     )
     st.caption("All filters use reviewed public fields. Raw addresses and payloads are never used by the dashboard.")
-    if st.button("Reset analysis filters", key="reset_analysis_filters", width="stretch"):
-        st.session_state["_reset_analysis_filters"] = True
+    clear_notes_on_reset = st.checkbox(
+        "Also clear private local review notes",
+        value=False,
+        key="reset_workspace_clear_notes",
+        help="Leave this off to preserve notes and review states stored in this browser session.",
+    )
+    if st.button("Reset workspace", key="reset_workspace", width="stretch"):
+        st.session_state["_reset_workspace_clear_notes"] = clear_notes_on_reset
+        st.session_state["_reset_workspace"] = True
         st.rerun()
 
 filtered = df[
@@ -491,7 +619,12 @@ with st.expander("Understand these numbers", expanded=False):
         "- **Sessions** are bounded connections, not people or separate intrusions.\n"
         "- **Source groups** are pseudonymous public identifiers, not verified identities.\n"
         "- **Control actions** are requests that can change the fictional decoy state.\n"
-        "- **Evidence confidence** describes the ATT&CK mapping evidence, not certainty about intent."
+        "- **Evidence confidence** describes the ATT&CK mapping evidence, not certainty about intent.\n"
+        "- **Severity** is a label for the recorded protocol behavior; it is not a probability of harm.\n"
+        "- **Priority** is the recommended order for human review; it is not a prediction of compromise.\n"
+        "- **ATT&CK hypothesis** is a standardized behavior description supported by the record; it is not proof that an attack succeeded.\n"
+        "- **Detection Preview** is an offline rule match; it is not a live alert from Wazuh, Suricata or a SIEM.\n"
+        "- **STIX** is a portable JSON format for sharing structured security observations."
     )
     st.caption(
         "Counts describe recorded telemetry matches. They are not a count of unique intrusions, attackers, victims, or countries of origin."
@@ -500,10 +633,10 @@ with st.expander("Understand these numbers", expanded=False):
 st.markdown(
     f"""
 <div class="telemetry-strip" aria-label="Current filtered telemetry summary">
-  <div class="telemetry-cell"><div class="telemetry-label">Observed events</div><div class="telemetry-value">{events_count:,}</div></div>
-  <div class="telemetry-cell"><div class="telemetry-label">Sessions</div><div class="telemetry-value">{sessions:,}</div></div>
-  <div class="telemetry-cell"><div class="telemetry-label">Source groups</div><div class="telemetry-value">{sources:,}</div></div>
-  <div class="telemetry-cell" title="Requests containing a write, command, or program-transfer operation"><div class="telemetry-label">Control actions</div><div class="telemetry-value">{commands:,}</div></div>
+  <div class="telemetry-cell"><div class="telemetry-label">Observed events {info_badge('Observed events', 'Individual protocol records matching the current filters. Several records can come from one session, so this is not a count of attacks.')}</div><div class="telemetry-value">{events_count:,}</div></div>
+  <div class="telemetry-cell"><div class="telemetry-label">Sessions {info_badge('Sessions', 'Bounded network connections to the decoy. A session is not a person, attacker or confirmed intrusion.')}</div><div class="telemetry-value">{sessions:,}</div></div>
+  <div class="telemetry-cell"><div class="telemetry-label">Source groups {info_badge('Source groups', 'Privacy-safe labels that group records from the same source. They are pseudonyms, not verified identities.')}</div><div class="telemetry-value">{sources:,}</div></div>
+  <div class="telemetry-cell"><div class="telemetry-label">Control actions {info_badge('Control actions', 'Write, command or program-transfer requests sent to the fictional decoy. They do not prove that a real machine or process was changed.')}</div><div class="telemetry-value">{commands:,}</div></div>
 </div>
 """,
     unsafe_allow_html=True,
@@ -530,6 +663,17 @@ with overview:
 </div>
 """,
         unsafe_allow_html=True,
+    )
+    render_scope_panel(
+        "the Observatory",
+        [
+            "Counts and trends in the selected public telemetry window.",
+            "Approximate country-level patterns for pseudonymous source groups.",
+        ],
+        [
+            "A person's identity, physical location, motive or attribution.",
+            "Successful exploitation, compromise or impact on a real process.",
+        ],
     )
     with st.expander("How to use this workspace", expanded=False):
         st.markdown(
@@ -603,10 +747,10 @@ with overview:
     st.markdown(
         f"""
 <div class="map-stat-grid">
-  <div class="map-stat"><div class="label">Visible events <span class="metric-info" tabindex="0" title="Number of events matching the selected filters and observation window." aria-label="Number of events matching the selected filters and observation window.">i<span class="metric-tooltip">Number of events matching the selected filters and observation window.</span></span></div><div class="value">{quality['events']:,}</div></div>
-  <div class="map-stat"><div class="label">Mapped sources <span class="metric-info" tabindex="0" title="Unique pseudonymous source groups with valid public map coordinates." aria-label="Unique pseudonymous source groups with valid public map coordinates.">i<span class="metric-tooltip">Unique pseudonymous source groups with valid public map coordinates.</span></span></div><div class="value">{source_count:,}</div></div>
-  <div class="map-stat"><div class="label">Countries <span class="metric-info" tabindex="0" title="Countries represented by the filtered, sanitized observations." aria-label="Countries represented by the filtered, sanitized observations.">i<span class="metric-tooltip">Countries represented by the filtered, sanitized observations.</span></span></div><div class="value">{quality['countries']:,}</div></div>
-  <div class="map-stat"><div class="label">Protocols active <span class="metric-info" tabindex="0" title="Different OT protocols present in the filtered map data." aria-label="Different OT protocols present in the filtered map data.">i<span class="metric-tooltip">Different OT protocols present in the filtered map data.</span></span></div><div class="value">{protocol_count:,}</div></div>
+  <div class="map-stat"><div class="label">Visible events {info_badge('Visible events', 'Number of events matching the selected filters and observation window. This is not a count of unique attacks.')}</div><div class="value">{quality['events']:,}</div></div>
+  <div class="map-stat"><div class="label">Mapped sources {info_badge('Mapped sources', 'Unique pseudonymous source groups with usable, deliberately coarse public map coordinates. Locations are approximate.')}</div><div class="value">{source_count:,}</div></div>
+  <div class="map-stat"><div class="label">Countries {info_badge('Countries', 'Countries represented by the filtered, sanitized records. A country does not identify a person or organization.')}</div><div class="value">{quality['countries']:,}</div></div>
+  <div class="map-stat"><div class="label">Protocols active {info_badge('Protocols active', 'Different OT protocols present in the filtered map data: Modbus, S7 or IEC-104.')}</div><div class="value">{protocol_count:,}</div></div>
 </div>
 """,
         unsafe_allow_html=True,
@@ -1048,6 +1192,17 @@ with overview:
 
 with attack_tab:
     st.markdown("<div class='section-title'>Technique intensity by protocol</div>", unsafe_allow_html=True)
+    render_scope_panel(
+        "ATT&CK Analysis",
+        [
+            "Which evidence-qualified technique hypotheses occur in the filtered records.",
+            "The recorded confidence and rationale attached to each mapping.",
+        ],
+        [
+            "That a technique succeeded or that an intrusion occurred.",
+            "Attribution, intent or the behavior of all UAE OT environments.",
+        ],
+    )
     attack_technique_options = ["All techniques"] + (
         sorted(techniques["technique_id"].dropna().astype(str).unique().tolist())
         if not techniques.empty
@@ -1110,8 +1265,47 @@ with attack_tab:
 
 with detection_tab:
     st.markdown("<div class='section-title'>Detection Preview</div>", unsafe_allow_html=True)
+    render_scope_panel(
+        "Detection Preview",
+        [
+            "Which committed rule conditions match sanitized records offline.",
+            "The last documented native result for controlled synthetic fixtures.",
+        ],
+        [
+            "That a currently running SIEM or IDS fired on these dashboard records.",
+            "Production detection quality, tuning suitability or attacker intent.",
+        ],
+    )
     st.info(
         "Offline prediction only. These matches use local rule logic and are not proof that a native Sigma, Wazuh or Suricata engine fired."
+    )
+    native_evidence = load_native_validation_evidence(str(NATIVE_VALIDATION_RECORD))
+    evidence_left, evidence_mid, evidence_right = st.columns(3)
+    evidence_left.metric(
+        "Current view",
+        "Offline prediction",
+        help="Calculated now with the committed Python rule-matching logic.",
+    )
+    if native_evidence is None:
+        evidence_mid.metric("Native Wazuh fixture", "Not recorded")
+        evidence_right.metric("Native Suricata fixture", "Not recorded")
+    else:
+        evidence_mid.metric(
+            "Native Wazuh fixture",
+            "Passed",
+            f"v{native_evidence.wazuh_version} · {native_evidence.validated_on}",
+            delta_color="off",
+            help="Historical local result using synthetic positive and negative fixtures.",
+        )
+        evidence_right.metric(
+            "Native Suricata fixture",
+            "Passed",
+            f"v{native_evidence.suricata_version} · {native_evidence.validated_on}",
+            delta_color="off",
+            help="Historical local result using a synthetic offline PCAP.",
+        )
+    st.caption(
+        "Native fixture status is historical evidence, not current runtime health. Re-run the documented tests after changing rules, images or lab isolation."
     )
     visible_event_ids = set(filtered["event_id"].astype(str))
     preview_records = [
@@ -1147,11 +1341,18 @@ with detection_tab:
         protocols_for_preview = sorted(preview_frame["protocol"].unique())
         rules_for_preview = sorted(preview_frame["rule_id"].unique())
         p1, p2, p3 = st.columns(3)
-        selected_engines = p1.multiselect("Detection engine", engines, default=engines)
-        selected_preview_protocols = p2.multiselect(
-            "Detection protocol", protocols_for_preview, default=protocols_for_preview
+        selected_engines = p1.multiselect(
+            "Detection engine", engines, default=engines, key="detection_engines"
         )
-        selected_rules = p3.multiselect("Detection rule", rules_for_preview, default=rules_for_preview)
+        selected_preview_protocols = p2.multiselect(
+            "Detection protocol",
+            protocols_for_preview,
+            default=protocols_for_preview,
+            key="detection_protocols",
+        )
+        selected_rules = p3.multiselect(
+            "Detection rule", rules_for_preview, default=rules_for_preview, key="detection_rules"
+        )
         preview_frame = preview_frame[
             preview_frame["engine"].isin(selected_engines)
             & preview_frame["protocol"].isin(selected_preview_protocols)
@@ -1175,6 +1376,17 @@ with detection_tab:
 
 with triage_tab:
     st.markdown("<div class='section-title'>Evidence-based analyst review queue</div>", unsafe_allow_html=True)
+    render_scope_panel(
+        "Triage",
+        [
+            "A reproducible priority order based on recorded protocol evidence.",
+            "Whether required public evidence fields are complete, partial or limited.",
+        ],
+        [
+            "Threat likelihood, business risk, compromise or required response.",
+            "Identity, intent, attribution or confidence beyond the recorded evidence.",
+        ],
+    )
     st.caption(
         "Public review scores prioritize recorded decoy interactions using public-safe evidence. They do not establish attacker intent, identity, attribution, or compromise."
     )
@@ -1193,21 +1405,62 @@ with triage_tab:
         scored = int((triage["score"] > 0).sum())
         high_review = int((triage["score"] >= 50).sum())
         top_score = int(triage["score"].max())
-        q1, q2, q3 = st.columns(3)
+        complete_evidence = int((triage["evidence completeness"] == "complete fields").sum())
+        q1, q2, q3, q4 = st.columns(4)
         q1.metric("Scored interactions", f"{scored:,}")
         q2.metric("High / urgent review", f"{high_review:,}")
         q3.metric("Highest public review score", f"{top_score}/100")
+        q4.metric(
+            "Complete evidence fields",
+            f"{complete_evidence:,}/{len(triage):,}",
+            help="Structural field completeness only; this is separate from review priority and does not prove the evidence is true.",
+        )
+
+        group_sessions = st.toggle(
+            "Group review queue by session",
+            value=True,
+            key="triage_group_sessions",
+            help="Combine events from the same bounded connection into one review row.",
+        )
+        review_queue = build_session_triage_queue(triage) if group_sessions else triage
+        st.caption(
+            "Review priority ranks behavior; evidence completeness reports field availability. Neither is a probability of compromise."
+        )
 
         queue_col, chart_col = st.columns([1.65, 1], gap="large")
         with queue_col:
             st.dataframe(
-                triage.sort_values(["score", "observed_at"], ascending=[False, False]),
+                (
+                    review_queue
+                    if group_sessions
+                    else review_queue.sort_values(
+                        ["score", "observed_at"], ascending=[False, False]
+                    )
+                ),
                 width="stretch",
                 hide_index=True,
-                column_config={
-                    "observed_at": st.column_config.DatetimeColumn("Observed (UTC)", format="YYYY-MM-DD HH:mm:ss"),
-                    "score": st.column_config.ProgressColumn("Public review score", min_value=0, max_value=100),
-                },
+                column_config=(
+                    {
+                        "first_seen": st.column_config.DatetimeColumn(
+                            "First seen (UTC)", format="YYYY-MM-DD HH:mm:ss"
+                        ),
+                        "last_seen": st.column_config.DatetimeColumn(
+                            "Last seen (UTC)", format="YYYY-MM-DD HH:mm:ss"
+                        ),
+                        "highest score": st.column_config.ProgressColumn(
+                            "Highest public review score", min_value=0, max_value=100
+                        ),
+                    }
+                    if group_sessions
+                    else {
+                        "observed_at": st.column_config.DatetimeColumn(
+                            "Observed (UTC)", format="YYYY-MM-DD HH:mm:ss"
+                        ),
+                        "score": st.column_config.ProgressColumn(
+                            "Public review score", min_value=0, max_value=100
+                        ),
+                    }
+                ),
             )
         with chart_col:
             score_counts = triage.groupby("priority", dropna=False).size().reset_index(name="events")
@@ -1288,6 +1541,17 @@ with triage_tab:
 
 with sessions_tab:
     st.markdown("<div class='section-title'>Sanitized event ledger</div>", unsafe_allow_html=True)
+    render_scope_panel(
+        "Session Explorer",
+        [
+            "The time-ordered sanitized events associated with a bounded connection.",
+            "Protocols, operations and mapped hypotheses recorded in that session.",
+        ],
+        [
+            "That separate sessions belong to one person or coordinated campaign.",
+            "Raw payload content, raw addresses, compromise or operational impact.",
+        ],
+    )
     display = filtered.copy()
     session_sources = sorted(display.get("source_id", pd.Series(dtype=str)).dropna().astype(str).unique().tolist())
     session_focus_options = ["All source groups"] + session_sources
@@ -1306,7 +1570,25 @@ with sessions_tab:
     display["techniques"] = display["technique_ids"].apply(lambda value: ", ".join(value) or "—")
     display["operation"] = display.get("decoded.operation", "unknown")
     display["source"] = display.get("source_id", display.get("source_ip", "redacted"))
-    columns = ["observed_at", "source", "source_country", "source_asn", "protocol", "operation", "severity", "techniques", "session_id"]
+    display["evidence completeness"] = display["event_id"].map(
+        triage_lookup["evidence completeness"] if not triage_all.empty else {}
+    )
+    display["mapping state"] = display["event_id"].map(
+        triage_lookup["mapping state"] if not triage_all.empty else {}
+    )
+    columns = [
+        "observed_at",
+        "source",
+        "source_country",
+        "source_asn",
+        "protocol",
+        "operation",
+        "severity",
+        "evidence completeness",
+        "mapping state",
+        "techniques",
+        "session_id",
+    ]
     st.dataframe(
         display[columns].sort_values("observed_at", ascending=False),
         width="stretch",
@@ -1315,6 +1597,17 @@ with sessions_tab:
     )
 
 with methodology:
+    render_scope_panel(
+        "Methodology",
+        [
+            "The documented collection, sanitization, mapping and validation boundaries.",
+            "Which claims the project intentionally permits or rejects.",
+        ],
+        [
+            "Regulatory compliance, production readiness or universal representativeness.",
+            "Independent assurance beyond the tests and evidence recorded in this repository.",
+        ],
+    )
     c1, c2 = st.columns(2, gap="large")
     with c1:
         st.markdown("### What the sensor does")

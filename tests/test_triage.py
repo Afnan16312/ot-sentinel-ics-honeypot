@@ -2,6 +2,7 @@ import unittest
 
 from ot_sentinel.triage import (
     assess_event,
+    assess_evidence_completeness,
     factor_summary,
     next_step_for_priority,
     priority_for_score,
@@ -9,6 +10,36 @@ from ot_sentinel.triage import (
 
 
 class TriageTests(unittest.TestCase):
+    def test_evidence_completeness_is_separate_from_review_priority(self):
+        event = {
+            "event_type": "protocol_request",
+            "session_id": "synthetic-session",
+            "source_country_code": "AE",
+            "source_latitude": 24.4,
+            "source_longitude": 54.4,
+            "decoded": {"operation": "write_single", "valid": True},
+            "techniques": [
+                {"confidence": "high", "rationale": "Synthetic fixture rationale."}
+            ],
+        }
+
+        completeness = assess_evidence_completeness(event)
+        priority = assess_event(event)
+
+        self.assertEqual(completeness.label, "complete fields")
+        self.assertEqual(completeness.checks_met, 4)
+        self.assertEqual(priority.priority, "high review")
+
+    def test_evidence_completeness_names_missing_fields_without_inventing_evidence(self):
+        result = assess_evidence_completeness(
+            {"event_type": "connection", "session_id": "synthetic-session"}
+        )
+
+        self.assertEqual(result.label, "limited fields")
+        self.assertEqual(result.checks_met, 1)
+        self.assertIn("valid decoded request", result.missing)
+        self.assertIn("evidence-qualified mapping", result.missing)
+
     def test_connection_is_informational(self):
         result = assess_event({"event_type": "connection", "decoded": {}, "techniques": []})
         self.assertEqual(result.score, 0)

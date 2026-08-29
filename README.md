@@ -33,6 +33,7 @@ My system then:
 9. Generates a synthetic ATT&CK Navigator layer and weekly intelligence brief.
 10. Prepares an immutable, checksum-led final handoff for private SQLite analysis and persistent local Wazuh ingestion.
 11. Provides an interactive four-mode geographic investigation workspace with privacy-safe source drill-down and time playback.
+12. Separates session review priority, evidence completeness and detection-validation state so the dashboard cannot easily overstate what the records prove.
 
 ## Why it matters
 
@@ -219,6 +220,7 @@ ot-sentinel export-stix data/demo_events.jsonl artifacts/public-stix.json --prof
 | `docs/RECORDING_CHECKLIST.md` | Exact synthetic-only 5–7 minute recording and privacy-review procedure |
 | `docs/INTERACTIVE_MAP_REDESIGN.md` | Map gap analysis, shipped interactions, privacy controls and QA matrix |
 | `docs/PRODUCT_GAP_ANALYSIS.md` | Comprehensive user pain-point audit and prioritized map/product roadmap |
+| `docs/USER_RESEARCH_AND_FEATURE_STRATEGY.md` | Detailed user personas, jobs, pain points, problem statements, minor/major feature backlog and validation plan |
 | `docs/PHASE_2_ENGINEERING_RECORD.md` | Phase 2 decisions, features, tests, limitations and non-deployment record |
 | `docs/HEALTH_MONITORING_RUNBOOK.md` | Local privacy-safe readiness checker instructions |
 | `docs/STIX_EXPORT.md` | Public and private STIX export rules |

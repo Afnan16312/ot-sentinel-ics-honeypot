@@ -6,6 +6,7 @@ infer attacker identity, motive, attribution, or successful compromise.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from typing import Any
@@ -46,6 +47,58 @@ class TriageAssessment:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class EvidenceCompleteness:
+    """Structural completeness of a public event, separate from review priority."""
+
+    label: str
+    checks_met: int
+    checks_total: int
+    missing: tuple[str, ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+def assess_evidence_completeness(event: Mapping[str, Any]) -> EvidenceCompleteness:
+    """Describe which reviewed evidence fields are present without scoring threat."""
+
+    decoded = event.get("decoded")
+    decoded = decoded if isinstance(decoded, Mapping) else {}
+    techniques = event.get("techniques")
+    techniques = (
+        techniques
+        if isinstance(techniques, Sequence) and not isinstance(techniques, (str, bytes))
+        else []
+    )
+    try:
+        location_is_finite = math.isfinite(float(event.get("source_latitude"))) and math.isfinite(
+            float(event.get("source_longitude"))
+        )
+    except (TypeError, ValueError):
+        location_is_finite = False
+    checks = {
+        "valid decoded request": bool(decoded) and decoded.get("valid") is not False,
+        "bounded session identifier": bool(str(event.get("session_id", "")).strip()),
+        "coarse public location": (
+            str(event.get("source_country_code", "ZZ")).upper() != "ZZ"
+            and location_is_finite
+        ),
+        "evidence-qualified mapping": any(
+            isinstance(item, Mapping)
+            and bool(str(item.get("confidence", "")).strip())
+            and bool(str(item.get("rationale", "")).strip())
+            for item in techniques
+        ),
+    }
+    missing = tuple(name for name, present in checks.items() if not present)
+    checks_met = len(checks) - len(missing)
+    label = "complete fields" if checks_met == len(checks) else "partial fields"
+    if checks_met <= 1:
+        label = "limited fields"
+    return EvidenceCompleteness(label, checks_met, len(checks), missing)
 
 
 def assess_event(
