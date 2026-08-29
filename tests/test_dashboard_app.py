@@ -19,7 +19,7 @@ def test_dashboard_renders_the_interactive_map_workspace_without_exceptions():
     ]
     selectbox_labels = [item.label for item in app.selectbox]
     assert selectbox_labels[:2] == ["Map mode", "Observation window"]
-    assert {"Inspect source group", "Technique focus", "Source group focus"}.issubset(
+    assert {"Inspect map observation", "Technique focus", "Source group focus"}.issubset(
         selectbox_labels
     )
     assert [item.label for item in app.toggle] == [
@@ -30,6 +30,7 @@ def test_dashboard_renders_the_interactive_map_workspace_without_exceptions():
     assert "Export visible map summary" in [
         item.label for item in app.get("download_button")
     ]
+    assert "Map observations to compare" in [item.label for item in app.multiselect]
     assert "Export" in [item.label for item in app.get("download_button")]
     assert any("Current dashboard filters" in item.value for item in app.markdown)
     assert "Global observation map" in app.markdown[4].value or any(
@@ -40,6 +41,10 @@ def test_dashboard_renders_the_interactive_map_workspace_without_exceptions():
     assert "Unique pseudonymous source groups" in rendered_markdown
     assert "Countries represented by the filtered" in rendered_markdown
     assert "Different OT protocols present" in rendered_markdown
+    assert "Data &amp; privacy context" in rendered_markdown
+    assert "Publication-validated public dataset" in rendered_markdown
+    assert "Approximate geography" in rendered_markdown
+    assert "No raw IPs or payloads" in rendered_markdown
 
 
 def test_time_and_density_modes_render_without_exceptions():
@@ -76,6 +81,19 @@ def test_investigation_filters_and_manifest_are_available():
     app.toggle(key="filter_control_only").set_value(True).run()
 
     assert not app.exception
+
+
+def test_accessible_source_selection_shows_public_review_context():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=60).run()
+
+    source_selector = app.selectbox(key="map_accessible_source")
+    source_selector.select(source_selector.options[1]).run()
+
+    assert not app.exception
+    rendered_markdown = "\n".join(item.value for item in app.markdown)
+    assert "Public review score" in rendered_markdown
+    assert "Why this public score is ranked" in rendered_markdown
+    assert "Recommended next step" in rendered_markdown
     assert "Export view manifest" in [item.label for item in app.get("download_button")]
     app.selectbox(key="map_mode").select("Source bubbles").run()
     app.checkbox(key="map_offline").set_value(True).run()

@@ -1,6 +1,11 @@
 import unittest
 
-from ot_sentinel.triage import assess_event, factor_summary, priority_for_score
+from ot_sentinel.triage import (
+    assess_event,
+    factor_summary,
+    next_step_for_priority,
+    priority_for_score,
+)
 
 
 class TriageTests(unittest.TestCase):
@@ -72,6 +77,11 @@ class TriageTests(unittest.TestCase):
         self.assertEqual({score: priority_for_score(score) for score in expected}, expected)
         with self.assertRaises(ValueError):
             priority_for_score(101)
+
+    def test_next_step_is_bounded_to_human_review(self):
+        self.assertIn("before escalation", next_step_for_priority("high review"))
+        self.assertIn("no scored protocol behavior", next_step_for_priority("informational"))
+        self.assertIn("before deciding", next_step_for_priority("unexpected"))
 
 
 if __name__ == "__main__":

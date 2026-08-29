@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 import pytest
@@ -9,12 +9,15 @@ import pytest
 from ot_sentinel.dashboard_map import (
     MAP_MODES,
     MAX_FLOW_PATHS,
+    build_source_comparison,
     build_threat_map,
+    build_window_comparison,
     filter_time_window,
     map_points_csv,
     map_quality,
     prepare_map_points,
     selection_from_plotly_state,
+    summarize_window_change,
 )
 
 
@@ -276,3 +279,59 @@ def test_unknown_mode_fails_closed():
     records = frame(event("a"))
     with pytest.raises(ValueError, match="Unsupported map mode"):
         build_threat_map(prepare_map_points(records), mode="Unknown", event_frame=records)
+
+
+def test_window_comparison_has_a_cautious_human_summary():
+    current = frame(
+        event("current-1", operation="write_single"),
+        event("current-2", source="src-public-02"),
+    )
+    previous = frame(event("previous-1"))
+
+    comparison = build_window_comparison(current, previous)
+    summary = summarize_window_change(comparison)
+
+    assert comparison.set_index("metric").loc["Events", "Change"] == 1
+    assert comparison.set_index("metric").loc["Control actions", "Change"] == 1
+    assert "Events increased by 1" in summary
+    assert "do not prove a rate, cause, or attribution" in summary
+
+
+def test_adjacent_windows_keep_a_boundary_event_in_only_one_window():
+    records = frame(
+        event("previous", observed_at="2026-08-01T00:00:00+00:00"),
+        event("boundary", observed_at="2026-08-02T00:00:00+00:00"),
+        event("current", observed_at="2026-08-03T00:00:00+00:00"),
+    )
+    current_start = pd.Timestamp("2026-08-02T00:00:00+00:00")
+    previous = filter_time_window(
+        records,
+        current_start - timedelta(days=1),
+        current_start - timedelta(microseconds=1),
+    )
+    current = filter_time_window(records, current_start, pd.Timestamp("2026-08-03T00:00:00+00:00"))
+
+    assert previous["event_id"].tolist() == ["previous"]
+    assert current["event_id"].tolist() == ["boundary", "current"]
+
+
+def test_source_comparison_uses_only_allowlisted_public_aggregates():
+    records = frame(
+        event("one", source="src-public-01", operation="write_single"),
+        event("two", source="src-public-01", protocol="s7"),
+        event("three", source="src-public-02"),
+    )
+    records["triage_score"] = [60, 20, 0]
+    points = prepare_map_points(records)
+
+    comparison = build_source_comparison(points[points["source"] == "src-public-01"])
+
+    assert comparison["source"].tolist() == ["src-public-01", "src-public-01"]
+    assert comparison["events"].sum() == 2
+    assert comparison["control_attempts"].sum() == 1
+    assert comparison["public_review_score"].max() == 60
+    assert "source_ip" not in comparison.columns
+    assert "raw_payload_hex" not in comparison.columns
+    serialized = comparison.to_json()
+    for private_value in ("198.51.100.77", "736563726574", "ocid1.example.private"):
+        assert private_value not in serialized

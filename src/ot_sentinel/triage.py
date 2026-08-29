@@ -171,6 +171,19 @@ def factor_summary(assessment: TriageAssessment) -> str:
     return "; ".join(f"{factor.code} (+{factor.points})" for factor in assessment.factors)
 
 
+def next_step_for_priority(priority: str) -> str:
+    """Give a bounded human review step without implying automated response."""
+
+    steps = {
+        "urgent review": "Review the session timeline, ATT&CK rationale, and detection coverage promptly.",
+        "high review": "Review the session timeline and validate the recorded evidence before escalation.",
+        "elevated review": "Compare this evidence with related sessions and check the mapped ATT&CK rationale.",
+        "routine review": "Retain this evidence for routine correlation and look for repeated activity.",
+        "informational": "Keep this record as context; no scored protocol behavior requires a response.",
+    }
+    return steps.get(priority, "Review the recorded evidence before deciding on any next action.")
+
+
 def _is_modbus_read(decoded: Mapping[str, Any]) -> bool:
     try:
         return int(decoded.get("function_code", -1)) in {1, 2, 3, 4}

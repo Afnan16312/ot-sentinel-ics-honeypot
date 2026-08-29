@@ -17,6 +17,6 @@
 | `is_demo` | `true` for synthetic portfolio data |
 | `sanitized` | Indicates that publication processing was applied |
 
-The dashboard derives `risk_score`, `risk_band` and score factors from the fields above. These are deterministic analyst-priority aids, not assertions about a person's identity or intent.
+The public dashboard derives `triage_score`, `triage_priority` and public score factors from the fields above. These are deterministic analyst-priority aids, not assertions about a person's identity or intent. Private repeat and novelty evidence may inform the private collector score, but they are intentionally not displayed in public views.
 
 Private sensor events may also contain `source_ip`, `source_network` and `raw_payload_hex`. Strict public sanitization removes all three, recursively removes credential-like keys and requires `sanitized: true`. Public datasets and public STIX bundles contain no literal address or network prefix. Remote collector transport adds authentication headers but does not add secrets to the event body.
