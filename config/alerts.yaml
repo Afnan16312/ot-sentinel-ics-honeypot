@@ -1,0 +1,7 @@
+{
+  "enabled": false,
+  "webhook_url": "",
+  "secret_env": "OT_ALERT_SECRET",
+  "queue_size": 100,
+  "timeout_seconds": 5
+}

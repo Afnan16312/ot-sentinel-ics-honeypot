@@ -48,11 +48,14 @@ class TriageAssessment:
         return asdict(self)
 
 
-def assess_event(event: Mapping[str, Any]) -> TriageAssessment:
+def assess_event(
+    event: Mapping[str, Any], *, repeat_count: int = 1, is_novel_payload: bool = False
+) -> TriageAssessment:
     """Assign a reproducible review score in the inclusive range 0..100.
 
-    Points are additive and capped at 100. The function intentionally ignores
-    IP geography and identity because neither demonstrates harmful behavior.
+    Points are additive and capped at 100. Repeat evidence is a count of prior
+    pseudonymous-source observations; novelty means this payload fingerprint has
+    not appeared in the private index. Geography and identity are ignored.
     """
 
     decoded = event.get("decoded") or {}
@@ -113,6 +116,24 @@ def assess_event(event: Mapping[str, Any]) -> TriageAssessment:
                 "mapped_evidence",
                 confidence_points,
                 f"The strongest evidence-qualified ATT&CK mapping has {highest_confidence} confidence.",
+            )
+        )
+
+    if repeat_count > 1:
+        repeat_points = 15 if repeat_count >= 5 else 10
+        factors.append(
+            TriageFactor(
+                "repeat_source",
+                repeat_points,
+                f"This pseudonymous source has {repeat_count:,} observations in the private index.",
+            )
+        )
+    if is_novel_payload:
+        factors.append(
+            TriageFactor(
+                "novel_payload",
+                5,
+                "This payload fingerprint has not previously appeared in the private index.",
             )
         )
 

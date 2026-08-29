@@ -145,6 +145,24 @@ def test_observation_repeat_count_and_expiry(tmp_path):
     assert [row["repeat_count"] for row in rows] == [2, 1]
 
 
+def test_private_index_persists_explainable_repeat_and_novelty_score(tmp_path):
+    store = observation_store(tmp_path / "observations.sqlite3")
+    event = observation()
+
+    first = store.record_with_assessment(event, payload=b"payload", now=1000)
+    repeated = store.record_with_assessment(event, payload=b"payload", now=1001)
+    row = store.observations()[0]
+
+    assert first.novel_payload is True
+    assert repeated.novel_payload is False
+    assert repeated.repeat_source_count == 2
+    assert repeated.assessment.score > first.assessment.score
+    assert "repeat_source" in [factor.code for factor in repeated.assessment.factors]
+    assert row["threat_score"] == repeated.assessment.score
+    assert row["threat_priority"] == repeated.assessment.priority
+    assert "repeat_source" in row["threat_factors_json"]
+
+
 def test_observation_fingerprint_includes_source_protocol_and_payload(tmp_path):
     store = observation_store(tmp_path / "observations.sqlite3")
     event = observation()

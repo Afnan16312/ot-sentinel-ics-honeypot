@@ -13,7 +13,7 @@ from typing import Any
 from .mapper import map_event
 from .model import Event
 from .normalizer import severity_for
-from .operations import HealthTracker, WebhookAlerter
+from .operations import HealthTracker, WebhookAlerter, load_alert_settings
 from .profiles import ProfileRuntime, load_profile
 from .protocols import (
     iec104_response,
@@ -40,7 +40,7 @@ class JsonlWriter:
         self.observation_store = observation_store
         self.database_failures = 0
 
-    async def append(self, event: Event) -> None:
+    async def append(self, event: Event) -> bool:
         line = json.dumps(event.to_dict(), separators=(",", ":"), sort_keys=True)
         async with self._lock:
             with self.path.open("a", encoding="utf-8") as handle:
@@ -48,12 +48,17 @@ class JsonlWriter:
         if self.observation_store is not None:
             try:
                 payload = bytes.fromhex(event.raw_payload_hex)
-                await asyncio.to_thread(
-                    self.observation_store.record, event.to_dict(), payload=payload
+                record = getattr(
+                    self.observation_store, "record_with_assessment", self.observation_store.record
                 )
+                await asyncio.to_thread(
+                    record, event.to_dict(), payload=payload
+                )
+                return True
             except (binascii.Error, OSError, sqlite3.Error, ValueError):
                 # JSONL is authoritative; an optional analysis-index failure must not lose it.
                 self.database_failures += 1
+        return False
 
 
 class LowInteractionSensor:
@@ -127,9 +132,11 @@ class LowInteractionSensor:
                 await self.collector.close()
 
     async def emit(self, event: Event) -> None:
-        await self.writer.append(event)
+        private_recorded = await self.writer.append(event)
         self.health.record(event)
-        if self.alerter is not None:
+        if self.alerter is not None and (
+            self.writer.observation_store is None or private_recorded
+        ):
             await self.alerter.submit(event)
         if self.collector is not None:
             await self.collector.submit(event)
@@ -250,6 +257,11 @@ def build_parser() -> argparse.ArgumentParser:
         help=argparse.SUPPRESS,
     )
     parser.add_argument(
+        "--alerts-config",
+        default=os.getenv("OT_ALERTS_CONFIG", ""),
+        help="Optional local alerts.yaml configuration (JSON subset of YAML)",
+    )
+    parser.add_argument(
         "--collector-url",
         default=os.getenv("OT_COLLECTOR_URL", ""),
         help="Optional authenticated HTTPS central collector /v1/events URL",
@@ -306,10 +318,31 @@ def main() -> None:
     profile = ProfileRuntime(load_profile(args.profile)) if args.profile else None
     health = HealthTracker(args.sensor_id)
     alerter = None
-    if args.alert_webhook:
-        if not args.alert_secret:
-            raise SystemExit("Set OT_ALERT_SECRET when OT_ALERT_WEBHOOK is configured.")
-        alerter = WebhookAlerter(args.alert_webhook, args.alert_secret, health)
+    alert_webhook = args.alert_webhook
+    alert_secret = args.alert_secret
+    alert_queue_size = 100
+    alert_timeout = 5.0
+    if args.alerts_config:
+        if args.alert_webhook:
+            raise SystemExit("Use either --alerts-config or --alert-webhook, not both.")
+        settings = load_alert_settings(Path(args.alerts_config))
+        if settings.enabled:
+            if not args.observation_db:
+                raise SystemExit("Enabled alerts.yaml requires --observation-db for private alert gating.")
+            alert_webhook = settings.webhook_url
+            alert_secret = os.getenv(settings.secret_env, "")
+            alert_queue_size = settings.queue_size
+            alert_timeout = settings.timeout_seconds
+    if alert_webhook:
+        if not alert_secret:
+            raise SystemExit("Set OT_ALERT_SECRET when webhook alerting is configured.")
+        alerter = WebhookAlerter(
+            alert_webhook,
+            alert_secret,
+            health,
+            queue_size=alert_queue_size,
+            timeout=alert_timeout,
+        )
     collector = None
     if args.collector_url:
         if not args.collector_secret:
