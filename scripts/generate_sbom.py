@@ -41,7 +41,7 @@ def build_sbom() -> dict:
         {
             "SPDXID": "SPDXRef-Package-OT-Sentinel",
             "name": "ot-sentinel",
-            "versionInfo": "0.2.0",
+            "versionInfo": "0.3.0",
             "downloadLocation": "https://github.com/Afnan16312/ot-sentinel-ics-honeypot",
             "filesAnalyzed": False,
             "licenseConcluded": "MIT",
@@ -75,7 +75,7 @@ def build_sbom() -> dict:
         "spdxVersion": "SPDX-2.3",
         "dataLicense": "CC0-1.0",
         "SPDXID": "SPDXRef-DOCUMENT",
-        "name": "ot-sentinel-0.2.0-sbom",
+        "name": "ot-sentinel-0.3.0-sbom",
         "documentNamespace": f"https://github.com/Afnan16312/ot-sentinel-ics-honeypot/sbom/{uuid4()}",
         "creationInfo": {
             "created": datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
@@ -98,4 +98,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

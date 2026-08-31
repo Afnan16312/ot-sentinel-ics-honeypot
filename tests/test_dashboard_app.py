@@ -52,6 +52,7 @@ def test_dashboard_renders_the_interactive_map_workspace_without_exceptions():
     assert "Several records can come from one session" in rendered_markdown
     assert "Detection Preview" in rendered_markdown
     assert "Detection coverage backlog" in rendered_markdown
+    assert "OT Sentinel research build 0.3.0" in rendered_markdown
     assert "STIX" in rendered_markdown
     assert "What the Observatory can and cannot prove" in [
         item.label for item in app.expander

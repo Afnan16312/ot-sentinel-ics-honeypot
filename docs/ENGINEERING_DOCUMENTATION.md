@@ -6,7 +6,7 @@ This page is the starting point for understanding exactly what OT Sentinel is, w
 
 | Item | Current state |
 |---|---|
-| Release | `v0.2.0` |
+| Release | `v0.3.0` |
 | Author | Mir Afnan Ali |
 | Purpose | Safe OT/ICS deception, evidence analysis and defender-ready outputs |
 | Simulated protocols | Modbus/TCP, Siemens S7 over ISO-on-TCP and IEC-104 |

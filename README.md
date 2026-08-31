@@ -47,7 +47,7 @@ For the complete record of requirements, shipped features, engineering decisions
 
 Development uses the optional, local-only [Ponytail and Graphify workflow](docs/DEVELOPER_ASSISTANTS.md); neither tool runs on the Oracle sensor.
 
-## What is included in version 0.2
+## What is included in version 0.3
 
 | Feature | Plain-language purpose |
 |---|---|
@@ -59,6 +59,10 @@ Development uses the optional, local-only [Ponytail and Graphify workflow](docs/
 | Multi-sensor collector | Accepts authenticated events from isolated sensors over encrypted transport |
 | Release evidence | Produces an SPDX software bill of materials and SHA-256 file checksums |
 | Isolated live deployment | Reproduces the Oracle ARM64 service, restart, firewall and log-retention controls without publishing private telemetry |
+| Evidence-first data contracts | Keeps immutable observation evidence separate from repeatable analysis results and supports non-destructive legacy migration |
+| Guided investigation | Gives learners and analysts a Scope → Prioritize → Validate path into Session Explorer and ATT&CK evidence |
+| Detection coverage backlog | Turns observed behavior into a concrete mapping, rule and fixture engineering worklist |
+| Operator assurance | Optionally displays allowlisted aggregate local health state without exposing telemetry or connecting to cloud infrastructure |
 
 ## Merged investigation and assurance enhancements
 
