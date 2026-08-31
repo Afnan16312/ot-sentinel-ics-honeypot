@@ -72,6 +72,9 @@ class OperationsTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(snapshot["total_events"], 1)
         self.assertEqual(snapshot["alert_queue_depth"], 2)
         self.assertEqual(snapshot["collector_queue_depth"], 3)
+        self.assertIsNone(snapshot["max_concurrent_sessions"])
+        self.assertEqual(snapshot["active_sessions"], 0)
+        self.assertEqual(snapshot["rejected_sessions"], 0)
 
     def test_alert_settings_are_dependency_free_and_safe_by_default(self):
         with tempfile.TemporaryDirectory() as directory:

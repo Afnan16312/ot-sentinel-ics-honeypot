@@ -70,6 +70,7 @@ class LowInteractionSensor:
         sensor_id: str,
         max_payload: int = 512,
         timeout: float = 8.0,
+        max_concurrent_sessions: int = 64,
         profile: ProfileRuntime | None = None,
         health_path: Path | None = None,
         alerter: WebhookAlerter | None = None,
@@ -83,6 +84,9 @@ class LowInteractionSensor:
             raise ValueError("max_payload must be between 1 and the hard 512-byte limit")
         self.max_payload = max_payload
         self.timeout = min(max(timeout, 1.0), 30.0)
+        if not 1 <= max_concurrent_sessions <= 1024:
+            raise ValueError("max_concurrent_sessions must be between 1 and 1024")
+        self.max_concurrent_sessions = max_concurrent_sessions
         self.profile = profile
         self.health_path = health_path
         if alerter is not None:
@@ -94,6 +98,8 @@ class LowInteractionSensor:
         self.alerter = alerter
         self.collector = collector
         self.servers: list[asyncio.Server] = []
+        self._active_sessions = 0
+        self.health.set_session_capacity(max_concurrent_sessions)
 
     async def start(self) -> None:
         handlers: dict[str, tuple[Parser, Responder]] = {
@@ -140,14 +146,44 @@ class LowInteractionSensor:
             await self.alerter.submit(event)
         if self.collector is not None:
             await self.collector.submit(event)
-        if self.health_path is not None:
-            alert_depth = self.alerter.queue.qsize() if self.alerter is not None else 0
-            collector_depth = self.collector.queue_depth if self.collector is not None else 0
-            if self.collector is not None:
-                self.health.collector_queue_age_seconds = self.collector.queue_age_seconds
-            self.health.write(self.health_path, alert_depth, collector_depth)
+        self._write_health()
+
+    def _write_health(self) -> None:
+        if self.health_path is None:
+            return
+        alert_depth = self.alerter.queue.qsize() if self.alerter is not None else 0
+        collector_depth = self.collector.queue_depth if self.collector is not None else 0
+        if self.collector is not None:
+            self.health.collector_queue_age_seconds = self.collector.queue_age_seconds
+        self.health.write(self.health_path, alert_depth, collector_depth)
 
     async def handle(
+        self,
+        reader: asyncio.StreamReader,
+        stream: asyncio.StreamWriter,
+        protocol: str,
+        parser: Parser,
+        responder: Responder,
+    ) -> None:
+        if self._active_sessions >= self.max_concurrent_sessions:
+            self.health.record_rejected_session()
+            self._write_health()
+            stream.close()
+            try:
+                await stream.wait_closed()
+            except OSError:
+                pass
+            return
+        self._active_sessions += 1
+        self.health.set_active_sessions(self._active_sessions)
+        try:
+            await self._handle(reader, stream, protocol, parser, responder)
+        finally:
+            self._active_sessions -= 1
+            self.health.set_active_sessions(self._active_sessions)
+            self._write_health()
+
+    async def _handle(
         self,
         reader: asyncio.StreamReader,
         stream: asyncio.StreamWriter,
@@ -235,6 +271,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--timeout",
         type=float,
         default=float(os.getenv("OT_SESSION_TIMEOUT_SECONDS", "8")),
+    )
+    parser.add_argument(
+        "--max-concurrent-sessions",
+        type=int,
+        default=int(os.getenv("OT_MAX_CONCURRENT_SESSIONS", "64")),
+        help="Maximum active protocol sessions across all sensor listeners",
     )
     parser.add_argument(
         "--profile",
@@ -376,6 +418,7 @@ def main() -> None:
         sensor_id=args.sensor_id,
         max_payload=args.max_payload,
         timeout=args.timeout,
+        max_concurrent_sessions=args.max_concurrent_sessions,
         profile=profile,
         health_path=Path(args.health_file) if args.health_file else None,
         alerter=alerter,

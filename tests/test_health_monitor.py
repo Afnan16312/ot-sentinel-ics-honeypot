@@ -57,6 +57,12 @@ def test_queue_drop_and_delivery_failure_are_warning():
     assert {finding.check for finding in result.findings} >= {"queue_drops", "delivery"}
 
 
+def test_rejected_sessions_are_a_capacity_warning():
+    result = evaluate(snapshot(rejected_sessions=1))
+    assert result.exit_code == EXIT_WARNING
+    assert any(finding.check == "session_capacity" for finding in result.findings)
+
+
 def test_storage_failure_is_critical():
     result = evaluate(snapshot(collector_storage_ready=False))
     assert result.exit_code == EXIT_CRITICAL
