@@ -138,6 +138,11 @@ html, body, [class*="css"] { font-family:'Inter',sans-serif; color:var(--text); 
 .telemetry-value { color:var(--text); font-family:'JetBrains Mono',monospace; font-size:1.55rem; line-height:1.2; margin-top:8px; font-variant-numeric:tabular-nums; }
 .telemetry-cell:first-child .telemetry-value { color:#2d67d8; }
 .telemetry-cell:last-child .telemetry-value { color:var(--red); }
+.guided-path { border:1px solid #b9cee5; border-left:3px solid var(--blue); background:#f7fbff; border-radius:4px; padding:14px 16px; margin:8px 0 10px; }
+.guided-kicker { color:#004883; font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; }
+.guided-title { color:var(--text); font-size:16px; font-weight:600; margin-top:4px; }
+.guided-copy { color:var(--muted); font-size:13px; margin:6px 0 0; }
+.guided-step { border-top:1px solid #d6e3f0; padding-top:8px; margin-top:8px; color:#25334a; font-size:13px; }
 .section-title { font-size:1rem; font-weight:600; color:var(--text); margin-top:8px; }
 .technique { border-left:3px solid var(--blue); background:var(--surface); border-top:1px solid var(--border); border-right:1px solid var(--border); border-bottom:1px solid var(--border); padding:10px 12px; margin:8px 0; border-radius:0 4px 4px 0; }
 .technique .id { color:var(--blue); font-family:'JetBrains Mono',monospace; font-size:.7rem; }
@@ -394,6 +399,31 @@ def build_triage_queue(frame: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def investigation_lead(frame: pd.DataFrame) -> dict[str, object] | None:
+    """Return one explainable starting point without making an automated decision."""
+
+    queue = build_triage_queue(frame)
+    if queue.empty:
+        return None
+    lead = queue.sort_values(["score", "observed_at"], ascending=[False, False]).iloc[0]
+    event_id = str(lead["event_id"])
+    matching_events = frame[frame["event_id"].astype(str).eq(event_id)]
+    techniques = flatten_techniques(matching_events)
+    technique_id = (
+        str(techniques.iloc[0]["technique_id"])
+        if not techniques.empty and pd.notna(techniques.iloc[0]["technique_id"])
+        else None
+    )
+    return {
+        "source": str(lead["source"]),
+        "priority": str(lead["priority"]),
+        "score": int(lead["score"]),
+        "evidence_factors": str(lead["evidence factors"]),
+        "next_step": next_step_for_priority(str(lead["priority"])),
+        "technique_id": technique_id,
+    }
+
+
 def build_session_triage_queue(event_queue: pd.DataFrame) -> pd.DataFrame:
     """Group event-level review evidence into bounded sessions."""
 
@@ -641,6 +671,44 @@ st.markdown(
 """,
     unsafe_allow_html=True,
 )
+
+with st.expander("Guided investigation path", expanded=False):
+    lead = investigation_lead(filtered)
+    st.markdown(
+        "<div class='guided-path'><div class='guided-kicker'>Start here</div>"
+        "<div class='guided-title'>Move from observation to a reviewable conclusion</div>"
+        "<p class='guided-copy'>Use this sequence to understand a recorded interaction without treating a dashboard label as proof of an attack.</p>"
+        "<div class='guided-step'><b>1. Scope:</b> confirm the filters and the data/privacy context above.</div>"
+        "<div class='guided-step'><b>2. Prioritize:</b> inspect the highest-ranked recorded behavior and why it is ranked.</div>"
+        "<div class='guided-step'><b>3. Validate:</b> review its session timeline, ATT&amp;CK rationale and detection coverage before writing a conclusion.</div>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+    if lead is None:
+        st.info("No observation matches the current filters. Widen the scope before beginning a review.")
+    else:
+        st.caption(
+            f"Suggested starting point: {lead['priority']} ({lead['score']}/100) for source group {lead['source']}. "
+            "This is a review order, not an automated decision or a claim of compromise."
+        )
+        st.write(f"**Why it is ranked:** {lead['evidence_factors']}")
+        st.write(f"**Recommended next step:** {lead['next_step']}")
+        prepare_session, prepare_attack = st.columns(2)
+        if prepare_session.button(
+            "Prepare lead source in Session Explorer",
+            key="guided_prepare_session",
+            width="stretch",
+        ):
+            st.session_state["session_focus_source"] = lead["source"]
+            st.success("Session Explorer is prepared for the suggested source group. Open that tab to continue.")
+        if prepare_attack.button(
+            "Prepare ATT&CK evidence review",
+            key="guided_prepare_attack",
+            width="stretch",
+            disabled=lead["technique_id"] is None,
+        ):
+            st.session_state["attack_focus_technique"] = lead["technique_id"]
+            st.success("ATT&CK Analysis is prepared for the suggested hypothesis. Open that tab to continue.")
 
 overview, attack_tab, detection_tab, triage_tab, sessions_tab, methodology = st.tabs(
     [
