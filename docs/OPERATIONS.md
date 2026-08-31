@@ -40,6 +40,17 @@ Set `OT_HEALTH_PATH=logs/health.json` or pass `--health-file`. After each event 
 
 The file contains operational health only. It is not an availability guarantee.
 
+### Optional local dashboard assurance
+
+The public dashboard never reads cloud health or private logs by itself. For a local operator-only view of the approved aggregate health snapshot, set the path explicitly before starting Streamlit:
+
+```powershell
+$env:OT_ASSURANCE_HEALTH_PATH = "logs\health.json"
+.\run_dashboard.ps1
+```
+
+The dashboard allowlists only health state, timestamps, aggregate event count, bounded queue/delivery counters, session-capacity counters and storage readiness. It ignores raw telemetry, addresses, payloads, secrets and unknown fields. A visible “not connected” state means the dashboard is not making a sensor-health claim.
+
 ## Selective webhook alerts
 
 Alerts are disabled by default. To enable them:

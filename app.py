@@ -35,6 +35,7 @@ from ot_sentinel.detection_preview import (
     preview_detections,
 )
 from ot_sentinel.evaluation import evaluate_mapper, load_labeled_jsonl
+from ot_sentinel.operator_assurance import load_operator_assurance
 from ot_sentinel.publication import (
     PublicationValidationError,
     load_public_jsonl,
@@ -51,6 +52,7 @@ from ot_sentinel.triage import (
 DATA_PATH = Path(os.getenv("OT_PUBLIC_DATA_PATH", ROOT / "data" / "demo_events.jsonl"))
 EVALUATION_FIXTURE = ROOT / "tests" / "fixtures" / "evaluation" / "mapper_cases.jsonl"
 NATIVE_VALIDATION_RECORD = ROOT / "tests" / "soc" / "NATIVE_VALIDATION.md"
+ASSURANCE_HEALTH_PATH = Path(os.getenv("OT_ASSURANCE_HEALTH_PATH", "")).expanduser() if os.getenv("OT_ASSURANCE_HEALTH_PATH") else None
 CONFIDENCE_ORDER = {"low": 0, "medium": 1, "high": 2}
 CONTROL_OPERATIONS = {
     "write_single",
@@ -1723,6 +1725,22 @@ with methodology:
             "Independent assurance beyond the tests and evidence recorded in this repository.",
         ],
     )
+    st.markdown("<div class='section-title'>Read-only operator assurance</div>", unsafe_allow_html=True)
+    st.caption(
+        "Dashboard availability and dataset loading do not prove a sensor is running. This optional panel reads only allowlisted aggregate counters from a local health snapshot; it never connects to cloud infrastructure or reads raw events."
+    )
+    assurance = load_operator_assurance(ASSURANCE_HEALTH_PATH)
+    if assurance is None:
+        st.info("No local operator health snapshot is connected. Set OT_ASSURANCE_HEALTH_PATH to an approved local health JSON file to display redacted status.")
+    else:
+        assurance_left, assurance_mid, assurance_right, assurance_storage = st.columns(4)
+        assurance_left.metric("Sensor report", assurance.state)
+        assurance_mid.metric("Queue state", assurance.queue_state)
+        assurance_right.metric("Delivery state", assurance.delivery_state)
+        assurance_storage.metric("Private storage", assurance.storage_state)
+        st.caption(
+            f"Last health snapshot: {assurance.generated_at or 'not reported'} · Last event: {assurance.last_event_at or 'not reported'} · Total events: {assurance.total_events if assurance.total_events is not None else 'not reported'} · Capacity: {assurance.capacity_state}."
+        )
     c1, c2 = st.columns(2, gap="large")
     with c1:
         st.markdown("### What the sensor does")
