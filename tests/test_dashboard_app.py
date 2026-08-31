@@ -55,6 +55,7 @@ def test_dashboard_renders_the_interactive_map_workspace_without_exceptions():
     assert "What the Observatory can and cannot prove" in [
         item.label for item in app.expander
     ]
+    assert "Guided investigation path" in [item.label for item in app.expander]
     assert "What Detection Preview can and cannot prove" in [
         item.label for item in app.expander
     ]
@@ -63,6 +64,10 @@ def test_dashboard_renders_the_interactive_map_workspace_without_exceptions():
     assert metrics["Native Suricata fixture"] == "Passed"
     assert any("evidence completeness" in item.value.lower() for item in app.caption)
     assert "Reset workspace" in [item.label for item in app.button]
+    assert {
+        "Prepare lead source in Session Explorer",
+        "Prepare ATT&CK evidence review",
+    }.issubset({item.label for item in app.button})
 
 
 def test_time_and_density_modes_render_without_exceptions():
