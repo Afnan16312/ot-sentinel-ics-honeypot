@@ -60,7 +60,7 @@ Development uses the optional, local-only [Ponytail and Graphify workflow](docs/
 | Release evidence | Produces an SPDX software bill of materials and SHA-256 file checksums |
 | Isolated live deployment | Reproduces the Oracle ARM64 service, restart, firewall and log-retention controls without publishing private telemetry |
 
-## Phase 2 enhancements on this feature branch
+## Merged investigation and assurance enhancements
 
 | Enhancement | Plain-language purpose |
 |---|---|

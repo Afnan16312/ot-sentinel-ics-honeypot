@@ -97,6 +97,10 @@ def evaluate_health(
         findings.append(Finding("queue_drops", "warning", "One or more bounded queues dropped work."))
     if int(snapshot.get("delivery_failures", 0) or 0) > 0:
         findings.append(Finding("delivery", "warning", "One or more deliveries failed."))
+    if int(snapshot.get("rejected_sessions", 0) or 0) > 0:
+        findings.append(
+            Finding("session_capacity", "warning", "One or more sessions exceeded sensor capacity.")
+        )
 
     if collector_storage_ready is None:
         value = snapshot.get("collector_storage_ready")

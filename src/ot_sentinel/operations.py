@@ -32,6 +32,9 @@ class HealthTracker:
     collector_queue_depth: int = 0
     collector_queue_age_seconds: float = 0.0
     collector_storage_ready: bool | None = None
+    max_concurrent_sessions: int | None = None
+    active_sessions: int = 0
+    rejected_sessions: int = 0
     protocol_events: Counter[str] = field(default_factory=Counter)
     event_types: Counter[str] = field(default_factory=Counter)
 
@@ -40,6 +43,15 @@ class HealthTracker:
         self.last_event_at = event.observed_at
         self.protocol_events[event.protocol] += 1
         self.event_types[event.event_type] += 1
+
+    def set_session_capacity(self, maximum: int) -> None:
+        self.max_concurrent_sessions = maximum
+
+    def set_active_sessions(self, count: int) -> None:
+        self.active_sessions = max(0, count)
+
+    def record_rejected_session(self) -> None:
+        self.rejected_sessions += 1
 
     def snapshot(
         self, queue_depth: int = 0, collector_queue_depth: int | None = None
@@ -63,6 +75,9 @@ class HealthTracker:
             "delivery_failures": self.delivery_failures,
             "collector_queue_age_seconds": round(self.collector_queue_age_seconds, 3),
             "collector_storage_ready": self.collector_storage_ready,
+            "max_concurrent_sessions": self.max_concurrent_sessions,
+            "active_sessions": self.active_sessions,
+            "rejected_sessions": self.rejected_sessions,
             "generated_at": _utc_now(),
         }
 

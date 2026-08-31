@@ -24,7 +24,7 @@ The objective is narrow: accept one bounded event from a configured sensor only 
 1. **Network client to TLS endpoint:** untrusted connections, headers and bytes cross into the collector service.
 2. **TLS endpoint to Python handler:** a direct TLS socket or approved proxy forwards a bounded HTTP request; proxy-added identity is not trusted by the application.
 3. **HTTP handler to verifier:** the exact body and authentication headers enter HMAC, freshness, schema and identity checks.
-4. **Verifier to replay cache:** an authenticated sensor/event identifier enters synchronized process memory.
+4. **Verifier to replay store:** an authenticated sensor/event identifier enters synchronized private SQLite storage.
 5. **Verifier to private JSONL:** an authenticated event crosses into filesystem storage under a process identity.
 6. **Health endpoint to monitoring:** a minimal liveness signal crosses back to an operator or gateway; it contains no telemetry or secret state.
 
@@ -44,7 +44,7 @@ The objective is narrow: accept one bounded event from a configured sensor only 
 |---|---|---|---|
 | Spoofing | Claim a configured sensor ID | Per-sensor secret, exact-body HMAC, constant-time comparison, generic HTTP authentication failure | A stolen sensor secret permits that sensor's identity until rotation |
 | Tampering | Modify body, timestamp or identity fields | HMAC covers timestamp, newline and exact body; envelope/event identity must match header | A compromised sensor can sign false events under its own identity |
-| Replay | Resend a captured valid envelope | Freshness window plus synchronized sensor/event replay cache; concurrent replay accepts once | Replay memory is process-local and resets on restart; durable cross-restart replay protection is not provided |
+| Replay | Resend a captured valid envelope | Freshness window plus synchronized sensor/event SQLite replay store; concurrent replay accepts once | The private replay database must remain available, protected and included in the operator backup/recovery plan |
 | Denial of service | Slow body, oversized request, connection flood or replay flood | 64 KiB body cap, required single length, bounded body timeout, thread-safe replay/store operations | Standard-library threaded server has no distributed rate limit or global connection cap |
 | Information disclosure | Cause errors that echo body, secret, identifier, path or traceback | Fixed JSON error messages, no request echo, no handler access log, no-store and nosniff headers | Host/proxy/runtime logs and crash output still require separate redaction controls |
 | Storage failure | Fill disk, remove permission or interrupt append | Locked one-line append; storage failure returns generic 503 and releases replay reservation for retry | JSONL is not transactional, tamper-evident or replicated; partial host/filesystem failure remains possible |
