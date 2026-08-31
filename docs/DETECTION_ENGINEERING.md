@@ -34,7 +34,7 @@ detections/
 
 `scripts/validate_detections.py` performs structural checks, detects duplicate identifiers and evaluates every rule against declared positive and negative fixtures. `tests/test_detections.py` adds regression checks for evidence requirements and Modbus rule behavior.
 
-The Streamlit **Detection Preview** reuses these offline matchers to show rule ID, title, severity, ATT&CK mapping and a safe evidence reason for sanitized events. It is labeled an offline prediction and is never presented as native-engine output. Connection-only and normal-read cases remain free of high-severity predictions.
+The Streamlit **Detection Preview** reuses these offline matchers to show rule ID, title, severity, ATT&CK mapping and a safe evidence reason for sanitized events. It also provides a selected-view coverage backlog: each decoded behavior is marked as mapping review, rule opportunity, fixture follow-up, or covered in the committed pack, with a concrete next engineering action. It is labeled an offline prediction and is never presented as native-engine output. Connection-only and normal-read cases remain free of high-severity predictions.
 
 ## Run the offline validation
 

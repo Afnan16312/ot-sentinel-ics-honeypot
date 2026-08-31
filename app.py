@@ -29,7 +29,11 @@ from ot_sentinel.dashboard_map import (
     selection_from_plotly_state,
     summarize_window_change,
 )
-from ot_sentinel.detection_preview import load_native_validation_evidence, preview_detections
+from ot_sentinel.detection_preview import (
+    detection_coverage_backlog,
+    load_native_validation_evidence,
+    preview_detections,
+)
 from ot_sentinel.evaluation import evaluate_mapper, load_labeled_jsonl
 from ot_sentinel.publication import (
     PublicationValidationError,
@@ -1379,6 +1383,49 @@ with detection_tab:
     preview_records = [
         record for record in public_records if str(record.get("event_id", "")) in visible_event_ids
     ]
+    backlog = detection_coverage_backlog(preview_records, root=ROOT)
+    st.markdown("<div class='section-title'>Detection coverage backlog</div>", unsafe_allow_html=True)
+    st.caption(
+        "This is an engineering worklist for the selected synthetic or sanitized observations. "
+        "A missing rule match is not proof of a detection gap, and a covered row is not proof of production effectiveness."
+    )
+    if not backlog:
+        st.info("No decoded behavior is available for a coverage review in the current filters.")
+    else:
+        backlog_frame = pd.DataFrame(item.to_dict() for item in backlog)
+        covered_behaviors = int((backlog_frame["status"] == "covered in pack").sum())
+        follow_up_behaviors = int((backlog_frame["status"] != "covered in pack").sum())
+        coverage_left, coverage_mid, coverage_right = st.columns(3)
+        coverage_left.metric("Observed behaviors", f"{len(backlog_frame):,}")
+        coverage_mid.metric("Covered in committed pack", f"{covered_behaviors:,}")
+        coverage_right.metric(
+            "Needs engineering review",
+            f"{follow_up_behaviors:,}",
+            help="This prioritizes review work; it does not claim a missing control or an incident.",
+        )
+        st.dataframe(
+            backlog_frame[
+                [
+                    "protocol",
+                    "operation",
+                    "observed_events",
+                    "mapped_techniques",
+                    "rule_engines",
+                    "fixture_coverage",
+                    "status",
+                    "next_action",
+                ]
+            ],
+            width="stretch",
+            hide_index=True,
+            column_config={
+                "observed_events": st.column_config.NumberColumn("Observed events", format="%d"),
+                "mapped_techniques": "Mapped ATT&CK hypotheses",
+                "rule_engines": "Offline rule engines",
+                "fixture_coverage": "Fixture evidence",
+                "next_action": "Recommended engineering action",
+            },
+        )
     predictions = [item.to_dict() for item in preview_detections(preview_records, root=ROOT)]
     if not predictions:
         st.info("No offline detection rule matches the current sanitized event filters.")

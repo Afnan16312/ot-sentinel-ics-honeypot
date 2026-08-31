@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from ot_sentinel.detection_preview import (
+    detection_coverage_backlog,
     load_native_validation_evidence,
     preview_detections,
 )
@@ -68,3 +69,22 @@ def test_native_validation_record_is_dated_and_versioned_without_runtime_claims(
     assert evidence.validated_on == "2026-08-25"
     assert evidence.wazuh_version == "4.14.7"
     assert evidence.suricata_version == "8.0.4"
+
+
+def test_coverage_backlog_distinguishes_covered_and_rule_opportunity_behaviors():
+    covered = {
+        **event(),
+        "techniques": [{"technique_id": "T0836"}],
+    }
+    uncovered = {
+        **event("read_holding_registers", function_code=3),
+        "event_id": "mapped-read",
+        "techniques": [{"technique_id": "T0877"}],
+    }
+    rows = detection_coverage_backlog([covered, uncovered], root=ROOT)
+    by_operation = {row.operation: row for row in rows}
+
+    assert by_operation["write_single"].status == "covered in pack"
+    assert by_operation["write_single"].rule_engines == "Sigma, Suricata, Wazuh"
+    assert by_operation["read_holding_registers"].status == "rule opportunity"
+    assert "positive and nearest-negative fixtures" in by_operation["read_holding_registers"].next_action
