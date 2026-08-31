@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from .contracts import validate_analysis
 from .privacy import pseudonymize_ip
 from .triage import TriageAssessment, assess_event
 
@@ -217,6 +218,22 @@ class SQLiteObservationStore:
                     event_digest TEXT NOT NULL,
                     imported_at_epoch INTEGER NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS analysis_runs (
+                    analysis_run_id TEXT PRIMARY KEY,
+                    schema_version TEXT NOT NULL,
+                    versions_json TEXT NOT NULL,
+                    started_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS analysis_results (
+                    analysis_id TEXT PRIMARY KEY,
+                    analysis_run_id TEXT NOT NULL REFERENCES analysis_runs(analysis_run_id),
+                    event_id TEXT NOT NULL,
+                    input_digest TEXT NOT NULL,
+                    result_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_analysis_results_event
+                    ON analysis_results(event_id, created_at DESC);
                 """
             )
             columns = {row[1] for row in connection.execute("PRAGMA table_info(observations)")}
@@ -442,6 +459,51 @@ class SQLiteObservationStore:
                 connection.execute("ROLLBACK")
                 raise
         return imported, skipped
+
+    def record_analysis(self, result: Mapping[str, Any]) -> None:
+        """Persist a versioned interpretation separately from immutable observations."""
+        validate_analysis(result)
+        versions = json.dumps(result["versions"], sort_keys=True, separators=(",", ":"))
+        serialized = json.dumps(dict(result), sort_keys=True, separators=(",", ":"))
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            try:
+                connection.execute(
+                    """
+                    INSERT OR IGNORE INTO analysis_runs(
+                        analysis_run_id, schema_version, versions_json, started_at
+                    ) VALUES (?, ?, ?, ?)
+                    """,
+                    (
+                        result["analysis_run_id"],
+                        result["schema_version"],
+                        versions,
+                        result["executed_at"],
+                    ),
+                )
+                connection.execute(
+                    """
+                    INSERT INTO analysis_results(
+                        analysis_id, analysis_run_id, event_id, input_digest, result_json, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        result["analysis_id"],
+                        result["analysis_run_id"],
+                        result["event_id"],
+                        result["input_digest"],
+                        serialized,
+                        result["executed_at"],
+                    ),
+                )
+                connection.execute("COMMIT")
+            except Exception:
+                connection.execute("ROLLBACK")
+                raise
+
+    def analysis_results(self) -> list[sqlite3.Row]:
+        with self._connect() as connection:
+            return list(connection.execute("SELECT * FROM analysis_results ORDER BY created_at, analysis_id"))
 
     def observations(self) -> list[sqlite3.Row]:
         with self._connect() as connection:

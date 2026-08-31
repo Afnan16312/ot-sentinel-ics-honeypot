@@ -48,8 +48,10 @@ class SensorIntegrationTests(unittest.IsolatedAsyncioTestCase):
             events = [json.loads(line) for line in log_path.read_text().splitlines()]
             self.assertEqual([event["event_type"] for event in events], ["connection", "protocol_request"])
             self.assertLessEqual(len(events[1]["raw_payload_hex"]), 1024)
-            ids = {item["technique_id"] for item in events[1]["techniques"]}
-            self.assertEqual(ids, {"T0846.001", "T0877"})
+            self.assertEqual(events[1]["schema_version"], "ot-sentinel.observation/v1")
+            self.assertEqual(events[1]["data_classification"], "raw_private")
+            self.assertNotIn("techniques", events[1])
+            self.assertNotIn("severity", events[1])
 
     async def test_session_capacity_rejects_excess_connections_and_recovers(self):
         with tempfile.TemporaryDirectory() as directory:

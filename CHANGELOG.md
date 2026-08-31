@@ -6,6 +6,7 @@
 - Added redacted active and rejected session counters to sensor health snapshots.
 - Corrected replay-protection documentation to reflect the durable SQLite replay store.
 - Renamed merged dashboard and assurance work in the README so it is not described as an unmerged feature branch.
+- Added v0.3 observation and analysis contracts, legacy adapters and a private SQLite analysis-results ledger.
 - Added the Map Investigation pass: unified evidence/triage/control filters, custom UTC windows, previous-window comparison, map legend and context, repeat visibility, accessible source selection, selected-source evidence timelines, local review notes, detection coverage, reproducible view manifests, reversible country focus and a tile-free geographic fallback.
 - Added a Stitch-inspired light workstation UI: fixed analysis navigation, compact status/export header, filter chips, paper-grade KPI cards, protocol/anomaly rail and responsive pale map surfaces. Existing map modes, exports, ATT&CK, detection, triage, session and methodology views are unchanged.
 - Rebuilt the observatory as a four-mode MapLibre investigation workspace with flow, source-bubble, density and UTC playback views, responsive telemetry, point drill-down, country focus, coverage auditing and privacy-safe aggregate export.

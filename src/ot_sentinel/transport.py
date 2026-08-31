@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from .contracts import observation_from_event
 from .model import Event
 from .operations import HealthTracker
 
@@ -288,7 +289,7 @@ class RemoteCollectorSink:
     async def submit(self, event: Event) -> bool:
         if self.spool is not None:
             try:
-                accepted = await asyncio.to_thread(self.spool.enqueue, event.to_dict())
+                accepted = await asyncio.to_thread(self.spool.enqueue, observation_from_event(event))
             except DeliverySpoolError:
                 self.health.collector_storage_ready = False
                 self.health.delivery_failures += 1
@@ -373,7 +374,7 @@ class RemoteCollectorSink:
                 self._update_health()
 
     def build_request(self, event: Event | Mapping[str, Any]) -> urllib.request.Request:
-        event_data = event.to_dict() if isinstance(event, Event) else dict(event)
+        event_data = observation_from_event(event) if isinstance(event, Event) else dict(event)
         envelope = {
             "schema": "ot-sentinel-envelope/1",
             "sensor_id": self.sensor_id,

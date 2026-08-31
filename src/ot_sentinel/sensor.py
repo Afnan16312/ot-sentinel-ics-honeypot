@@ -9,7 +9,10 @@ import sqlite3
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
+from .analysis import analysis_from_event
+from .contracts import observation_from_event
 from .mapper import map_event
 from .model import Event
 from .normalizer import severity_for
@@ -39,9 +42,11 @@ class JsonlWriter:
         self._lock = asyncio.Lock()
         self.observation_store = observation_store
         self.database_failures = 0
+        self.analysis_run_id = str(uuid4())
 
     async def append(self, event: Event) -> bool:
-        line = json.dumps(event.to_dict(), separators=(",", ":"), sort_keys=True)
+        observation = observation_from_event(event)
+        line = json.dumps(observation, separators=(",", ":"), sort_keys=True)
         async with self._lock:
             with self.path.open("a", encoding="utf-8") as handle:
                 handle.write(line + "\n")
@@ -51,9 +56,17 @@ class JsonlWriter:
                 record = getattr(
                     self.observation_store, "record_with_assessment", self.observation_store.record
                 )
-                await asyncio.to_thread(
+                stored = await asyncio.to_thread(
                     record, event.to_dict(), payload=payload
                 )
+                assessment = getattr(stored, "assessment", None)
+                if assessment is not None and hasattr(self.observation_store, "record_analysis"):
+                    analysis = analysis_from_event(
+                        event,
+                        assessment,
+                        analysis_run_id=self.analysis_run_id,
+                    )
+                    await asyncio.to_thread(self.observation_store.record_analysis, analysis)
                 return True
             except (binascii.Error, OSError, sqlite3.Error, ValueError):
                 # JSONL is authoritative; an optional analysis-index failure must not lose it.
