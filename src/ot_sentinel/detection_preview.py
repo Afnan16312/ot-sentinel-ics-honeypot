@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Iterable, Mapping
 from dataclasses import asdict, dataclass
@@ -40,6 +41,23 @@ class NativeValidationEvidence:
     validated_on: str
     wazuh_version: str
     suricata_version: str
+
+
+@dataclass(frozen=True)
+class DetectionCoverageRow:
+    """One observed behavior's safe, actionable detection-engineering status."""
+
+    protocol: str
+    operation: str
+    observed_events: int
+    mapped_techniques: str
+    rule_engines: str
+    fixture_coverage: str
+    status: str
+    next_action: str
+
+    def to_dict(self) -> dict[str, str | int]:
+        return asdict(self)
 
 
 @lru_cache(maxsize=4)
@@ -177,3 +195,86 @@ def preview_detections(
         predictions,
         key=lambda item: (item.engine, item.rule_id, item.protocol, item.event_id),
     )
+
+
+def _fixture_behaviors(root: Path) -> set[tuple[str, str]]:
+    """Read only synthetic fixture metadata; fixture payloads are never returned."""
+
+    fixture_path = root / "detections" / "fixtures" / "events.jsonl"
+    if not fixture_path.exists():
+        return set()
+    behaviors: set[tuple[str, str]] = set()
+    for line in fixture_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        item = json.loads(line)
+        event = item.get("event")
+        decoded = event.get("decoded") if isinstance(event, Mapping) else None
+        if isinstance(event, Mapping) and isinstance(decoded, Mapping):
+            behaviors.add(
+                (str(event.get("protocol", "unknown")), str(decoded.get("operation", "unknown")))
+            )
+    return behaviors
+
+
+def detection_coverage_backlog(
+    events: Iterable[Mapping[str, Any]], *, root: Path
+) -> list[DetectionCoverageRow]:
+    """Summarize observed behavior coverage without claiming native engine equivalence."""
+
+    records = [dict(event) for event in events]
+    predictions = preview_detections(records, root=root)
+    engines_by_event: dict[str, set[str]] = {}
+    for prediction in predictions:
+        engines_by_event.setdefault(prediction.event_id, set()).add(prediction.engine)
+    fixture_behaviors = _fixture_behaviors(root)
+    grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for event in records:
+        decoded = event.get("decoded")
+        decoded = decoded if isinstance(decoded, Mapping) else {}
+        behavior = (str(event.get("protocol", "unknown")), str(decoded.get("operation", "unknown")))
+        grouped.setdefault(behavior, []).append(event)
+
+    rows: list[DetectionCoverageRow] = []
+    for (protocol, operation), behavior_events in sorted(grouped.items()):
+        technique_ids = sorted(
+            {
+                str(item.get("technique_id"))
+                for event in behavior_events
+                for item in event.get("techniques", []) or []
+                if isinstance(item, Mapping) and item.get("technique_id")
+            }
+        )
+        engines = sorted(
+            {
+                engine
+                for event in behavior_events
+                for engine in engines_by_event.get(str(event.get("event_id", "")), set())
+            }
+        )
+        fixture_covered = (protocol, operation) in fixture_behaviors
+        if not technique_ids:
+            status = "mapping review"
+            next_action = "Review decoded evidence before proposing an ATT&CK mapping or detection rule."
+        elif not engines:
+            status = "rule opportunity"
+            next_action = "Review this mapped behavior for a rule and add positive and nearest-negative fixtures."
+        elif not fixture_covered:
+            status = "fixture follow-up"
+            next_action = "Add a controlled positive and nearest-negative fixture before treating this rule path as covered."
+        else:
+            status = "covered in pack"
+            next_action = "Re-run the documented validation after changing this rule, fixture, or engine version."
+        rows.append(
+            DetectionCoverageRow(
+                protocol=protocol,
+                operation=operation,
+                observed_events=len(behavior_events),
+                mapped_techniques=", ".join(technique_ids) or "not mapped",
+                rule_engines=", ".join(engines) or "none",
+                fixture_coverage="synthetic fixture present" if fixture_covered else "no matching fixture",
+                status=status,
+                next_action=next_action,
+            )
+        )
+    return rows
