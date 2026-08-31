@@ -43,6 +43,19 @@ class TransportTests(unittest.TestCase):
         with self.assertRaisesRegex(CollectorError, "duplicate"):
             verifier.verify(headers, request.data)
 
+    def test_transport_sends_observation_evidence_not_analytical_conclusions(self):
+        self.event.severity = "high"
+        request = RemoteCollectorSink(
+            "http://127.0.0.1:9443/v1/events",
+            self.sensor_id,
+            self.secret,
+            HealthTracker(self.sensor_id),
+        ).build_request(self.event)
+        event = json.loads(request.data)["event"]
+        self.assertEqual(event["schema_version"], "ot-sentinel.observation/v1")
+        self.assertNotIn("techniques", event)
+        self.assertNotIn("severity", event)
+
     def test_tampered_body_is_rejected(self):
         sink = RemoteCollectorSink(
             "http://localhost:9443/v1/events",

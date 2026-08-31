@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from .contracts import OBSERVATION_SCHEMA_VERSION, validate_observation
 from .storage import MemoryReplayStore, SQLiteReplayStore
 from .transport import canonical_signature
 
@@ -86,6 +87,13 @@ class CollectorVerifier:
             raise CollectorPayloadError("event is missing required fields")
         if any(not isinstance(event[field], str) or not event[field] for field in required):
             raise CollectorPayloadError("event required fields must be non-empty strings")
+        if event.get("schema_version") is not None:
+            if event["schema_version"] != OBSERVATION_SCHEMA_VERSION:
+                raise CollectorPayloadError("collector accepts observation records only")
+            try:
+                validate_observation(event)
+            except (TypeError, ValueError) as exc:
+                raise CollectorPayloadError("invalid observation contract") from exc
         replay_key = f"{sensor_id}:{event['event_id']}"
         if not self.replay_store.reserve(replay_key, now=int(time.time())):
             raise CollectorReplayError("duplicate event")

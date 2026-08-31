@@ -1,5 +1,7 @@
 # Public event data dictionary
 
+The existing public demo uses the legacy mixed-event schema for backward compatibility. New v0.3 sensor and collector records use **Observation v1**, which contains capture evidence only; versioned **Analysis v1** records store ATT&CK hypotheses, severity, triage and detection outcomes separately. See [v0.3 data contracts](V0_3_DATA_CONTRACTS.md).
+
 | Field | Description |
 |---|---|
 | `event_id` | Unique event identifier |
@@ -12,8 +14,8 @@
 | `source_asn` | Approximate autonomous-system label |
 | `event_type` | Connection, request, or bounded sensor error |
 | `decoded` | Allow-listed protocol metadata and optional fictional profile state |
-| `techniques` | Evidence-qualified ATT&CK hypotheses with confidence and rationale |
-| `severity` | Analytical priority, not proof of compromise |
+| `techniques` | Legacy-only evidence-qualified ATT&CK hypotheses with confidence and rationale; new records keep this in Analysis v1 |
+| `severity` | Legacy-only analytical priority, not proof of compromise; new records keep this in Analysis v1 |
 | `is_demo` | `true` for synthetic portfolio data |
 | `sanitized` | Indicates that publication processing was applied |
 
