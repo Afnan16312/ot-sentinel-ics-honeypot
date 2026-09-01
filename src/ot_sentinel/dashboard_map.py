@@ -12,10 +12,10 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 PROTOCOL_COLORS = {
-    "modbus": "#4E8FB8",
-    "s7": "#6A4DA0",
-    "iec104": "#8175A8",
-    "unknown": "#70808D",
+    "modbus": "#38BDF8",
+    "s7": "#A78BFA",
+    "iec104": "#FBBF24",
+    "unknown": "#94A3B8",
 }
 SEVERITY_ORDER = {"info": 0, "low": 1, "medium": 2, "high": 3}
 CONTROL_OPERATIONS = {
@@ -361,7 +361,7 @@ def build_source_comparison(points: pd.DataFrame) -> pd.DataFrame:
 
 
 def _marker_sizes(events: pd.Series) -> list[float]:
-    return [min(34.0, 9.0 + math.sqrt(max(float(value), 1.0)) * 3.4) for value in events]
+    return [min(42.0, 11.0 + math.sqrt(max(float(value), 1.0)) * 4.1) for value in events]
 
 
 def _custom_data(points: pd.DataFrame) -> list[list[object]]:
@@ -442,6 +442,29 @@ def _add_source_markers(fig: go.Figure, points: pd.DataFrame) -> None:
         )
 
 
+def _add_severity_halos(fig: go.Figure, points: pd.DataFrame, *, offline: bool = False) -> None:
+    """Put a subtle, non-selectable halo behind elevated-severity observations."""
+    elevated = points[points["max_severity"].isin(["high", "medium"])]
+    if elevated.empty:
+        return
+    trace_class = go.Scattergeo if offline else go.Scattermap
+    fig.add_trace(
+        trace_class(
+            lat=elevated["latitude"],
+            lon=elevated["longitude"],
+            mode="markers",
+            name="Elevated severity",
+            marker={
+                "size": [size + 12 for size in _marker_sizes(elevated["events"])],
+                "color": "#FB7185",
+                "opacity": 0.30,
+            },
+            hoverinfo="skip",
+            showlegend=False,
+        )
+    )
+
+
 def _add_offline_source_markers(fig: go.Figure, points: pd.DataFrame) -> None:
     """Render selectable source aggregates without external map tiles."""
     for protocol in sorted(points["protocol"].unique()):
@@ -494,14 +517,15 @@ def _build_offline_map(
                     lon=longitudes,
                     mode="lines",
                     line={
-                        "width": min(3.0, 0.7 + math.log1p(float(row.events)) * 0.55),
+                        "width": min(4.5, 1.1 + math.log1p(float(row.events)) * 0.68),
                         "color": PROTOCOL_COLORS.get(row.protocol, PROTOCOL_COLORS["unknown"]),
                     },
-                    opacity=0.34,
+                    opacity=0.48,
                     hoverinfo="skip",
                     showlegend=False,
                 )
             )
+    _add_severity_halos(figure, points, offline=True)
     _add_offline_source_markers(figure, points)
     if show_region:
         figure.add_trace(
@@ -516,7 +540,7 @@ def _build_offline_map(
             )
         )
     figure.update_layout(
-        height=585,
+        height=640,
         margin={"l": 0, "r": 0, "t": 0, "b": 0},
         paper_bgcolor="#FFFFFF",
         plot_bgcolor="#FFFFFF",
@@ -584,7 +608,7 @@ def _add_region_marker(fig: go.Figure) -> None:
 
 def _base_layout(fig: go.Figure, map_style: str, revision: str) -> go.Figure:
     fig.update_layout(
-        height=585,
+        height=640,
         margin={"l": 0, "r": 0, "t": 0, "b": 0},
         paper_bgcolor="#FFFFFF",
         plot_bgcolor="#FFFFFF",
@@ -716,10 +740,10 @@ def build_threat_map(
                     lon=longitudes,
                     mode="lines",
                     line={
-                        "width": min(3.0, 0.7 + math.log1p(float(row.events)) * 0.55),
+                        "width": min(4.5, 1.1 + math.log1p(float(row.events)) * 0.68),
                         "color": PROTOCOL_COLORS.get(row.protocol, PROTOCOL_COLORS["unknown"]),
                     },
-                    opacity=0.34,
+                    opacity=0.48,
                     hoverinfo="skip",
                     showlegend=False,
                 )
@@ -744,6 +768,7 @@ def build_threat_map(
             )
         )
 
+    _add_severity_halos(figure, points)
     _add_source_markers(figure, points)
     if show_region:
         _add_region_marker(figure)

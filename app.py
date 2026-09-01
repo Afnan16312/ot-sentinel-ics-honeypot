@@ -71,7 +71,7 @@ WORKSPACE_STATE_KEYS = {
     "map_mode",
     "map_window",
     "map_labels",
-    "map_basemap",
+    "map_theme",
     "map_flows",
     "map_offline",
     "map_custom_dates",
@@ -791,11 +791,11 @@ with overview:
         key="map_offline",
         help="Use a tile-free geographic view when external CARTO/OpenStreetMap tiles are blocked.",
     )
-    base_map_name = st.selectbox(
-        "Base map detail",
-        ["Detailed place names", "Low-clutter background", "Night operations"],
-        key="map_basemap",
-        help="Changes only the visual background. It does not alter the observations or their privacy-safe precision.",
+    map_theme = st.selectbox(
+        "Map theme",
+        ["Dark operations", "Detailed place names", "Low-clutter background"],
+        key="map_theme",
+        help="Dark operations is the default presentation view. This changes only the visual background, never the observations or their privacy-safe precision.",
     )
 
     map_frame = filtered.copy()
@@ -872,10 +872,11 @@ with overview:
         )
     st.markdown(
         "<div class='map-legend' aria-label='Map legend'>"
-        "<span><i class='legend-dot' style='background:#4E8FB8'></i>Modbus</span>"
-        "<span><i class='legend-dot' style='background:#6A4DA0'></i>S7</span>"
-        "<span><i class='legend-dot' style='background:#8175A8'></i>IEC-104</span>"
+        "<span><i class='legend-dot' style='background:#38BDF8'></i>Modbus</span>"
+        "<span><i class='legend-dot' style='background:#A78BFA'></i>S7</span>"
+        "<span><i class='legend-dot' style='background:#FBBF24'></i>IEC-104</span>"
         "<span>Bubble size = recorded observations</span>"
+        "<span><i class='legend-dot' style='background:#FB7185'></i>Halo = elevated severity</span>"
         "<span>Labels = country and place names</span>"
         "<span><i class='legend-line'></i>Observation relationship</span>"
         "<span>White endpoint = approximate UAE region</span>"
@@ -903,11 +904,11 @@ with overview:
             map_selection = None
         else:
             map_styles = {
+                "Dark operations": "carto-darkmatter",
                 "Detailed place names": "carto-positron",
                 "Low-clutter background": "carto-positron-nolabels",
-                "Night operations": "carto-darkmatter",
             }
-            map_style = map_styles[base_map_name] if show_labels else "carto-positron-nolabels"
+            map_style = map_styles[map_theme] if show_labels else "carto-positron-nolabels"
             revision = f"ot-map-{st.session_state.get('_map_revision', 0)}"
             threat_map = build_threat_map(
                 map_points,

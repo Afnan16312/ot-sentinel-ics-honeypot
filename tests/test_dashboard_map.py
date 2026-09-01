@@ -192,6 +192,19 @@ def test_flow_overlay_can_be_disabled_without_removing_interactive_sources():
     assert {trace.name for trace in figure.data} == {"MODBUS", "S7"}
 
 
+def test_elevated_severity_uses_a_non_selectable_visual_halo():
+    records = frame(event("high", severity="high"), event("info", protocol="s7"))
+
+    figure = build_threat_map(
+        prepare_map_points(records), mode="Source bubbles", event_frame=records
+    )
+
+    halo = next(trace for trace in figure.data if trace.name == "Elevated severity")
+    assert halo.hoverinfo == "skip"
+    assert halo.showlegend is False
+    assert halo.marker.opacity == 0.30
+
+
 def test_map_hover_explains_activity_and_stays_within_the_public_contract():
     records = frame(
         event("a", country="Northport", source="src-public-01"),
