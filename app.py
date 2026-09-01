@@ -71,6 +71,7 @@ WORKSPACE_STATE_KEYS = {
     "map_mode",
     "map_window",
     "map_labels",
+    "map_basemap",
     "map_flows",
     "map_offline",
     "map_custom_dates",
@@ -192,6 +193,11 @@ div[data-testid="stDataFrame"] { border:1px solid var(--border); border-radius:4
 .map-legend span { display:inline-flex; align-items:center; gap:5px; }
 .legend-dot { width:9px; height:9px; border-radius:50%; display:inline-block; border:1px solid rgba(0,0,0,.18); }
 .legend-line { width:18px; height:0; border-top:2px solid #6a4da0; display:inline-block; }
+.map-story { display:grid; grid-template-columns:1.3fr 1fr 1fr; gap:8px; margin:8px 0 10px; }
+.map-story-card { padding:9px 10px; background:#f8fafc; border:1px solid var(--border); border-radius:4px; color:var(--muted); font-size:.72rem; line-height:1.4; }
+.map-story-card.primary { border-left:3px solid var(--blue); background:#f2f7ff; }
+.map-story-label { display:block; color:#004883; font-family:'JetBrains Mono',monospace; font-size:.62rem; font-weight:600; letter-spacing:.08em; text-transform:uppercase; margin-bottom:3px; }
+.map-story-card b { color:var(--text); }
 .context-strip { display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center; padding:8px 10px; margin:8px 0 10px; border-left:3px solid var(--blue); background:#eef4ff; color:#185577; font-size:.72rem; }
 .context-strip b { color:#004883; }
 .scope-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
@@ -219,7 +225,7 @@ div[data-testid="stDataFrame"] { border:1px solid var(--border); border-radius:4
 .stExpander [data-testid="stExpanderToggleIcon"] { color:var(--muted); }
 .stExpander summary p { color:var(--muted); font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; }
 @media (max-width:1024px) { .block-container { padding-left:84px; } .stitch-header { margin-left:-84px; } .stTabs [role="tablist"] { width:64px; } .stTabs [role="tab"] { font-size:0; justify-content:center; padding:8px 6px; } .stTabs [role="tab"] p { font-size:0; } .stTabs [role="tab"] p:before { content:'•'; font-size:20px; } }
-@media (max-width:700px) { .block-container { padding:0 12px 24px 66px; } .stitch-header { margin:0 -12px 12px -66px; padding:0 12px 0 66px; } .stitch-status { gap:5px; font-size:8px; } .stitch-status .divider, .stitch-status span:nth-of-type(n+3) { display:none; } .stTabs [role="tablist"] { top:52px; width:54px; } .telemetry-strip { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; } .telemetry-value { font-size:1.15rem; } .filter-bar { gap:8px; } .filter-bar > p { flex-basis:100%; min-width:0; } .filter-help { white-space:normal; } .map-stat-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .scope-grid { grid-template-columns:1fr; } }
+@media (max-width:700px) { .block-container { padding:0 12px 24px 66px; } .stitch-header { margin:0 -12px 12px -66px; padding:0 12px 0 66px; } .stitch-status { gap:5px; font-size:8px; } .stitch-status .divider, .stitch-status span:nth-of-type(n+3) { display:none; } .stTabs [role="tablist"] { top:52px; width:54px; } .telemetry-strip { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; } .telemetry-value { font-size:1.15rem; } .filter-bar { gap:8px; } .filter-bar > p { flex-basis:100%; min-width:0; } .filter-help { white-space:normal; } .map-stat-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .map-story { grid-template-columns:1fr; } .scope-grid { grid-template-columns:1fr; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important; } }
 </style>
 """,
@@ -764,7 +770,12 @@ with overview:
         ["All observations", "Last 24 hours", "Last 7 days", "Last 14 days", "Custom UTC range"],
         key="map_window",
     )
-    show_labels = control3.toggle("Place labels", value=False, key="map_labels")
+    show_labels = control3.toggle(
+        "Place labels",
+        value=True,
+        key="map_labels",
+        help="Show country and place names in the detailed map background.",
+    )
     show_flows = control4.toggle(
         "Observation paths",
         value=True,
@@ -779,6 +790,12 @@ with overview:
         value=False,
         key="map_offline",
         help="Use a tile-free geographic view when external CARTO/OpenStreetMap tiles are blocked.",
+    )
+    base_map_name = st.selectbox(
+        "Base map detail",
+        ["Detailed place names", "Low-clutter background", "Night operations"],
+        key="map_basemap",
+        help="Changes only the visual background. It does not alter the observations or their privacy-safe precision.",
     )
 
     map_frame = filtered.copy()
@@ -834,11 +851,32 @@ with overview:
         f"<span>{quality['plotted_events']:,} mapped events</span><span>{quality['unmapped_events']:,} excluded for coordinate quality</span></div>",
         unsafe_allow_html=True,
     )
+    if not map_points.empty:
+        lead_point = map_points.sort_values(
+            ["events", "public_review_score", "country"], ascending=[False, False, True]
+        ).iloc[0]
+        protocol_events = map_points.groupby("protocol", observed=True)["events"].sum()
+        leading_protocol = str(protocol_events.idxmax()).upper()
+        leading_protocol_events = int(protocol_events.max())
+        visible_controls = int(map_points["control_attempts"].sum())
+        st.markdown(
+            "<div class='map-story'>"
+            "<div class='map-story-card primary'><span class='map-story-label'>What stands out</span>"
+            f"<b>{escape(str(lead_point['country']))}</b> has the most visible activity: <b>{int(lead_point['events']):,} observations</b>. Click its bubble to investigate.</div>"
+            "<div class='map-story-card'><span class='map-story-label'>Most active protocol</span>"
+            f"<b>{escape(leading_protocol)}</b> accounts for <b>{leading_protocol_events:,} observations</b> in this window.</div>"
+            "<div class='map-story-card'><span class='map-story-label'>How to read it</span>"
+            f"Bubble size = observations; colour = protocol; {visible_controls:,} visible control actions are shown only in the click detail.</div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
     st.markdown(
         "<div class='map-legend' aria-label='Map legend'>"
         "<span><i class='legend-dot' style='background:#4E8FB8'></i>Modbus</span>"
         "<span><i class='legend-dot' style='background:#6A4DA0'></i>S7</span>"
         "<span><i class='legend-dot' style='background:#8175A8'></i>IEC-104</span>"
+        "<span>Bubble size = recorded observations</span>"
+        "<span>Labels = country and place names</span>"
         "<span><i class='legend-line'></i>Observation relationship</span>"
         "<span>White endpoint = approximate UAE region</span>"
         "</div>",
@@ -864,7 +902,12 @@ with overview:
             st.info("No safely mappable observations match the current filters and time window.")
             map_selection = None
         else:
-            map_style = "carto-positron" if show_labels else "carto-positron-nolabels"
+            map_styles = {
+                "Detailed place names": "carto-positron",
+                "Low-clutter background": "carto-positron-nolabels",
+                "Night operations": "carto-darkmatter",
+            }
+            map_style = map_styles[base_map_name] if show_labels else "carto-positron-nolabels"
             revision = f"ot-map-{st.session_state.get('_map_revision', 0)}"
             threat_map = build_threat_map(
                 map_points,

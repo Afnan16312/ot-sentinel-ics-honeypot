@@ -19,6 +19,7 @@ def test_dashboard_renders_the_interactive_map_workspace_without_exceptions():
     ]
     selectbox_labels = [item.label for item in app.selectbox]
     assert selectbox_labels[:2] == ["Map mode", "Observation window"]
+    assert "Base map detail" in selectbox_labels
     assert {"Inspect map observation", "Technique focus", "Source group focus"}.issubset(
         selectbox_labels
     )

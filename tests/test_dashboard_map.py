@@ -192,6 +192,26 @@ def test_flow_overlay_can_be_disabled_without_removing_interactive_sources():
     assert {trace.name for trace in figure.data} == {"MODBUS", "S7"}
 
 
+def test_map_hover_explains_activity_and_stays_within_the_public_contract():
+    records = frame(
+        event("a", country="Northport", source="src-public-01"),
+        event("b", country="Northport", source="src-public-01"),
+        event("c", country="Westhaven", source="src-public-02", protocol="s7"),
+    )
+
+    figure = build_threat_map(
+        prepare_map_points(records),
+        mode="Source bubbles",
+        event_frame=records,
+    )
+
+    source_traces = [trace for trace in figure.data if trace.mode == "markers"]
+    assert source_traces
+    assert all("Click to open the investigation summary" in trace.hovertemplate for trace in source_traces)
+    serialized = json.dumps(figure.to_plotly_json())
+    assert "198.51.100.77" not in serialized
+
+
 def test_offline_map_fallback_uses_tile_free_geo_and_preserves_selection_data():
     records = frame(event("a"), event("b", protocol="s7"))
     figure = build_threat_map(

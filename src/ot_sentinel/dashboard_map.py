@@ -432,13 +432,11 @@ def _add_source_markers(fig: go.Figure, points: pd.DataFrame) -> None:
                 },
                 customdata=_custom_data(protocol_points),
                 hovertemplate=(
-                    "<b>%{customdata[1]}</b><br>"
-                    "%{customdata[0]} · %{customdata[2]}<br>"
-                    "%{customdata[3]} events · %{customdata[4]} sessions<br>"
-                    "Repeated observations: %{customdata[10]}<br>"
-                    "Highest severity: %{customdata[5]}<br>"
-                    "Latest: %{customdata[7]}<br>"
-                    "Select for investigation<extra></extra>"
+                    "<b>%{customdata[1]} · %{customdata[2]}</b><br>"
+                    "<b>%{customdata[3]}</b> recorded observations · %{customdata[4]} sessions<br>"
+                    "Highest severity: %{customdata[5]} · Control actions: %{customdata[8]}<br>"
+                    "Repeated observations: %{customdata[10]} · Latest: %{customdata[7]}<br>"
+                    "Click to open the investigation summary<extra></extra>"
                 ),
             )
         )
@@ -462,12 +460,11 @@ def _add_offline_source_markers(fig: go.Figure, points: pd.DataFrame) -> None:
                 },
                 customdata=_custom_data(protocol_points),
                 hovertemplate=(
-                    "<b>%{customdata[1]}</b><br>"
-                    "%{customdata[0]} · %{customdata[2]}<br>"
-                    "%{customdata[3]} events · %{customdata[4]} sessions<br>"
+                    "<b>%{customdata[1]} · %{customdata[2]}</b><br>"
+                    "<b>%{customdata[3]}</b> recorded observations · %{customdata[4]} sessions<br>"
+                    "Highest severity: %{customdata[5]} · Control actions: %{customdata[8]}<br>"
                     "Repeated observations: %{customdata[10]}<br>"
-                    "Highest severity: %{customdata[5]}<br>"
-                    "Select for investigation<extra></extra>"
+                    "Click to open the investigation summary<extra></extra>"
                 ),
             )
         )
