@@ -180,12 +180,10 @@ div[data-testid="stDataFrame"] { border:1px solid var(--border); border-radius:4
 .map-stat:last-child { border-right:0; }
 .map-stat .label { color:var(--muted); font-size:.65rem; text-transform:uppercase; letter-spacing:.08em; }
 .map-stat .value { color:var(--text); font-family:'JetBrains Mono',monospace; font-size:.9rem; margin-top:3px; }
-.metric-info { position:relative; display:inline-flex; align-items:center; justify-content:center; width:16px; min-height:16px; margin-left:4px; border:1px solid #aab4c0; border-radius:50%; color:#5d6b7a; font-size:9px; font-weight:700; line-height:1; letter-spacing:0; text-transform:none; vertical-align:1px; }
-.metric-info > summary { display:flex; align-items:center; justify-content:center; width:100%; min-height:16px; cursor:pointer; list-style:none; }
-.metric-info > summary::-webkit-details-marker { display:none; }
-.metric-info:focus-within { outline:2px solid #4e8fb8; outline-offset:2px; }
+.metric-info { position:relative; display:inline-flex; align-items:center; justify-content:center; width:16px; min-height:16px; margin-left:4px; border:1px solid #aab4c0; border-radius:50%; color:#5d6b7a; font-size:9px; font-weight:700; line-height:1; letter-spacing:0; text-transform:none; vertical-align:1px; cursor:help; }
+.metric-info:focus { outline:2px solid #4e8fb8; outline-offset:2px; }
 .metric-tooltip { position:absolute; z-index:30; top:calc(100% + 8px); left:0; width:230px; max-width:calc(100vw - 32px); padding:8px 9px; border:1px solid #aab4c0; border-radius:4px; background:#1f2933; color:#fff; box-shadow:0 4px 12px rgba(20,30,40,.18); font-size:11px; font-weight:400; line-height:1.35; letter-spacing:0; text-transform:none; text-align:left; white-space:normal; overflow-wrap:anywhere; visibility:hidden; opacity:0; pointer-events:none; transition:opacity .15s ease; }
-.metric-info:hover .metric-tooltip, .metric-info[open] .metric-tooltip { visibility:visible; opacity:1; pointer-events:auto; }
+.metric-info:hover .metric-tooltip, .metric-info:focus .metric-tooltip { visibility:visible; opacity:1; }
 .detail-panel { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:12px; min-height:210px; }
 .detail-value { color:var(--text); font-size:.85rem; margin:3px 0 10px; word-break:break-word; }
 .privacy-note { color:var(--muted); border-left:2px solid #9da3ad; padding:6px 8px; font-size:.72rem; margin-top:8px; }
@@ -359,11 +357,12 @@ def render_scope_panel(title: str, can_prove: list[str], cannot_prove: list[str]
 
 
 def info_badge(label: str, explanation: str) -> str:
-    """Return a keyboard-accessible click-to-open explanation badge."""
+    """Return a hover-first explanation badge with keyboard focus support."""
 
     return (
-        f"<details class='metric-info'><summary aria-label='{escape(label)}'>i</summary>"
-        f"<span class='metric-tooltip'>{escape(explanation)}</span></details>"
+        f"<span class='metric-info' tabindex='0' role='note' "
+        f"aria-label='{escape(label)}: {escape(explanation)}' title='{escape(explanation)}'>i"
+        f"<span class='metric-tooltip' role='tooltip'>{escape(explanation)}</span></span>"
     )
 
 

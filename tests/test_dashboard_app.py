@@ -47,7 +47,9 @@ def test_dashboard_renders_the_interactive_map_workspace_without_exceptions():
     assert "Publication-validated public dataset" in rendered_markdown
     assert "Approximate geography" in rendered_markdown
     assert "No raw IPs or payloads" in rendered_markdown
-    assert rendered_markdown.count("<details class='metric-info'>") >= 8
+    assert rendered_markdown.count("<span class='metric-info'") >= 8
+    assert "cursor:help" in rendered_markdown
+    assert ".metric-info:hover .metric-tooltip, .metric-info:focus .metric-tooltip" in rendered_markdown
     assert "white-space:normal" in rendered_markdown
     assert "overflow-wrap:anywhere" in rendered_markdown
     assert "Several records can come from one session" in rendered_markdown
