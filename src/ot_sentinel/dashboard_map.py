@@ -29,6 +29,9 @@ MAP_MODES = ("Flow view", "Source bubbles", "Density", "Time playback")
 UAE_REGION = {"latitude": 24.4, "longitude": 54.4, "label": "UAE sensor region"}
 MAX_FLOW_PATHS = 60
 PUBLIC_COORDINATE_PRECISION = 1
+MAX_SOURCE_MARKER_SIZE = 28.0
+SEVERITY_HALO_PADDING = 8.0
+PLAYBACK_MAX_MARKER_SIZE = 22
 
 
 def _series(frame: pd.DataFrame, name: str, default: Any) -> pd.Series:
@@ -361,7 +364,10 @@ def build_source_comparison(points: pd.DataFrame) -> pd.DataFrame:
 
 
 def _marker_sizes(events: pd.Series) -> list[float]:
-    return [min(42.0, 11.0 + math.sqrt(max(float(value), 1.0)) * 4.1) for value in events]
+    return [
+        min(MAX_SOURCE_MARKER_SIZE, 6.0 + math.sqrt(max(float(value), 1.0)) * 2.4)
+        for value in events
+    ]
 
 
 def _custom_data(points: pd.DataFrame) -> list[list[object]]:
@@ -455,7 +461,10 @@ def _add_severity_halos(fig: go.Figure, points: pd.DataFrame, *, offline: bool =
             mode="markers",
             name="Elevated severity",
             marker={
-                "size": [size + 12 for size in _marker_sizes(elevated["events"])],
+                "size": [
+                    size + SEVERITY_HALO_PADDING
+                    for size in _marker_sizes(elevated["events"])
+                ],
                 "color": "#F8FAFC",
                 "opacity": 0.30,
             },
@@ -697,7 +706,7 @@ def build_threat_map(
             ],
             color_discrete_map=PROTOCOL_COLORS,
             category_orders={"time_bucket": bucket_order, "protocol": protocol_order},
-            size_max=30,
+            size_max=PLAYBACK_MAX_MARKER_SIZE,
         )
         figure.update_layout(transition={"duration": 160})
         for menu in figure.layout.updatemenus:

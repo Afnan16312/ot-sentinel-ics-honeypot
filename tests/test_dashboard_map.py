@@ -200,9 +200,12 @@ def test_elevated_severity_uses_a_non_selectable_visual_halo():
     )
 
     halo = next(trace for trace in figure.data if trace.name == "Elevated severity")
+    source = next(trace for trace in figure.data if trace.name == "MODBUS")
     assert halo.hoverinfo == "skip"
     assert halo.showlegend is False
     assert halo.marker.opacity == 0.30
+    assert max(source.marker.size) <= 28
+    assert halo.marker.size[0] - source.marker.size[0] == pytest.approx(8)
 
 
 def test_map_hover_explains_activity_and_stays_within_the_public_contract():

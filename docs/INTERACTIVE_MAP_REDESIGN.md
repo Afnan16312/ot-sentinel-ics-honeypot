@@ -85,7 +85,8 @@ The Stitch-inspired pass uses a light, editorial workstation language instead of
 - white surfaces on a very light grey canvas, with a recessed navigation rail;
 - precise one-pixel graphite borders and small four-pixel corners instead of heavy shadows;
 - Inter for interface text and JetBrains Mono for identifiers and telemetry;
-- blue for Modbus, purple for S7/IEC-104 analysis and red/amber/green for semantic signals;
+- red for Modbus, blue for S7 and yellow for IEC-104, with white severity halos kept visually separate from protocol identity;
+- compact square-root-scaled source bubbles so high-volume observations remain visible without obscuring country boundaries or nearby sources;
 - a compact status header, filter-chip strip, four KPI cards and a protocol/anomaly rail around the map;
 - the existing Streamlit tabs are styled as the real left navigation, so every analysis view remains reachable;
 - responsive tablet and phone rules collapse the rail and keep the KPI/map grids readable.

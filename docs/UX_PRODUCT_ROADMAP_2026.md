@@ -20,6 +20,108 @@ The following P0 items are now implemented in the public dashboard branch:
 
 These changes do not connect the dashboard to the Oracle sensor, do not expose individual private events, and do not turn a score, location, or map point into attribution.
 
+## Live interface audit refresh — 2 September 2026
+
+### Audit scope and verdict
+
+This refresh reconciles the roadmap with the current DEV1.0 interface after the map-visual and metric-help changes. The review covered the complete public workflow, the rendered desktop view at 1440×1000, the narrow view at 390×844, all four map modes, browser diagnostics, map unit tests, and the authoritative F-01–F-53 feature catalog.
+
+The dashboard is technically credible and unusually careful about evidence boundaries. Its largest remaining weakness is **progressive disclosure**: a first-time visitor, analyst, detection engineer and operator currently enter through the same dense workspace. The next release should improve orientation and continuity before adding another major analytical subsystem.
+
+The map marker pass in this refresh reduces the largest source bubble from 42 px to 28 px, reduces the severity-halo padding from 12 px to 8 px, and reduces the playback maximum from 30 px to 22 px. The protocol colours remain fully distinct: Modbus red, S7 blue and IEC-104 yellow.
+
+### User groups and the experience each one needs
+
+| User | First question | Current strength | Current friction | Best next bridge |
+|---|---|---|---|---|
+| Recruiter or nontechnical visitor | “What did the candidate actually build?” | Clear synthetic-data and privacy boundaries; polished observatory | Six expert views compete for attention and the proof story is not automatic | A five-minute guided demonstration with visible progress and one safe investigation |
+| Cybersecurity learner | “How does an OT interaction become evidence?” | Rich methodology, tooltips and reproducible fixtures | Code, dashboard, sensor, SOC lab and cloud status are easy to confuse | A component-status card and a code-to-screen learning trail |
+| SOC L1 analyst | “What should I review first, and why?” | Session-first triage, score factors and selected-source evidence | Context is prepared for another tab but the user must find and open that tab manually | A persistent investigation drawer with direct next-step navigation |
+| SOC L2 / incident responder | “What sequence and related evidence support this judgement?” | Session ledger, ATT&CK rationale and comparison tray | Evidence remains fragmented across views and local notes are not a durable case | A single investigation workspace now; a private case bundle only after governance exists |
+| Detection engineer | “Which observed behaviour is covered and how was it validated?” | Offline prediction, native-fixture state and coverage backlog | Rule provenance, fixture freshness and tuning history are separated | A parser → mapping → rule → fixture evidence chain |
+| OT engineer or control operator | “What operation occurred and could it matter operationally?” | Protocol-aware decoded operations and cautious language | ATT&CK-first terminology is still too cyber-centric | Plain OT operation labels and a structured OT-consultation checkpoint |
+| Researcher or privacy reviewer | “Can I reproduce and safely publish this result?” | Publication gate, aggregate exports and view manifest | Screenshots can still lose context and human approval remains outside the UI | A report-safe snapshot plus visible privacy preflight |
+| Sensor or platform operator | “Is collection actually healthy?” | Read-only assurance can consume a redacted snapshot | It is buried in Methodology and absent when no approved snapshot is connected | Separate Dashboard / Dataset / Sensor / Collector / SOC-lab status cards, including honest Unknown states |
+
+### Whole-site UI/UX gaps
+
+| ID | Gap observed in the current interface | User impact | Recommended bridge | Priority |
+|---|---|---|---|---|
+| UX-01 | Every user starts in the same expert dashboard | New visitors scan controls before understanding the product story | Add four role start cards: Learn, Investigate, Validate detections, Prepare report. They change guidance only, not permissions or data. | P0 |
+| UX-02 | The guided path is a collapsed explanation, not a guided interaction | Recruiters and learners can miss the intended evidence story | Add a dismissible walkthrough with progress: Scope → Select source → Explain score → Validate mapping/rule → Export safely. | P0 |
+| UX-03 | “Prepare Session Explorer/ATT&CK” stores context but does not take the user there | Users receive success text and must manually locate another navigation item | Make the next destination visually active and provide one direct Continue action. Preserve a Back to map action and the selected context. | P0 |
+| UX-04 | Global filters, map-window controls and prepared drill-down state are separate mental models | Users cannot easily tell why counts changed | Keep one sticky active-context row with removable chips for dataset, global filters, map window, focus and selection. | P0 |
+| UX-05 | Explanations, controls, map statistics and story cards push the map below the first desktop fold | The main interaction is discovered late and the page feels longer than necessary | Keep the permanent safety strip, but compact map help into one inline sentence and move secondary explanations into the help drawer. | P0 |
+| UX-06 | Narrow screens collapse the left rail to icons only | A new touch user cannot identify ATT&CK, Triage or Methodology without trial and error | Add labels in a small mobile menu/drawer and retain visible focus states. Do not rely only on hover help. | P0 |
+| UX-07 | Metric and control help works by hover/focus, but touch discovery is weak | Mobile and keyboard users may not know help exists | Retain hover, focus and tap support; add an accessible name and allow Escape/outside-click dismissal. | P0 |
+| UX-08 | Dashboard availability, dataset freshness, sensor health and native SOC validation are separated | A healthy webpage can be mistaken for healthy collection | Surface compact component status near the top. Unknown must remain Unknown rather than green. | P0 |
+| UX-09 | Safety caveats are strong but repeated in several large blocks | Expert users experience vertical friction; first-time users may skim everything | Use one persistent evidence-boundary strip plus concise view-specific differences. Never remove the substantive caveats. | P1 |
+| UX-10 | Public view state cannot be safely bookmarked or shared | Reviewers cannot reproduce a useful investigation from a link | Add an allowlisted saved-view/permalink containing mode, protocol, country and bounded time only. | P1 |
+| UX-11 | Protocol meaning relies mainly on colour | Grayscale, colour-vision and printed use is weaker | Add shape/pattern encoding and verify high contrast without changing protocol semantics. | P1 |
+| UX-12 | The app has useful empty states but no consistent loading/rerun feedback | Streamlit reruns can look like a frozen or reset interface | Add lightweight loading copy and preserve visible selected context while controls rerun. | P1 |
+| UX-13 | A screenshot is not a complete reproducible artifact | Reports can lose dataset status, filters, revision and limitations | Add a report-ready snapshot and JSON sidecar that both pass the publication gate. | P1 |
+| UX-14 | All analytical views share one large Streamlit process and dense page tree | Larger approved datasets may make reruns and map interactions sluggish | Measure render time and trace count first; pre-aggregate and cache before considering a frontend migration. | P1 |
+| UX-15 | Review notes are intentionally local and ephemeral | Analysts can mistake them for saved cases | Display “Local to this browser session” beside notes and require a governed private workflow before durable cases. | P1 |
+
+### What to add to the map, and what to move closer to it
+
+| Change | Add or move | User value | Guardrail | Timing |
+|---|---|---|---|---|
+| Selected-source investigation drawer | Move score factors, timeline preview, review state and next steps into a sticky panel beside the map | Removes long scrolling after a click and keeps geographic context visible | Public allowlisted fields only; table equivalent remains available | Next |
+| Fit visible data / focus selected source | Add two explicit camera actions | Makes zoom recovery predictable after filtering or selection | Never imply location precision beyond coarse public coordinates | Next |
+| Active filter and selection chips | Move directly above the map | Explains immediately why bubbles or counts changed | Every chip is independently reversible | Next |
+| Data-quality and excluded-record strip | Move mapped/unmapped/invalid/filtered counts beside map statistics | Prevents a clean map from hiding incomplete geography | Aggregate counts and reason categories only | Next |
+| Technique spotlight | Add a safe ATT&CK technique highlight/filter | Connects geographic evidence to the mapping rationale | Highlight correlation only; never claim geographic causation | Next |
+| Detection-status badge in selected-source drawer | Move a small summary from Detection Preview | Answers whether matching content exists without leaving the investigation | Keep offline prediction, native fixture validated and not validated visibly distinct | Next |
+| First-seen versus repeated encoding | Add shape/ring treatment | Separates novelty from volume at a glance | Display the baseline window and handle missing baseline explicitly | After user test |
+| Synchronized timeline brush | Add beneath the map for bounded datasets | Lets analysts select a time segment directly | Apply deliberately for larger data; label playback as recorded, not live | After user test |
+| Source clustering and drill-down | Add only when overlap or render tests justify it | Keeps larger approved datasets readable | Aggregate before rendering; cap cluster members; preserve accessible table | Conditional |
+| Safe map snapshot | Add export action near map controls | Gives researchers a reproducible visual | Include dataset type, UTC window, filters, revision and caveat | After next |
+| Public saved map view | Add bookmark/copy-view action | Lets reviewers return to the same safe question | Never encode source IDs, notes, raw fields or private state | After next |
+
+Keep the deep event ledger, full detection table, complete ATT&CK rationale and native-lab details in their dedicated views. The map drawer should summarize and link to them, not duplicate every table.
+
+Do not add a 3D globe, animated “attacker travel,” precise IP coordinates, country attacker rankings, auto-attribution, or automatic blocking. These would make the demonstration more dramatic but less accurate, safe and credible.
+
+### Recommended delivery order from this audit
+
+**Release A — clarity and continuity, no new backend**
+
+1. Role start cards and a five-minute guided demo.
+2. Direct Continue / Back navigation that preserves the selected investigation.
+3. Compact map header, sticky selected-source drawer and Fit visible data.
+4. Labelled mobile navigation and touch-accessible help.
+5. Honest component-status cards.
+
+**Release B — reproducibility and detection context**
+
+1. Safe saved public views.
+2. Report-ready map snapshot and sidecar.
+3. Technique spotlight and selected-source detection-status summary.
+4. Data-quality/exclusion reasons and shape-based protocol encoding.
+5. Visual regression coverage for default, selected, empty and 390 px states.
+
+**Release C — only after measured demand**
+
+1. Clustering after a larger synthetic load test proves overlap or latency.
+2. Timeline brush after usability tests show the existing time controls are insufficient.
+3. Durable cases, collaboration or multi-tenancy only after authentication, authorization, retention, audit, backup and deletion requirements are approved.
+
+### How to prove the redesign worked
+
+Run the same synthetic scenario with at least two recruiters/nontechnical users, two learners, two SOC users, one detection engineer, one OT practitioner and one privacy/research reviewer. Measure:
+
+- time to explain the project and synthetic-data boundary;
+- percentage who distinguish event, session, source group and attack;
+- time from opening Observatory to explaining one selected source;
+- number of lost-context or wrong-tab moments;
+- percentage who distinguish offline prediction from native validation;
+- percentage who state that geography is approximate and non-attributive;
+- keyboard and 390 px completion of the same map-to-evidence task; and
+- whether an exported result can be reproduced from its manifest.
+
+The redesign succeeds when task completion improves without increasing unsafe claims, hidden state, private-data exposure or misleading “live attack” language.
+
 ## Evidence reviewed
 
 | Source | What it establishes |
@@ -37,15 +139,15 @@ The first roadmap is not obsolete: most of its high-value map work is now alread
 
 | Area | Current state | What a user can do now | Remaining boundary |
 |---|---|---|---|
-| Map orientation | Shipped | Read the legend, map semantics and synthetic/sanitized status. | The first-use explanation is still passive rather than guided. |
+| Map orientation | Shipped | Read the legend, map semantics, synthetic/sanitized status and the collapsed guided path. | The first-use explanation is still passive rather than an interactive walkthrough. |
 | Exploration | Shipped | Switch among Flow, Source Bubbles, Density and Time Playback; filter protocol, time, confidence, priority and control actions; compare up to three aggregate map observations. | There is no saved-view workflow. |
 | Investigation | Shipped | Select a pseudonymous source, inspect a safe timeline and evidence badges, then prepare Session Explorer or ATT&CK Analysis. | Investigation context is not packaged as a durable private case. |
 | Comparison | Shipped baseline | Compare the selected time window with an adjacent, equal, non-overlapping window; read a bounded plain-language change summary and inspect aggregate sources side by side. | It does not establish a causal trend, rate, or attribution. |
-| Detection workflow | Shipped baseline | Inspect Detection Preview, rules, coverage and local Wazuh/Suricata validation context. | There is no prioritized coverage-gap worklist or tuning history. |
+| Detection workflow | Shipped baseline | Inspect Detection Preview, a coverage backlog, rules and local Wazuh/Suricata validation context. | Parser-to-rule provenance and tuning history are not one connected workflow. |
 | Exports | Shipped baseline | Download reviewed aggregate-only data and a view manifest. | There is no report-ready snapshot, safe permalink or private review bundle. |
 | Accessibility | Shipped baseline | Use an accessible source table, labels, tooltips and a tile-free fallback. | Mobile investigation and keyboard discovery need deliberate user testing. |
 | Trust and safety | Shipped baseline | See synthetic data disclosure, approximate geography context and public/private controls. | A provenance timeline and data-quality explanation would make limitations easier to understand. |
-| Operations | Shipped locally | Use health checks, bounded collection and local assurance documentation. | The dashboard does not yet surface a redacted operational-health summary. |
+| Operations | Shipped baseline | Use health checks, bounded collection and an optional read-only redacted health snapshot in Methodology. | Status is not visible near the main workflow and remains unknown when no approved snapshot is connected. |
 
 ## Users, jobs and present friction
 
@@ -108,9 +210,9 @@ The first roadmap is not obsolete: most of its high-value map work is now alread
 | User-visible copy can drift from the code. | The public story can become inaccurate. | Add screenshot/visual-regression checks for the top dashboard states and a documentation review checklist. |
 | The number of optional integrations is growing. | Overbuilding makes the project hard to run. | Retain the minimal Streamlit/collector architecture unless measured scale or workflow needs exceed it. |
 
-## Net-new map interaction backlog
+## Map interaction backlog and delivery status
 
-These proposals deliberately exclude the map capabilities already shipped: mode selection, playback, confidence/priority/control filters, one-source selection, accessible source table, ATT&CK/session preparation, local notes, tile-free fallback, country focus, coverage audit and aggregate export.
+Mode selection, playback, confidence/priority/control filters, one-source selection, accessible source-table selection, ATT&CK/session preparation, local notes, tile-free fallback, country focus, coverage audit and aggregate export are already shipped. MAP-N01 through MAP-N04 were also delivered after the original backlog was written; they remain here as traceability rather than future work.
 
 | ID | Proposal | User problem solved | Safety/implementation guardrail | Priority |
 |---|---|---|---|---|
@@ -200,7 +302,7 @@ These proposals deliberately exclude the map capabilities already shipped: mode 
 
 ## Recommended delivery order
 
-### P0: make the current product easier to trust and use
+### Completed P0 foundation
 
 | Item | Outcome | Estimated scope | Definition of done |
 |---|---|---|---|
