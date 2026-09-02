@@ -20,6 +20,24 @@ The following P0 items are now implemented in the public dashboard branch:
 
 These changes do not connect the dashboard to the Oracle sensor, do not expose individual private events, and do not turn a score, location, or map point into attribution.
 
+## Council-approved release slice — 2 September 2026
+
+The five-advisor review and anonymous peer review narrowed the next release to one credibility-focused investigation path. The implementation target is the smallest end-to-end slice that improves recruiter, learner and analyst comprehension without adding unsupported operational claims.
+
+Delivered in this slice:
+
+- One canonical `InvestigationState` shared across the existing workspace controls, selection, map camera, walkthrough and prepared destinations.
+- A deterministic five-minute walkthrough with Scope → Select → Explain → Validate → Export steps and Back/Continue controls.
+- Unified state chips for view, window, event scope, evidence confidence, selected source and next destination.
+- Fit visible data and Focus selected source camera actions, with coarse-coordinate disclosure.
+- A selected-source investigation drawer showing sanitized evidence, evidence completeness, offline detection mapping status, score factors, timeline and safe next steps.
+- A local redacted JSON snapshot export and reload path containing allowlisted filters, map settings, selection and aggregate map-quality counts only.
+- Persistent synthetic/local/read-only disclosures, labelled narrow-screen workspace navigation, keyboard-safe help badges and responsive layout checks.
+
+Explicitly deferred: role-card taxonomy, advanced technique/shape encoding, temporal brushing, clustering, server-backed sharing/accounts/permissions and broad visual polish. Explicitly rejected: unsupported live-health theatre, real attacker attribution/ranking/response/control actions, and architecture migration without measured need.
+
+The existing Streamlit/Python architecture remains the shipping architecture for this slice. The decision is to measure render time and trace counts before considering a frontend or backend migration.
+
 ## Live interface audit refresh — 2 September 2026
 
 ### Audit scope and verdict

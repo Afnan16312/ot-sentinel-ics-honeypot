@@ -32,6 +32,9 @@ def test_dashboard_renders_the_interactive_map_workspace_without_exceptions():
     assert "Export visible map summary" in [
         item.label for item in app.get("download_button")
     ]
+    assert "Save local investigation snapshot" in [
+        item.label for item in app.get("download_button")
+    ]
     assert "Map observations to compare" in [item.label for item in app.multiselect]
     assert "Export" in [item.label for item in app.get("download_button")]
     assert any("Current dashboard filters" in item.value for item in app.markdown)
@@ -72,6 +75,7 @@ def test_dashboard_renders_the_interactive_map_workspace_without_exceptions():
     assert {
         "Prepare lead source in Session Explorer",
         "Prepare ATT&CK evidence review",
+        "Fit visible data",
     }.issubset({item.label for item in app.button})
 
 
@@ -92,6 +96,7 @@ def test_map_display_controls_and_camera_reset_render_without_exceptions():
     app.toggle(key="map_labels").set_value(True).run()
     app.toggle(key="map_flows").set_value(False).run()
     next(button for button in app.button if button.label == "Reset camera").click().run()
+    next(button for button in app.button if button.label == "Fit visible data").click().run()
 
     assert not app.exception
 
@@ -144,6 +149,9 @@ def test_accessible_source_selection_shows_public_review_context():
     assert "Public review score" in rendered_markdown
     assert "Why this public score is ranked" in rendered_markdown
     assert "Recommended next step" in rendered_markdown
+    assert "Selected evidence drawer" in rendered_markdown
+    assert "Detection mapping" in rendered_markdown
+    assert "Focus selected source" in [item.label for item in app.button]
     assert "Export view manifest" in [item.label for item in app.get("download_button")]
     app.selectbox(key="map_mode").select("Source bubbles").run()
     app.checkbox(key="map_offline").set_value(True).run()

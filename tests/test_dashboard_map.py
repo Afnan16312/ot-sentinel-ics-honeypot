@@ -15,6 +15,7 @@ from ot_sentinel.dashboard_map import (
     filter_time_window,
     map_points_csv,
     map_quality,
+    map_viewpoint,
     prepare_map_points,
     selection_from_plotly_state,
     summarize_window_change,
@@ -152,6 +153,33 @@ def test_all_map_modes_build_and_playback_has_frames():
         "control_attempts": int(visible_custom_data[8]),
         "techniques": str(visible_custom_data[9]),
     }
+
+
+def test_map_viewpoint_fits_visible_data_and_focuses_one_source():
+    records = frame(
+        event("a", source="src-a", country="Alpha", latitude=10, longitude=20),
+        event("b", source="src-b", country="Beta", latitude=40, longitude=80),
+    )
+    points = prepare_map_points(records)
+
+    fit_center, fit_zoom = map_viewpoint(points)
+    focus_center, focus_zoom = map_viewpoint(
+        points, focus={"source": "src-b", "country": "Beta", "protocol": "modbus"}
+    )
+
+    assert fit_center == {"lat": 25.0, "lon": 50.0}
+    assert fit_zoom < 3.6
+    assert focus_center == {"lat": 40.0, "lon": 80.0}
+    assert focus_zoom == 3.6
+    figure = build_threat_map(
+        points,
+        mode="Source bubbles",
+        map_center=focus_center,
+        map_zoom=focus_zoom,
+    )
+    assert figure.layout.map.center.lat == 40.0
+    assert figure.layout.map.center.lon == 80.0
+    assert figure.layout.map.zoom == 3.6
 
 
 def test_flow_layer_is_bounded_for_rendering_reliability():

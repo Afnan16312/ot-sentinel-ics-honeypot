@@ -25,6 +25,7 @@ from ot_sentinel.dashboard_map import (
     filter_time_window,
     map_points_csv,
     map_quality,
+    map_viewpoint,
     prepare_map_points,
     selection_from_plotly_state,
     summarize_window_change,
@@ -35,6 +36,7 @@ from ot_sentinel.detection_preview import (
     preview_detections,
 )
 from ot_sentinel.evaluation import evaluate_mapper, load_labeled_jsonl
+from ot_sentinel.investigation_state import InvestigationState
 from ot_sentinel.operator_assurance import load_operator_assurance
 from ot_sentinel.publication import (
     PublicationValidationError,
@@ -89,6 +91,13 @@ WORKSPACE_STATE_KEYS = {
     "previous_countries",
     "_pending_country_filter",
     "_selected_map_source",
+    "_investigation_state",
+    "_active_view",
+    "_next_view",
+    "_map_focus",
+    "_map_camera",
+    "_walkthrough_step",
+    "_selected_event_id",
 }
 
 st.set_page_config(
@@ -183,7 +192,7 @@ div[data-testid="stDataFrame"] { border:1px solid var(--border); border-radius:4
 .metric-info { position:relative; display:inline-flex; align-items:center; justify-content:center; width:16px; min-height:16px; margin-left:4px; border:1px solid #aab4c0; border-radius:50%; color:#5d6b7a; font-size:9px; font-weight:700; line-height:1; letter-spacing:0; text-transform:none; vertical-align:1px; cursor:help; }
 .metric-info:focus { outline:2px solid #4e8fb8; outline-offset:2px; }
 .metric-tooltip { position:absolute; z-index:30; top:calc(100% + 8px); left:0; width:230px; max-width:calc(100vw - 32px); padding:8px 9px; border:1px solid #aab4c0; border-radius:4px; background:#1f2933; color:#fff; box-shadow:0 4px 12px rgba(20,30,40,.18); font-size:11px; font-weight:400; line-height:1.35; letter-spacing:0; text-transform:none; text-align:left; white-space:normal; overflow-wrap:anywhere; visibility:hidden; opacity:0; pointer-events:none; transition:opacity .15s ease; }
-.metric-info:hover .metric-tooltip, .metric-info:focus .metric-tooltip { visibility:visible; opacity:1; }
+.metric-info:hover .metric-tooltip, .metric-info:focus .metric-tooltip, .metric-info:active .metric-tooltip { visibility:visible; opacity:1; }
 .detail-panel { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:12px; min-height:210px; }
 .detail-value { color:var(--text); font-size:.85rem; margin:3px 0 10px; word-break:break-word; }
 .privacy-note { color:var(--muted); border-left:2px solid #9da3ad; padding:6px 8px; font-size:.72rem; margin-top:8px; }
@@ -198,6 +207,14 @@ div[data-testid="stDataFrame"] { border:1px solid var(--border); border-radius:4
 .map-story-card b { color:var(--text); }
 .context-strip { display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center; padding:8px 10px; margin:8px 0 10px; border-left:3px solid var(--blue); background:#eef4ff; color:#185577; font-size:.72rem; }
 .context-strip b { color:#004883; }
+.state-chip-row { display:flex; flex-wrap:wrap; gap:6px; align-items:center; padding:7px 0; margin:0 0 10px; }
+.state-chip { display:inline-flex; align-items:center; min-height:24px; padding:4px 8px; border:1px solid #b9cee5; border-radius:999px; background:#fff; color:#334155; font-family:'JetBrains Mono',monospace; font-size:10px; }
+.state-chip strong { color:#004883; margin-right:4px; }
+.state-chip.warning { border-color:#e5c56a; background:#fff9e8; color:#775400; }
+.investigation-drawer { background:#fff; border:1px solid #9bb7d2; border-left:4px solid var(--blue); border-radius:4px; padding:12px; min-height:210px; box-shadow:0 2px 10px rgba(50,80,110,.06); }
+.drawer-kicker { color:#004883; font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; }
+.drawer-title { color:var(--text); font-size:1rem; font-weight:600; margin:3px 0 8px; }
+.route-banner { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; padding:8px 10px; margin:8px 0 10px; border:1px solid #b9cee5; background:#f7fbff; color:#185577; border-radius:4px; font-size:.75rem; }
 .scope-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 .scope-card { border:1px solid var(--border); border-radius:4px; background:#fff; padding:10px 12px; color:var(--muted); font-size:.78rem; }
 .scope-card strong { display:block; color:var(--text); margin-bottom:5px; }
@@ -222,8 +239,8 @@ div[data-testid="stDataFrame"] { border:1px solid var(--border); border-radius:4
 .stExpander { border:1px solid var(--border); border-radius:4px; background:var(--surface); }
 .stExpander [data-testid="stExpanderToggleIcon"] { color:var(--muted); }
 .stExpander summary p { color:var(--muted); font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; }
-@media (max-width:1024px) { .block-container { padding-left:84px; } .stitch-header { margin-left:-84px; } .stTabs [role="tablist"] { width:64px; } .stTabs [role="tab"] { font-size:0; justify-content:center; padding:8px 6px; } .stTabs [role="tab"] p { font-size:0; } .stTabs [role="tab"] p:before { content:'•'; font-size:20px; } }
-@media (max-width:700px) { .block-container { padding:0 12px 24px 66px; } .stitch-header { margin:0 -12px 12px -66px; padding:0 12px 0 66px; } .stitch-status { gap:5px; font-size:8px; } .stitch-status .divider, .stitch-status span:nth-of-type(n+3) { display:none; } .stTabs [role="tablist"] { top:52px; width:54px; } .telemetry-strip { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; } .telemetry-value { font-size:1.15rem; } .filter-bar { gap:8px; } .filter-bar > p { flex-basis:100%; min-width:0; } .filter-help { white-space:normal; } .map-stat-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .map-story { grid-template-columns:1fr; } .scope-grid { grid-template-columns:1fr; } }
+@media (max-width:1024px) { .block-container { padding-left:204px; } .stitch-header { margin-left:-204px; } .stTabs [role="tablist"] { width:184px; } .stTabs [role="tab"] { font-size:12px; justify-content:flex-start; padding:8px 8px; } .stTabs [role="tab"] p { font-size:12px; } }
+@media (max-width:700px) { .block-container { padding:0 12px 24px; } .stitch-header { margin:0 -12px 12px; padding:0 12px; } .stitch-status { gap:5px; font-size:8px; } .stitch-status .divider, .stitch-status span:nth-of-type(n+3) { display:none; } .stTabs [role="tablist"] { position:static; width:auto; flex-direction:row; overflow-x:auto; padding:4px; margin:0 0 10px; border:1px solid var(--border); border-radius:4px; } .stTabs [role="tab"] { flex:0 0 auto; width:auto; min-width:max-content; font-size:11px; justify-content:flex-start; padding:7px 8px; border-left:0; border-bottom:3px solid transparent; } .stTabs [role="tab"] p, .stTabs [role="tab"] p:before { font-size:11px; } .stTabs [role="tab"] p:before { width:16px; margin-right:3px; font-size:13px; } .stTabs [role="tab"][aria-selected="true"] { border-left:0; border-bottom-color:#004883; } .telemetry-strip { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; } .telemetry-value { font-size:1.15rem; } .filter-bar { gap:8px; } .filter-bar > p { flex-basis:100%; min-width:0; } .filter-help { white-space:normal; } .map-stat-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .map-story { grid-template-columns:1fr; } .scope-grid { grid-template-columns:1fr; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important; } }
 </style>
 """,
@@ -515,6 +532,41 @@ if st.session_state.pop("_reset_workspace", False):
     clear_notes = bool(st.session_state.pop("_reset_workspace_clear_notes", False))
     reset_workspace_state(st.session_state, clear_notes=clear_notes)
 
+investigation_state = InvestigationState.from_session(st.session_state)
+with st.expander("Save or restore a local investigation", expanded=False):
+    st.caption(
+        "Save the current filters, map settings and selected public source as a redacted local snapshot. "
+        "It never includes raw addresses, payloads or private review notes."
+    )
+    uploaded_snapshot = st.file_uploader(
+        "Load a saved investigation snapshot",
+        type=["json"],
+        key="investigation_snapshot_upload",
+        help="Only OT Sentinel v1 snapshots are accepted; unsupported fields are ignored by the safety gate.",
+    )
+if uploaded_snapshot is not None:
+    snapshot_bytes = uploaded_snapshot.getvalue()
+    snapshot_hash = sha256(snapshot_bytes).hexdigest()
+    if snapshot_hash != st.session_state.get("_loaded_snapshot_hash"):
+        try:
+            snapshot_payload = json.loads(snapshot_bytes.decode("utf-8"))
+            investigation_state = InvestigationState.from_snapshot(snapshot_payload)
+        except (UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError) as error:
+            st.error(f"Snapshot could not be loaded safely: {error}")
+        else:
+            investigation_state.sync_to_session(st.session_state)
+            st.session_state["filter_protocols"] = investigation_state.filters["protocols"]
+            st.session_state["filter_severity"] = investigation_state.filters["severity"]
+            st.session_state["filter_countries"] = investigation_state.filters["source_countries"]
+            st.session_state["filter_confidence"] = investigation_state.filters["mapping_confidence"]
+            st.session_state["filter_priorities"] = investigation_state.filters["triage_priorities"]
+            st.session_state["filter_control_only"] = investigation_state.filters["control_actions_only"]
+            st.session_state["map_mode"] = investigation_state.map_mode
+            st.session_state["map_window"] = investigation_state.map_window
+            st.session_state["map_theme"] = investigation_state.map_theme
+            st.session_state["_loaded_snapshot_hash"] = snapshot_hash
+            st.rerun()
+
 protocols = sorted(df["protocol"].dropna().unique().tolist())
 severities = [item for item in ["high", "medium", "low", "info"] if item in df["severity"].unique()]
 countries = sorted(df["source_country"].dropna().unique().tolist())
@@ -563,6 +615,16 @@ with st.expander("Filters", expanded=False):
         st.session_state["_reset_workspace_clear_notes"] = clear_notes_on_reset
         st.session_state["_reset_workspace"] = True
         st.rerun()
+
+investigation_state.filters = {
+    "protocols": list(selected_protocols),
+    "severity": list(selected_severity),
+    "source_countries": list(selected_countries),
+    "mapping_confidence": list(selected_confidence),
+    "triage_priorities": list(selected_priorities),
+    "control_actions_only": control_only,
+}
+investigation_state.sync_to_session(st.session_state)
 
 filtered = df[
     df["protocol"].isin(selected_protocols)
@@ -642,6 +704,27 @@ st.markdown(
     f"<span>No raw IPs or payloads</span></div>",
     unsafe_allow_html=True,
 )
+chip_selection = investigation_state.selected_source
+chip_selection_label = (
+    f"{chip_selection['source']} · {chip_selection['protocol'].upper()}"
+    if chip_selection
+    else "none"
+)
+accessible_chip = str(st.session_state.get("map_accessible_source", ""))
+if not chip_selection and accessible_chip and accessible_chip != "No source selected":
+    chip_selection_label = accessible_chip
+chip_destination = investigation_state.destination_view or "none"
+st.markdown(
+    f"<div class='state-chip-row' aria-label='Current investigation state'>"
+    f"<span class='state-chip'><strong>VIEW</strong>{escape(investigation_state.active_view)}</span>"
+    f"<span class='state-chip'><strong>WINDOW</strong>{escape(str(st.session_state.get('map_window', 'All observations')))}</span>"
+    f"<span class='state-chip'><strong>FILTERS</strong>{len(filtered):,} events</span>"
+    f"<span class='state-chip'><strong>EVIDENCE</strong>{', '.join(item.upper() for item in selected_confidence) or 'NONE'}</span>"
+    f"<span class='state-chip'><strong>SELECTED</strong>{escape(chip_selection_label)}</span>"
+    f"<span class='state-chip{' warning' if chip_destination != 'none' else ''}'><strong>NEXT</strong>{escape(chip_destination)}</span>"
+    f"</div>",
+    unsafe_allow_html=True,
+)
 
 if is_demo:
     st.markdown(
@@ -685,41 +768,89 @@ st.markdown(
 
 with st.expander("Guided investigation path", expanded=False):
     lead = investigation_lead(filtered)
+    investigation_state.walkthrough_step = min(
+        5, max(0, int(st.session_state.get("_walkthrough_step", investigation_state.walkthrough_step)))
+    )
     st.markdown(
-        "<div class='guided-path'><div class='guided-kicker'>Start here</div>"
+        "<div class='guided-path'><div class='guided-kicker'>Five-minute walkthrough</div>"
         "<div class='guided-title'>Move from observation to a reviewable conclusion</div>"
-        "<p class='guided-copy'>Use this sequence to understand a recorded interaction without treating a dashboard label as proof of an attack.</p>"
-        "<div class='guided-step'><b>1. Scope:</b> confirm the filters and the data/privacy context above.</div>"
-        "<div class='guided-step'><b>2. Prioritize:</b> inspect the highest-ranked recorded behavior and why it is ranked.</div>"
-        "<div class='guided-step'><b>3. Validate:</b> review its session timeline, ATT&amp;CK rationale and detection coverage before writing a conclusion.</div>"
+        "<p class='guided-copy'>A short, deterministic path for a first-time reviewer. It uses only the current recorded dataset and never pretends to be a live response workflow.</p>"
+        "<div class='guided-step'><b>1. Scope:</b> confirm the filters, time window and privacy boundary.</div>"
+        "<div class='guided-step'><b>2. Select:</b> choose one pseudonymous source group on the map or accessible table.</div>"
+        "<div class='guided-step'><b>3. Explain:</b> read the evidence, mapping confidence and review-priority factors.</div>"
+        "<div class='guided-step'><b>4. Validate:</b> follow the prepared source into Session Explorer, ATT&amp;CK or Detection Preview.</div>"
+        "<div class='guided-step'><b>5. Export:</b> save a redacted local snapshot that can reload this view.</div>"
         "</div>",
         unsafe_allow_html=True,
     )
-    if lead is None:
-        st.info("No observation matches the current filters. Widen the scope before beginning a review.")
-    else:
-        st.caption(
-            f"Suggested starting point: {lead['priority']} ({lead['score']}/100) for source group {lead['source']}. "
-            "This is a review order, not an automated decision or a claim of compromise."
-        )
-        st.write(f"**Why it is ranked:** {lead['evidence_factors']}")
-        st.write(f"**Recommended next step:** {lead['next_step']}")
-        prepare_session, prepare_attack = st.columns(2)
-        if prepare_session.button(
-            "Prepare lead source in Session Explorer",
-            key="guided_prepare_session",
+    walkthrough_left, walkthrough_right = st.columns([1, 2], gap="large")
+    with walkthrough_left:
+        if walkthrough_left.button(
+            "Start / restart walkthrough",
+            key="walkthrough_start",
             width="stretch",
         ):
-            st.session_state["session_focus_source"] = lead["source"]
-            st.success("Session Explorer is prepared for the suggested source group. Open that tab to continue.")
-        if prepare_attack.button(
-            "Prepare ATT&CK evidence review",
-            key="guided_prepare_attack",
-            width="stretch",
-            disabled=lead["technique_id"] is None,
-        ):
-            st.session_state["attack_focus_technique"] = lead["technique_id"]
-            st.success("ATT&CK Analysis is prepared for the suggested hypothesis. Open that tab to continue.")
+            investigation_state.walkthrough_step = 1
+            investigation_state.sync_to_session(st.session_state)
+            st.rerun()
+        if investigation_state.walkthrough_step:
+            st.progress(investigation_state.walkthrough_step / 5, text=f"Step {investigation_state.walkthrough_step} of 5")
+            walkthrough_back, walkthrough_next = st.columns(2)
+            if walkthrough_back.button(
+                "Back",
+                key="walkthrough_back",
+                width="stretch",
+                disabled=investigation_state.walkthrough_step <= 1,
+            ):
+                investigation_state.walkthrough_step -= 1
+                investigation_state.sync_to_session(st.session_state)
+                st.rerun()
+            if walkthrough_next.button(
+                "Continue",
+                key="walkthrough_next",
+                width="stretch",
+                disabled=investigation_state.walkthrough_step >= 5,
+            ):
+                investigation_state.walkthrough_step += 1
+                investigation_state.sync_to_session(st.session_state)
+                st.rerun()
+    with walkthrough_right:
+        if lead is None:
+            st.info("No observation matches the current filters. Widen the scope before beginning a review.")
+        else:
+            st.caption(
+                f"Suggested starting point: {lead['priority']} ({lead['score']}/100) for source group {lead['source']}. "
+                "This is a review order, not an automated decision or a claim of compromise."
+            )
+            st.write(f"**Why it is ranked:** {lead['evidence_factors']}")
+            st.write(f"**Recommended next step:** {lead['next_step']}")
+            prepare_session, prepare_attack = st.columns(2)
+            if prepare_session.button(
+                "Prepare lead source in Session Explorer",
+                key="guided_prepare_session",
+                width="stretch",
+            ):
+                st.session_state["session_focus_source"] = lead["source"]
+                investigation_state.destination_view = "Session Explorer"
+                investigation_state.sync_to_session(st.session_state)
+                st.success("Session Explorer is prepared. Open that labelled tab to continue; your filters and source context will remain.")
+            if prepare_attack.button(
+                "Prepare ATT&CK evidence review",
+                key="guided_prepare_attack",
+                width="stretch",
+                disabled=lead["technique_id"] is None,
+            ):
+                st.session_state["attack_focus_technique"] = lead["technique_id"]
+                investigation_state.destination_view = "ATT&CK Analysis"
+                investigation_state.sync_to_session(st.session_state)
+                st.success("ATT&CK Analysis is prepared. Open that labelled tab to continue; your filters and source context will remain.")
+
+if investigation_state.destination_view:
+    st.markdown(
+        f"<div class='route-banner' role='status'><span><b>Next view ready:</b> {escape(investigation_state.destination_view)} · context is preserved.</span>"
+        "<span>Use the labelled workspace tab above to continue.</span></div>",
+        unsafe_allow_html=True,
+    )
 
 overview, attack_tab, detection_tab, triage_tab, sessions_tab, methodology = st.tabs(
     [
@@ -762,7 +893,7 @@ with overview:
             "A source group is a privacy-safe identifier, a session is one bounded connection, and a technique is an evidence-qualified hypothesis—not proof of intent or compromise."
         )
 
-    control1, control2, control3, control4, control5 = st.columns([1.25, 1.1, 1, 1.1, 0.8])
+    control1, control2, control3, control4, control5, control6 = st.columns([1.25, 1.1, 1, 1.1, 0.9, 0.9])
     map_mode = control1.selectbox("Map mode", MAP_MODES, key="map_mode")
     time_preset = control2.selectbox(
         "Observation window",
@@ -783,7 +914,21 @@ with overview:
         help="Paths indicate network observations, not a proven physical attacker route.",
     )
     if control5.button("Reset camera", width="stretch"):
+        investigation_state.map_camera = "overview"
+        investigation_state.map_focus = None
+        investigation_state.sync_to_session(st.session_state)
         st.session_state["_map_revision"] = st.session_state.get("_map_revision", 0) + 1
+    if control6.button(
+        "Fit visible data",
+        width="stretch",
+        help="Center the map on the currently visible, safely mappable observations.",
+    ):
+        investigation_state.map_camera = "fit"
+        investigation_state.map_focus = None
+        investigation_state.sync_to_session(st.session_state)
+        st.session_state["_map_revision"] = st.session_state.get("_map_revision", 0) + 1
+    investigation_state.map_mode = map_mode
+    investigation_state.map_window = time_preset
     offline_map = st.checkbox(
         "Offline map fallback",
         value=False,
@@ -796,6 +941,8 @@ with overview:
         key="map_theme",
         help="Dark operations is the default presentation view. This changes only the visual background, never the observations or their privacy-safe precision.",
     )
+    investigation_state.map_theme = map_theme
+    investigation_state.sync_to_session(st.session_state)
 
     map_frame = filtered.copy()
     duration = None
@@ -832,6 +979,12 @@ with overview:
             repeat_observations=(map_points["events"] - map_points["sessions"]).clip(lower=0)
         )
     quality = map_quality(map_frame)
+    map_center = None
+    map_zoom = None
+    if investigation_state.map_camera == "fit":
+        map_center, map_zoom = map_viewpoint(map_points)
+    elif investigation_state.map_camera == "focus" and investigation_state.map_focus:
+        map_center, map_zoom = map_viewpoint(map_points, focus=investigation_state.map_focus)
     source_count = int(map_points["source"].nunique()) if not map_points.empty else 0
     protocol_count = int(map_points["protocol"].nunique()) if not map_points.empty else 0
     st.markdown(
@@ -918,6 +1071,8 @@ with overview:
                 map_style=map_style,
                 revision=revision,
                 offline_map=offline_map,
+                map_center=map_center,
+                map_zoom=map_zoom,
             )
             map_state = st.plotly_chart(
                 threat_map,
@@ -935,6 +1090,7 @@ with overview:
             map_selection = selection_from_plotly_state(map_state)
             if map_selection is not None:
                 st.session_state["_selected_map_source"] = map_selection
+                investigation_state.selected_source = map_selection
             if offline_map and map_mode == "Time playback":
                 st.caption("Offline fallback is available for Flow, Source bubbles and Density; playback uses the tile map.")
 
@@ -1036,7 +1192,21 @@ with overview:
             )
             if not selection_visible:
                 st.session_state.pop("_selected_map_source", None)
+                investigation_state.selected_source = None
                 selected = None
+        investigation_state.selected_source = selected
+        investigation_state.sync_to_session(st.session_state)
+        if selected and st.button(
+            "Focus selected source",
+            key="focus_selected_source",
+            help="Center and zoom on the selected pseudonymous source group. The zoom is visual only and does not increase geographic precision.",
+        ):
+            investigation_state.map_camera = "focus"
+            investigation_state.map_focus = {
+                key: str(selected[key]) for key in ("source", "country", "protocol")
+            }
+            investigation_state.sync_to_session(st.session_state)
+            st.session_state["_map_revision"] = st.session_state.get("_map_revision", 0) + 1
         st.caption(
             "White endpoint: approximate UAE sensor region. Map locations are deliberately coarse. "
             "Paths show observed network relationships; "
@@ -1121,9 +1291,41 @@ with overview:
                 f"<span class='evidence-badge'>{escape(value.upper())} confidence</span>"
                 for value in sorted(confidence_values, key=lambda item: CONFIDENCE_ORDER.get(item, -1), reverse=True)
             ) or "<span class='evidence-badge'>No mapped confidence</span>"
+            completeness_counts = (
+                selected_triage["evidence completeness"].value_counts().to_dict()
+                if not selected_triage.empty
+                else {}
+            )
+            complete_fields = int(completeness_counts.get("complete fields", 0))
+            detection_records = []
+            for _, selected_event in selected_events.iterrows():
+                decoded = {
+                    column.removeprefix("decoded."): selected_event[column]
+                    for column in selected_events.columns
+                    if column.startswith("decoded.") and pd.notna(selected_event[column])
+                }
+                detection_records.append(
+                    {
+                        "event_id": str(selected_event.get("event_id", "sanitized-event")),
+                        "event_type": str(selected_event.get("event_type", "")),
+                        "protocol": str(selected_event.get("protocol", "")),
+                        "decoded": decoded,
+                    }
+                )
+            try:
+                selected_predictions = preview_detections(detection_records, root=ROOT)
+            except ValueError:
+                selected_predictions = []
+            detection_summary = (
+                f"{len(selected_predictions):,} offline rule matches"
+                if selected_predictions
+                else "No offline rule match in this selected evidence"
+            )
             st.markdown(
                 f"""
-<div class="detail-panel">
+<div class="investigation-drawer" aria-label="Selected source investigation drawer">
+  <div class="drawer-kicker">Selected evidence drawer</div>
+  <div class="drawer-title">Review this pseudonymous source group</div>
   <div class="detail-label">Pseudonymous source</div><div class="detail-value"><code>{safe['source']}</code></div>
   <div class="detail-label">Country / protocol</div><div class="detail-value">{safe['country']} · {safe['protocol'].upper()}</div>
   <div class="detail-label">Observed activity</div><div class="detail-value">{safe['events']} events · {safe['sessions']} sessions · {safe['control_attempts']} control attempts</div>
@@ -1132,6 +1334,8 @@ with overview:
   <div class="detail-label">Latest observation</div><div class="detail-value">{safe['last_seen']}</div>
   <div class="detail-label">ATT&amp;CK hypotheses</div><div class="detail-value">{safe['techniques']}</div>
   <div class="detail-label">Evidence confidence</div><div class="detail-value">{confidence_badges}</div>
+  <div class="detail-label">Evidence completeness</div><div class="detail-value">{complete_fields:,}/{len(selected_triage):,} rows have the expected public fields</div>
+  <div class="detail-label">Detection mapping</div><div class="detail-value">{escape(detection_summary)} · offline preview only</div>
   <div class="detail-label">Public review score</div><div class="detail-value">{int(top_triage['score']) if top_triage is not None else 0}/100 · {escape(str(top_triage['priority'])) if top_triage is not None else 'informational'}</div>
   <div class="detail-label">Why this public score is ranked</div><div class="detail-value">{escape(str(top_triage['evidence factors'])) if top_triage is not None else 'No scored protocol evidence.'}</div>
   <div class="detail-label">Recommended next step</div><div class="detail-value">{escape(next_step_for_priority(str(top_triage['priority'])) if top_triage is not None else 'Review the recorded evidence before deciding on any next action.')}</div>
@@ -1143,11 +1347,15 @@ with overview:
             action_left, action_right = st.columns(2)
             if action_left.button("Prepare Session Explorer", key="prepare_session_view", width="stretch"):
                 st.session_state["session_focus_source"] = selected["source"]
-                st.info("Session Explorer is ready for this source group. Open that tab to review its events.")
+                investigation_state.destination_view = "Session Explorer"
+                investigation_state.sync_to_session(st.session_state)
+                st.info("Session Explorer is ready for this source group. Open that labelled tab; filters and selection are preserved.")
             if action_right.button("Prepare ATT&CK review", key="prepare_attack_view", width="stretch"):
                 if not selected_techniques.empty:
                     st.session_state["attack_focus_technique"] = str(selected_techniques.iloc[0]["technique_id"])
-                st.info("ATT&CK Analysis is ready for this source context. Open that tab to review the evidence.")
+                investigation_state.destination_view = "ATT&CK Analysis"
+                investigation_state.sync_to_session(st.session_state)
+                st.info("ATT&CK Analysis is ready for this source context. Open that labelled tab; filters and selection are preserved.")
             with st.expander("Private local review note", expanded=False):
                 st.selectbox(
                     "Review state",
@@ -1234,6 +1442,23 @@ with overview:
             mime="application/json",
             width="stretch",
             help="Exports aggregate view context and privacy guarantees; no individual event rows are included.",
+        )
+        investigation_snapshot = investigation_state.to_snapshot(
+            dataset_status="synthetic" if is_demo else "sanitized",
+            fixture_version="demo_events.v1",
+            quality=quality,
+            filtered_events=len(filtered),
+            mapped_sources=source_count,
+            mapped_countries=int(map_points["country"].nunique()) if not map_points.empty else 0,
+            excluded_events=int(quality["unmapped_events"]),
+        )
+        st.download_button(
+            "Save local investigation snapshot",
+            data=json.dumps(investigation_snapshot, indent=2) + "\n",
+            file_name="ot-sentinel-investigation-snapshot.json",
+            mime="application/json",
+            width="stretch",
+            help="Saves the current filters, map settings, selection and aggregate quality counts. Raw addresses, payloads and private notes are excluded.",
         )
         if st.button("Show all countries", width="stretch", disabled=len(selected_countries) == len(countries)):
             st.session_state["_pending_country_filter"] = countries

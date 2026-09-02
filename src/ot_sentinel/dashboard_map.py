@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from datetime import datetime
 from typing import Any
 
@@ -509,6 +509,8 @@ def _build_offline_map(
     show_flows: bool,
     show_region: bool,
     revision: str,
+    map_center: Mapping[str, float] | None = None,
+    map_zoom: float | None = None,
 ) -> go.Figure:
     """Build a tile-free geographic view for disconnected or restricted networks."""
     figure = go.Figure()
@@ -548,13 +550,18 @@ def _build_offline_map(
                 showlegend=False,
             )
         )
+    center = map_center or {"lat": 18.0, "lon": 25.0}
     figure.update_layout(
         height=640,
         margin={"l": 0, "r": 0, "t": 0, "b": 0},
         paper_bgcolor="#FFFFFF",
         plot_bgcolor="#FFFFFF",
         geo={
-            "projection": {"type": "natural earth"},
+            "projection": {
+                "type": "natural earth",
+                "scale": max(0.8, min(4.0, (map_zoom or 0.75) * 1.2)),
+            },
+            "center": {"lat": center["lat"], "lon": center["lon"]},
             "showland": True,
             "landcolor": "#EEF1F5",
             "showocean": True,
@@ -615,7 +622,14 @@ def _add_region_marker(fig: go.Figure) -> None:
     )
 
 
-def _base_layout(fig: go.Figure, map_style: str, revision: str) -> go.Figure:
+def _base_layout(
+    fig: go.Figure,
+    map_style: str,
+    revision: str,
+    map_center: Mapping[str, float] | None = None,
+    map_zoom: float | None = None,
+) -> go.Figure:
+    center = map_center or {"lat": 18.0, "lon": 25.0}
     fig.update_layout(
         height=640,
         margin={"l": 0, "r": 0, "t": 0, "b": 0},
@@ -623,8 +637,8 @@ def _base_layout(fig: go.Figure, map_style: str, revision: str) -> go.Figure:
         plot_bgcolor="#FFFFFF",
         map={
             "style": map_style,
-            "center": {"lat": 18, "lon": 25},
-            "zoom": 0.75,
+            "center": {"lat": center["lat"], "lon": center["lon"]},
+            "zoom": map_zoom if map_zoom is not None else 0.75,
             "bearing": 0,
             "pitch": 0,
         },
@@ -647,6 +661,36 @@ def _base_layout(fig: go.Figure, map_style: str, revision: str) -> go.Figure:
     return fig
 
 
+def map_viewpoint(
+    points: pd.DataFrame,
+    *,
+    focus: Mapping[str, object] | None = None,
+) -> tuple[dict[str, float], float]:
+    """Return a predictable camera for fitting visible points or one source."""
+    default_center = {"lat": 18.0, "lon": 25.0}
+    if points.empty:
+        return default_center, 0.75
+
+    working = points.copy()
+    if focus:
+        matches = working[
+            working["source"].astype(str).eq(str(focus.get("source", "")))
+            & working["country"].astype(str).eq(str(focus.get("country", "")))
+            & working["protocol"].astype(str).eq(str(focus.get("protocol", "")))
+        ]
+        if not matches.empty:
+            row = matches.iloc[0]
+            return {"lat": float(row["latitude"]), "lon": float(row["longitude"])}, 3.6
+
+    latitude = pd.to_numeric(working["latitude"], errors="coerce").dropna()
+    longitude = pd.to_numeric(working["longitude"], errors="coerce").dropna()
+    if latitude.empty or longitude.empty:
+        return default_center, 0.75
+    span = max(float(latitude.max() - latitude.min()), float(longitude.max() - longitude.min()), 20.0)
+    zoom = max(0.75, min(2.8, 2.8 - math.log2(span / 20.0)))
+    return {"lat": float(latitude.median()), "lon": float(longitude.median())}, zoom
+
+
 def build_threat_map(
     points: pd.DataFrame,
     *,
@@ -657,6 +701,8 @@ def build_threat_map(
     map_style: str = "carto-positron-nolabels",
     revision: str = "ot-sentinel-map-v1",
     offline_map: bool = False,
+    map_center: Mapping[str, float] | None = None,
+    map_zoom: float | None = None,
 ) -> go.Figure:
     """Build one of the supported MapLibre investigation views."""
     if mode not in MAP_MODES:
@@ -664,7 +710,7 @@ def build_threat_map(
 
     if points.empty:
         figure = go.Figure()
-        return _base_layout(figure, map_style, revision)
+        return _base_layout(figure, map_style, revision, map_center, map_zoom)
 
     if offline_map and mode != "Time playback":
         return _build_offline_map(
@@ -673,12 +719,14 @@ def build_threat_map(
             show_flows=show_flows,
             show_region=show_region,
             revision=revision,
+            map_center=map_center,
+            map_zoom=map_zoom,
         )
 
     if mode == "Time playback":
         playback = prepare_playback_points(event_frame if event_frame is not None else pd.DataFrame())
         if playback.empty:
-            return _base_layout(go.Figure(), map_style, revision)
+            return _base_layout(go.Figure(), map_style, revision, map_center, map_zoom)
         playback = _complete_playback_protocol_grid(playback)
         playback = _attach_playback_investigation_fields(playback, points)
         bucket_order = playback["time_bucket"].drop_duplicates().tolist()
@@ -732,7 +780,7 @@ def build_threat_map(
             }
         if show_region:
             _add_region_marker(figure)
-        return _base_layout(figure, map_style, revision)
+        return _base_layout(figure, map_style, revision, map_center, map_zoom)
 
     figure = go.Figure()
     if mode == "Flow view" and show_flows:
@@ -781,7 +829,7 @@ def build_threat_map(
     _add_source_markers(figure, points)
     if show_region:
         _add_region_marker(figure)
-    return _base_layout(figure, map_style, revision)
+    return _base_layout(figure, map_style, revision, map_center, map_zoom)
 
 
 def selection_from_plotly_state(state: Any) -> dict[str, object] | None:
