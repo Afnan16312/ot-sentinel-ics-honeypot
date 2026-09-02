@@ -93,6 +93,7 @@ WORKSPACE_STATE_KEYS = {
     "_selected_map_source",
     "_investigation_state",
     "_active_view",
+    "active_view",
     "_next_view",
     "_map_focus",
     "_map_camera",
@@ -567,6 +568,28 @@ if uploaded_snapshot is not None:
             st.session_state["_loaded_snapshot_hash"] = snapshot_hash
             st.rerun()
 
+route_notice = st.session_state.pop("_route_notice", None)
+if investigation_state.destination_view:
+    target_view = investigation_state.destination_view
+    investigation_state.active_view = target_view
+    investigation_state.destination_view = None
+    st.session_state["active_view"] = target_view
+    if target_view == "Session Explorer" and st.session_state.get("session_focus_source"):
+        st.session_state["session_source_filter"] = st.session_state["session_focus_source"]
+    if target_view == "ATT&CK Analysis" and st.session_state.get("attack_focus_technique"):
+        st.session_state["attack_technique_filter"] = st.session_state["attack_focus_technique"]
+    investigation_state.sync_to_session(st.session_state)
+    st.session_state["_route_notice"] = f"Opened {target_view}; filters, selection and map focus are preserved."
+    st.rerun()
+if investigation_state.active_view != "Observatory" and st.button(
+    "Back to Observatory",
+    key="back_to_observatory",
+    help="Return to the map without clearing the current investigation state.",
+):
+    investigation_state.destination_view = "Observatory"
+    investigation_state.sync_to_session(st.session_state)
+    st.rerun()
+
 protocols = sorted(df["protocol"].dropna().unique().tolist())
 severities = [item for item in ["high", "medium", "low", "info"] if item in df["severity"].unique()]
 countries = sorted(df["source_country"].dropna().unique().tolist())
@@ -833,7 +856,7 @@ with st.expander("Guided investigation path", expanded=False):
                 st.session_state["session_focus_source"] = lead["source"]
                 investigation_state.destination_view = "Session Explorer"
                 investigation_state.sync_to_session(st.session_state)
-                st.success("Session Explorer is prepared. Open that labelled tab to continue; your filters and source context will remain.")
+                st.rerun()
             if prepare_attack.button(
                 "Prepare ATT&CK evidence review",
                 key="guided_prepare_attack",
@@ -843,12 +866,11 @@ with st.expander("Guided investigation path", expanded=False):
                 st.session_state["attack_focus_technique"] = lead["technique_id"]
                 investigation_state.destination_view = "ATT&CK Analysis"
                 investigation_state.sync_to_session(st.session_state)
-                st.success("ATT&CK Analysis is prepared. Open that labelled tab to continue; your filters and source context will remain.")
+                st.rerun()
 
-if investigation_state.destination_view:
+if route_notice:
     st.markdown(
-        f"<div class='route-banner' role='status'><span><b>Next view ready:</b> {escape(investigation_state.destination_view)} · context is preserved.</span>"
-        "<span>Use the labelled workspace tab above to continue.</span></div>",
+        f"<div class='route-banner' role='status'>{escape(str(route_notice))}</div>",
         unsafe_allow_html=True,
     )
 
@@ -860,7 +882,9 @@ overview, attack_tab, detection_tab, triage_tab, sessions_tab, methodology = st.
         "Triage",
         "Session Explorer",
         "Methodology",
-    ]
+    ],
+    key="active_view",
+    on_change="rerun",
 )
 
 with overview:
@@ -1349,13 +1373,13 @@ with overview:
                 st.session_state["session_focus_source"] = selected["source"]
                 investigation_state.destination_view = "Session Explorer"
                 investigation_state.sync_to_session(st.session_state)
-                st.info("Session Explorer is ready for this source group. Open that labelled tab; filters and selection are preserved.")
+                st.rerun()
             if action_right.button("Prepare ATT&CK review", key="prepare_attack_view", width="stretch"):
                 if not selected_techniques.empty:
                     st.session_state["attack_focus_technique"] = str(selected_techniques.iloc[0]["technique_id"])
                 investigation_state.destination_view = "ATT&CK Analysis"
                 investigation_state.sync_to_session(st.session_state)
-                st.info("ATT&CK Analysis is ready for this source context. Open that labelled tab; filters and selection are preserved.")
+                st.rerun()
             with st.expander("Private local review note", expanded=False):
                 st.selectbox(
                     "Review state",

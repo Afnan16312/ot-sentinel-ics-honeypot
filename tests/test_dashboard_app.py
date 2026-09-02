@@ -152,6 +152,12 @@ def test_accessible_source_selection_shows_public_review_context():
     assert "Selected evidence drawer" in rendered_markdown
     assert "Detection mapping" in rendered_markdown
     assert "Focus selected source" in [item.label for item in app.button]
+    app.button(key="prepare_session_view").click().run()
+    assert not app.exception
+    assert app.session_state["active_view"] == "Session Explorer"
+    assert app.session_state["session_focus_source"] == source_selector.value.split(" · ", 1)[0]
+    assert app.selectbox(key="session_source_filter").value == app.session_state["session_focus_source"]
+    assert any("Opened Session Explorer" in item.value for item in app.markdown)
     assert "Export view manifest" in [item.label for item in app.get("download_button")]
     app.selectbox(key="map_mode").select("Source bubbles").run()
     app.checkbox(key="map_offline").set_value(True).run()

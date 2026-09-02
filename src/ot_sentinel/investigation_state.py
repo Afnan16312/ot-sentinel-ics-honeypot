@@ -99,7 +99,9 @@ class InvestigationState:
             state = saved
         else:
             state = cls()
-        state.active_view = _valid_view(session.get("_active_view", state.active_view))
+        state.active_view = _valid_view(
+            session.get("active_view", session.get("_active_view", state.active_view))
+        )
         state.destination_view = _valid_view(session.get("_next_view", state.destination_view), allow_none=True)
         state.selected_source = _safe_selection(
             session.get("_selected_map_source", state.selected_source)
