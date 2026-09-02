@@ -12,8 +12,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 PROTOCOL_COLORS = {
-    "modbus": "#38BDF8",
-    "s7": "#2563EB",
+    "modbus": "#EF4444",
+    "s7": "#3B82F6",
     "iec104": "#FBBF24",
     "unknown": "#94A3B8",
 }
@@ -456,7 +456,7 @@ def _add_severity_halos(fig: go.Figure, points: pd.DataFrame, *, offline: bool =
             name="Elevated severity",
             marker={
                 "size": [size + 12 for size in _marker_sizes(elevated["events"])],
-                "color": "#FB7185",
+                "color": "#F8FAFC",
                 "opacity": 0.30,
             },
             hoverinfo="skip",

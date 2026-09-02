@@ -192,7 +192,7 @@ div[data-testid="stDataFrame"] { border:1px solid var(--border); border-radius:4
 .map-legend { display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; padding:8px 10px; margin:8px 0 10px; background:#f5f7fa; border:1px solid var(--border); border-radius:4px; color:var(--muted); font-size:.7rem; }
 .map-legend span { display:inline-flex; align-items:center; gap:5px; }
 .legend-dot { width:9px; height:9px; border-radius:50%; display:inline-block; border:1px solid rgba(0,0,0,.18); }
-.legend-line { width:18px; height:0; border-top:2px solid #2563EB; display:inline-block; }
+.legend-line { width:18px; height:0; border-top:2px solid #3B82F6; display:inline-block; }
 .map-story { display:grid; grid-template-columns:1.3fr 1fr 1fr; gap:8px; margin:8px 0 10px; }
 .map-story-card { padding:9px 10px; background:#f8fafc; border:1px solid var(--border); border-radius:4px; color:var(--muted); font-size:.72rem; line-height:1.4; }
 .map-story-card.primary { border-left:3px solid var(--blue); background:#f2f7ff; }
@@ -872,11 +872,11 @@ with overview:
         )
     st.markdown(
         "<div class='map-legend' aria-label='Map legend'>"
-        "<span><i class='legend-dot' style='background:#38BDF8'></i>Modbus</span>"
-        "<span><i class='legend-dot' style='background:#2563EB'></i>S7</span>"
+        "<span><i class='legend-dot' style='background:#EF4444'></i>Modbus</span>"
+        "<span><i class='legend-dot' style='background:#3B82F6'></i>S7</span>"
         "<span><i class='legend-dot' style='background:#FBBF24'></i>IEC-104</span>"
         "<span>Bubble size = recorded observations</span>"
-        "<span><i class='legend-dot' style='background:#FB7185'></i>Halo = elevated severity</span>"
+        "<span><i class='legend-dot' style='background:#F8FAFC'></i>Halo = elevated severity</span>"
         "<span>Labels = country and place names</span>"
         "<span><i class='legend-line'></i>Observation relationship</span>"
         "<span>White endpoint = approximate UAE region</span>"
@@ -1049,7 +1049,7 @@ with overview:
         protocol_counts = filtered["protocol"].value_counts() if not filtered.empty else pd.Series(dtype="int64")
         protocol_total = max(int(protocol_counts.sum()), 1)
         protocol_rows = []
-        protocol_colors = {"modbus": "#0060ab", "s7": "#2563EB", "iec104": "#575f6e"}
+        protocol_colors = {"modbus": "#EF4444", "s7": "#3B82F6", "iec104": "#FBBF24"}
         for protocol, count in protocol_counts.items():
             percent = round((int(count) / protocol_total) * 100)
             protocol_rows.append(
@@ -1292,7 +1292,7 @@ with overview:
             x="observed_at",
             y="events",
             color="protocol",
-            color_discrete_map={"modbus": "#38BDF8", "s7": "#2563EB", "iec104": "#FBBF24"},
+            color_discrete_map={"modbus": "#EF4444", "s7": "#3B82F6", "iec104": "#FBBF24"},
         )
         line.update_traces(line_width=1.4)
         line.update_layout(
