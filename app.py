@@ -722,7 +722,7 @@ st.markdown(
 )
 st.markdown(
     f"<div class='context-strip'><b>Data &amp; privacy context</b><span>{'Synthetic dataset' if is_demo else 'Sanitized observations'}</span>"
-    f"<span>Publication-validated public dataset</span><span>Dataset ends {escape(latest_label)}</span>"
+    f"<span>{'Publication-validated public dataset' if is_demo else 'Privacy-validated local handoff'}</span><span>Dataset ends {escape(latest_label)}</span>"
     f"<span>{len(filtered):,} events in scope</span><span>Approximate geography</span>"
     f"<span>No raw IPs or payloads</span></div>",
     unsafe_allow_html=True,
@@ -756,7 +756,7 @@ if is_demo:
     )
 else:
     st.markdown(
-        "<div class='live-banner'><b>SANITIZED OBSERVATIONS</b> — Source identifiers are pseudonymized and payload content is excluded from this public view.</div>",
+        "<div class='live-banner'><b>SANITIZED OBSERVATIONS · LOCAL REVIEW</b> — Source identifiers are pseudonymized and payload content is excluded. This handoff is not approved for public release.</div>",
         unsafe_allow_html=True,
     )
 

@@ -518,7 +518,7 @@ def _build_offline_map(
 ) -> go.Figure:
     """Build a tile-free geographic view for disconnected or restricted networks."""
     figure = go.Figure()
-    if mode == "Flow view" and show_flows:
+    if mode == "Flow view" and show_flows and not points.empty:
         for row in points.nlargest(MAX_FLOW_PATHS, "events").itertuples():
             latitudes, longitudes = _great_circle_path(
                 float(row.latitude),
