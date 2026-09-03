@@ -6,7 +6,7 @@ from pathlib import Path
 
 from ot_sentinel.mapper import map_event
 from ot_sentinel.model import Event
-from ot_sentinel.operations import AlertPolicy, HealthTracker, WebhookAlerter
+from ot_sentinel.operations import AlertPolicy, HealthTracker, WebhookAlerter, load_alert_settings
 
 
 def control_event(session_id: str = "session-1") -> Event:
@@ -49,6 +49,10 @@ class OperationsTests(unittest.IsolatedAsyncioTestCase):
         encoded = json.dumps(alerter.sent[0])
         self.assertNotIn("198.51.100.10", encoded)
         self.assertNotIn("deadbeef", encoded)
+        self.assertEqual(alerter.sent[0]["protocol"], "modbus")
+        self.assertEqual(alerter.sent[0]["mitre_attack_ids"], ["T1692.001", "T0836"])
+        self.assertRegex(alerter.sent[0]["source_hash"], r"^[a-f0-9]{24}$")
+        self.assertNotIn("event_id", alerter.sent[0])
 
     async def test_low_signal_event_does_not_alert(self):
         health = HealthTracker("test-sensor")
@@ -68,6 +72,22 @@ class OperationsTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(snapshot["total_events"], 1)
         self.assertEqual(snapshot["alert_queue_depth"], 2)
         self.assertEqual(snapshot["collector_queue_depth"], 3)
+        self.assertIsNone(snapshot["max_concurrent_sessions"])
+        self.assertEqual(snapshot["active_sessions"], 0)
+        self.assertEqual(snapshot["rejected_sessions"], 0)
+
+    def test_alert_settings_are_dependency_free_and_safe_by_default(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "alerts.yaml"
+            path.write_text(
+                '{"enabled": true, "webhook_url": "https://alerts.example/ot", '
+                '"secret_env": "OT_ALERT_SECRET", "queue_size": 5, "timeout_seconds": 3}',
+                encoding="utf-8",
+            )
+            settings = load_alert_settings(path)
+        self.assertTrue(settings.enabled)
+        self.assertEqual(settings.queue_size, 5)
+        self.assertEqual(settings.secret_env, "OT_ALERT_SECRET")
 
 
 if __name__ == "__main__":

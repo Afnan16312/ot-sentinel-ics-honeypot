@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 
 from .collector import main as collector_main
+from .contracts import observation_from_event
 from .evaluation import evaluate_mapper, load_labeled_jsonl
 from .normalizer import normalize_conpot
 from .privacy import sanitize_event
@@ -23,7 +24,7 @@ def _normalize(args: argparse.Namespace) -> None:
         for line in source:
             if line.strip():
                 event = normalize_conpot(json.loads(line), args.sensor_id)
-                target.write(json.dumps(event.to_dict()) + "\n")
+                target.write(json.dumps(observation_from_event(event)) + "\n")
 
 
 def _sanitize(args: argparse.Namespace) -> None:

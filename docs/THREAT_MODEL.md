@@ -4,6 +4,8 @@
 
 This threat model covers the low-interaction sensor, optional profile runtime, private JSONL storage, central collector, alert webhook, privacy pipeline and public dashboard. It does not claim to cover a real industrial process or production safety system.
 
+Collector-specific assets, actors, STRIDE-style threats, mitigations and residual risks are expanded in [COLLECTOR_THREAT_MODEL.md](COLLECTOR_THREAT_MODEL.md).
+
 ## Security objectives
 
 - Untrusted traffic cannot execute code or operate real equipment.

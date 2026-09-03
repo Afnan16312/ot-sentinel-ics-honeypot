@@ -6,6 +6,7 @@ infer attacker identity, motive, attribution, or successful compromise.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from typing import Any
@@ -48,11 +49,66 @@ class TriageAssessment:
         return asdict(self)
 
 
-def assess_event(event: Mapping[str, Any]) -> TriageAssessment:
+@dataclass(frozen=True)
+class EvidenceCompleteness:
+    """Structural completeness of a public event, separate from review priority."""
+
+    label: str
+    checks_met: int
+    checks_total: int
+    missing: tuple[str, ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+def assess_evidence_completeness(event: Mapping[str, Any]) -> EvidenceCompleteness:
+    """Describe which reviewed evidence fields are present without scoring threat."""
+
+    decoded = event.get("decoded")
+    decoded = decoded if isinstance(decoded, Mapping) else {}
+    techniques = event.get("techniques")
+    techniques = (
+        techniques
+        if isinstance(techniques, Sequence) and not isinstance(techniques, (str, bytes))
+        else []
+    )
+    try:
+        location_is_finite = math.isfinite(float(event.get("source_latitude"))) and math.isfinite(
+            float(event.get("source_longitude"))
+        )
+    except (TypeError, ValueError):
+        location_is_finite = False
+    checks = {
+        "valid decoded request": bool(decoded) and decoded.get("valid") is not False,
+        "bounded session identifier": bool(str(event.get("session_id", "")).strip()),
+        "coarse public location": (
+            str(event.get("source_country_code", "ZZ")).upper() != "ZZ"
+            and location_is_finite
+        ),
+        "evidence-qualified mapping": any(
+            isinstance(item, Mapping)
+            and bool(str(item.get("confidence", "")).strip())
+            and bool(str(item.get("rationale", "")).strip())
+            for item in techniques
+        ),
+    }
+    missing = tuple(name for name, present in checks.items() if not present)
+    checks_met = len(checks) - len(missing)
+    label = "complete fields" if checks_met == len(checks) else "partial fields"
+    if checks_met <= 1:
+        label = "limited fields"
+    return EvidenceCompleteness(label, checks_met, len(checks), missing)
+
+
+def assess_event(
+    event: Mapping[str, Any], *, repeat_count: int = 1, is_novel_payload: bool = False
+) -> TriageAssessment:
     """Assign a reproducible review score in the inclusive range 0..100.
 
-    Points are additive and capped at 100. The function intentionally ignores
-    IP geography and identity because neither demonstrates harmful behavior.
+    Points are additive and capped at 100. Repeat evidence is a count of prior
+    pseudonymous-source observations; novelty means this payload fingerprint has
+    not appeared in the private index. Geography and identity are ignored.
     """
 
     decoded = event.get("decoded") or {}
@@ -116,6 +172,24 @@ def assess_event(event: Mapping[str, Any]) -> TriageAssessment:
             )
         )
 
+    if repeat_count > 1:
+        repeat_points = 15 if repeat_count >= 5 else 10
+        factors.append(
+            TriageFactor(
+                "repeat_source",
+                repeat_points,
+                f"This pseudonymous source has {repeat_count:,} observations in the private index.",
+            )
+        )
+    if is_novel_payload:
+        factors.append(
+            TriageFactor(
+                "novel_payload",
+                5,
+                "This payload fingerprint has not previously appeared in the private index.",
+            )
+        )
+
     score = min(100, sum(factor.points for factor in factors))
     priority = priority_for_score(score)
     return TriageAssessment(
@@ -148,6 +222,19 @@ def factor_summary(assessment: TriageAssessment) -> str:
     if not assessment.factors:
         return "No scored protocol evidence."
     return "; ".join(f"{factor.code} (+{factor.points})" for factor in assessment.factors)
+
+
+def next_step_for_priority(priority: str) -> str:
+    """Give a bounded human review step without implying automated response."""
+
+    steps = {
+        "urgent review": "Review the session timeline, ATT&CK rationale, and detection coverage promptly.",
+        "high review": "Review the session timeline and validate the recorded evidence before escalation.",
+        "elevated review": "Compare this evidence with related sessions and check the mapped ATT&CK rationale.",
+        "routine review": "Retain this evidence for routine correlation and look for repeated activity.",
+        "informational": "Keep this record as context; no scored protocol behavior requires a response.",
+    }
+    return steps.get(priority, "Review the recorded evidence before deciding on any next action.")
 
 
 def _is_modbus_read(decoded: Mapping[str, Any]) -> bool:

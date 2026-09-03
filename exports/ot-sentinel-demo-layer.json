@@ -1,0 +1,78 @@
+{
+  "name": "OT Sentinel \u2014 ATT&CK for ICS observation frequency",
+  "description": "Evidence-qualified OT Sentinel technique hypotheses. Scores are observation frequencies, not proof of compromise or attacker intent.",
+  "versions": {
+    "attack": "18",
+    "navigator": "5.3.2",
+    "layer": "4.5"
+  },
+  "domain": "ics-attack",
+  "sorting": 3,
+  "layout": {
+    "layout": "side",
+    "showID": true,
+    "showName": true,
+    "showAggregateScores": true,
+    "countUnscored": false,
+    "aggregateFunction": "sum",
+    "expandedSubtechniques": "annotated"
+  },
+  "hideDisabled": false,
+  "techniques": [
+    {
+      "techniqueID": "T0836",
+      "score": 129,
+      "comment": "129 observations; confidence: medium=129",
+      "enabled": true
+    },
+    {
+      "techniqueID": "T0843",
+      "score": 17,
+      "comment": "17 observations; confidence: high=17",
+      "enabled": true
+    },
+    {
+      "techniqueID": "T0846.001",
+      "score": 274,
+      "comment": "274 observations; confidence: medium=274",
+      "enabled": true
+    },
+    {
+      "techniqueID": "T0877",
+      "score": 129,
+      "comment": "129 observations; confidence: low=129",
+      "enabled": true
+    },
+    {
+      "techniqueID": "T1692.001",
+      "score": 129,
+      "comment": "129 observations; confidence: high=129",
+      "enabled": true
+    }
+  ],
+  "gradient": {
+    "colors": [
+      "#e8f1f7",
+      "#6f9fc4",
+      "#1c4966"
+    ],
+    "minValue": 0,
+    "maxValue": 274
+  },
+  "legendItems": [
+    {
+      "label": "Higher score = more observations",
+      "color": "#1c4966"
+    }
+  ],
+  "metadata": [
+    {
+      "name": "data handling",
+      "value": "aggregate counts only"
+    },
+    {
+      "name": "mapping",
+      "value": "evidence-qualified hypotheses"
+    }
+  ]
+}

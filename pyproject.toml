@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ot-sentinel"
-version = "0.2.0"
+version = "0.3.0"
 description = "Low-interaction OT/ICS honeypot telemetry and ATT&CK visualization"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -14,16 +14,18 @@ dependencies = []
 
 [project.optional-dependencies]
 dashboard = [
-  "pandas>=2.2,<3",
+  "pandas>=2.2,<4",
   "plotly>=6.0,<7",
   "streamlit>=1.48,<2",
 ]
 geoip = ["geoip2>=5,<6"]
 dev = [
+  "bandit>=1.8,<2",
   "pip-audit>=2.9,<3",
   "pytest>=9.0.3,<10",
   "ruff>=0.12,<1",
   "stix2-validator==3.2.0",
+  "openapi-spec-validator==0.9.0",
 ]
 
 [project.scripts]

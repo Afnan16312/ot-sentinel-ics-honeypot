@@ -2,16 +2,21 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import binascii
 import json
 import os
+import sqlite3
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
+from .analysis import analysis_from_event
+from .contracts import observation_from_event
 from .mapper import map_event
 from .model import Event
 from .normalizer import severity_for
-from .operations import HealthTracker, WebhookAlerter
+from .operations import HealthTracker, WebhookAlerter, load_alert_settings
 from .profiles import ProfileRuntime, load_profile
 from .protocols import (
     iec104_response,
@@ -21,6 +26,7 @@ from .protocols import (
     parse_s7,
     s7_response,
 )
+from .storage import SQLiteObservationStore
 from .transport import RemoteCollectorSink
 
 Parser = Callable[[bytes], dict[str, Any]]
@@ -28,16 +34,44 @@ Responder = Callable[[bytes, dict[str, Any]], bytes]
 
 
 class JsonlWriter:
-    def __init__(self, path: Path) -> None:
+    def __init__(
+        self, path: Path, observation_store: SQLiteObservationStore | None = None
+    ) -> None:
         self.path = path
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = asyncio.Lock()
+        self.observation_store = observation_store
+        self.database_failures = 0
+        self.analysis_run_id = str(uuid4())
 
-    async def append(self, event: Event) -> None:
-        line = json.dumps(event.to_dict(), separators=(",", ":"), sort_keys=True)
+    async def append(self, event: Event) -> bool:
+        observation = observation_from_event(event)
+        line = json.dumps(observation, separators=(",", ":"), sort_keys=True)
         async with self._lock:
             with self.path.open("a", encoding="utf-8") as handle:
                 handle.write(line + "\n")
+        if self.observation_store is not None:
+            try:
+                payload = bytes.fromhex(event.raw_payload_hex)
+                record = getattr(
+                    self.observation_store, "record_with_assessment", self.observation_store.record
+                )
+                stored = await asyncio.to_thread(
+                    record, event.to_dict(), payload=payload
+                )
+                assessment = getattr(stored, "assessment", None)
+                if assessment is not None and hasattr(self.observation_store, "record_analysis"):
+                    analysis = analysis_from_event(
+                        event,
+                        assessment,
+                        analysis_run_id=self.analysis_run_id,
+                    )
+                    await asyncio.to_thread(self.observation_store.record_analysis, analysis)
+                return True
+            except (binascii.Error, OSError, sqlite3.Error, ValueError):
+                # JSONL is authoritative; an optional analysis-index failure must not lose it.
+                self.database_failures += 1
+        return False
 
 
 class LowInteractionSensor:
@@ -49,6 +83,7 @@ class LowInteractionSensor:
         sensor_id: str,
         max_payload: int = 512,
         timeout: float = 8.0,
+        max_concurrent_sessions: int = 64,
         profile: ProfileRuntime | None = None,
         health_path: Path | None = None,
         alerter: WebhookAlerter | None = None,
@@ -58,8 +93,13 @@ class LowInteractionSensor:
         self.ports = ports
         self.writer = writer
         self.sensor_id = sensor_id
-        self.max_payload = min(max(max_payload, 64), 4096)
+        if not 1 <= max_payload <= 512:
+            raise ValueError("max_payload must be between 1 and the hard 512-byte limit")
+        self.max_payload = max_payload
         self.timeout = min(max(timeout, 1.0), 30.0)
+        if not 1 <= max_concurrent_sessions <= 1024:
+            raise ValueError("max_concurrent_sessions must be between 1 and 1024")
+        self.max_concurrent_sessions = max_concurrent_sessions
         self.profile = profile
         self.health_path = health_path
         if alerter is not None:
@@ -71,6 +111,8 @@ class LowInteractionSensor:
         self.alerter = alerter
         self.collector = collector
         self.servers: list[asyncio.Server] = []
+        self._active_sessions = 0
+        self.health.set_session_capacity(max_concurrent_sessions)
 
     async def start(self) -> None:
         handlers: dict[str, tuple[Parser, Responder]] = {
@@ -109,18 +151,52 @@ class LowInteractionSensor:
                 await self.collector.close()
 
     async def emit(self, event: Event) -> None:
-        await self.writer.append(event)
+        private_recorded = await self.writer.append(event)
         self.health.record(event)
-        if self.alerter is not None:
+        if self.alerter is not None and (
+            self.writer.observation_store is None or private_recorded
+        ):
             await self.alerter.submit(event)
         if self.collector is not None:
             await self.collector.submit(event)
-        if self.health_path is not None:
-            alert_depth = self.alerter.queue.qsize() if self.alerter is not None else 0
-            collector_depth = self.collector.queue.qsize() if self.collector is not None else 0
-            self.health.write(self.health_path, alert_depth, collector_depth)
+        self._write_health()
+
+    def _write_health(self) -> None:
+        if self.health_path is None:
+            return
+        alert_depth = self.alerter.queue.qsize() if self.alerter is not None else 0
+        collector_depth = self.collector.queue_depth if self.collector is not None else 0
+        if self.collector is not None:
+            self.health.collector_queue_age_seconds = self.collector.queue_age_seconds
+        self.health.write(self.health_path, alert_depth, collector_depth)
 
     async def handle(
+        self,
+        reader: asyncio.StreamReader,
+        stream: asyncio.StreamWriter,
+        protocol: str,
+        parser: Parser,
+        responder: Responder,
+    ) -> None:
+        if self._active_sessions >= self.max_concurrent_sessions:
+            self.health.record_rejected_session()
+            self._write_health()
+            stream.close()
+            try:
+                await stream.wait_closed()
+            except OSError:
+                pass
+            return
+        self._active_sessions += 1
+        self.health.set_active_sessions(self._active_sessions)
+        try:
+            await self._handle(reader, stream, protocol, parser, responder)
+        finally:
+            self._active_sessions -= 1
+            self.health.set_active_sessions(self._active_sessions)
+            self._write_health()
+
+    async def _handle(
         self,
         reader: asyncio.StreamReader,
         stream: asyncio.StreamWriter,
@@ -210,6 +286,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=float(os.getenv("OT_SESSION_TIMEOUT_SECONDS", "8")),
     )
     parser.add_argument(
+        "--max-concurrent-sessions",
+        type=int,
+        default=int(os.getenv("OT_MAX_CONCURRENT_SESSIONS", "64")),
+        help="Maximum active protocol sessions across all sensor listeners",
+    )
+    parser.add_argument(
         "--profile",
         default=os.getenv("OT_PROFILE_PATH", ""),
         help="Safe JSON-subset-of-YAML fictional process profile",
@@ -230,6 +312,11 @@ def build_parser() -> argparse.ArgumentParser:
         help=argparse.SUPPRESS,
     )
     parser.add_argument(
+        "--alerts-config",
+        default=os.getenv("OT_ALERTS_CONFIG", ""),
+        help="Optional local alerts.yaml configuration (JSON subset of YAML)",
+    )
+    parser.add_argument(
         "--collector-url",
         default=os.getenv("OT_COLLECTOR_URL", ""),
         help="Optional authenticated HTTPS central collector /v1/events URL",
@@ -237,6 +324,45 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--collector-secret",
         default=os.getenv("OT_COLLECTOR_SECRET", ""),
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "--collector-spool",
+        default=os.getenv("OT_COLLECTOR_SPOOL", ""),
+        help="Optional private SQLite queue for restart-safe collector delivery",
+    )
+    parser.add_argument(
+        "--collector-spool-max-rows",
+        type=int,
+        default=int(os.getenv("OT_COLLECTOR_SPOOL_MAX_ROWS", "5000")),
+    )
+    parser.add_argument(
+        "--collector-spool-max-bytes",
+        type=int,
+        default=int(os.getenv("OT_COLLECTOR_SPOOL_MAX_BYTES", str(32 * 1024 * 1024))),
+    )
+    parser.add_argument(
+        "--configuration-version",
+        default=os.getenv("OT_CONFIGURATION_VERSION", ""),
+    )
+    parser.add_argument(
+        "--collector-heartbeat",
+        action="store_true",
+        default=os.getenv("OT_COLLECTOR_HEARTBEAT", "").lower() in {"1", "true", "yes"},
+    )
+    parser.add_argument(
+        "--observation-db",
+        default=os.getenv("OT_OBSERVATION_DB", ""),
+        help="Optional private SQLite analysis index",
+    )
+    parser.add_argument(
+        "--fingerprint-secret",
+        default=os.getenv("OT_FINGERPRINT_SECRET", ""),
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "--privacy-salt",
+        default=os.getenv("OT_PRIVACY_SALT", ""),
         help=argparse.SUPPRESS,
     )
     return parser
@@ -247,24 +373,65 @@ def main() -> None:
     profile = ProfileRuntime(load_profile(args.profile)) if args.profile else None
     health = HealthTracker(args.sensor_id)
     alerter = None
-    if args.alert_webhook:
-        if not args.alert_secret:
-            raise SystemExit("Set OT_ALERT_SECRET when OT_ALERT_WEBHOOK is configured.")
-        alerter = WebhookAlerter(args.alert_webhook, args.alert_secret, health)
+    alert_webhook = args.alert_webhook
+    alert_secret = args.alert_secret
+    alert_queue_size = 100
+    alert_timeout = 5.0
+    if args.alerts_config:
+        if args.alert_webhook:
+            raise SystemExit("Use either --alerts-config or --alert-webhook, not both.")
+        settings = load_alert_settings(Path(args.alerts_config))
+        if settings.enabled:
+            if not args.observation_db:
+                raise SystemExit("Enabled alerts.yaml requires --observation-db for private alert gating.")
+            alert_webhook = settings.webhook_url
+            alert_secret = os.getenv(settings.secret_env, "")
+            alert_queue_size = settings.queue_size
+            alert_timeout = settings.timeout_seconds
+    if alert_webhook:
+        if not alert_secret:
+            raise SystemExit("Set OT_ALERT_SECRET when webhook alerting is configured.")
+        alerter = WebhookAlerter(
+            alert_webhook,
+            alert_secret,
+            health,
+            queue_size=alert_queue_size,
+            timeout=alert_timeout,
+        )
     collector = None
     if args.collector_url:
         if not args.collector_secret:
             raise SystemExit("Set OT_COLLECTOR_SECRET when OT_COLLECTOR_URL is configured.")
         collector = RemoteCollectorSink(
-            args.collector_url, args.sensor_id, args.collector_secret, health
+            args.collector_url,
+            args.sensor_id,
+            args.collector_secret,
+            health,
+            spool_path=Path(args.collector_spool) if args.collector_spool else None,
+            spool_max_rows=args.collector_spool_max_rows,
+            spool_max_bytes=args.collector_spool_max_bytes,
+            configuration_version=args.configuration_version or None,
+            include_heartbeat=args.collector_heartbeat,
+        )
+    observation_store = None
+    if args.observation_db:
+        if not args.fingerprint_secret or not args.privacy_salt:
+            raise SystemExit(
+                "Set OT_FINGERPRINT_SECRET and OT_PRIVACY_SALT when observation indexing is enabled."
+            )
+        observation_store = SQLiteObservationStore(
+            Path(args.observation_db),
+            fingerprint_secret=args.fingerprint_secret,
+            privacy_salt=args.privacy_salt,
         )
     sensor = LowInteractionSensor(
         host=args.host,
         ports={"modbus": args.modbus_port, "s7": args.s7_port, "iec104": args.iec104_port},
-        writer=JsonlWriter(Path(args.log)),
+        writer=JsonlWriter(Path(args.log), observation_store),
         sensor_id=args.sensor_id,
         max_payload=args.max_payload,
         timeout=args.timeout,
+        max_concurrent_sessions=args.max_concurrent_sessions,
         profile=profile,
         health_path=Path(args.health_file) if args.health_file else None,
         alerter=alerter,

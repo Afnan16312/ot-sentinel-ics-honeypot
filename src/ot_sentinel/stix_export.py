@@ -11,6 +11,7 @@ from uuid import UUID, uuid5
 
 from .mapper import CATALOG, map_event
 from .privacy import pseudonymize_ip
+from .publication import validate_public_records, validate_public_stix_bundle
 
 STIX_VERSION = "2.1"
 ATTACK_ICS_URL = "https://attack.mitre.org/techniques/"
@@ -401,6 +402,10 @@ def export_events(
     source_events = [dict(event) for event in events]
     if not source_events:
         raise ValueError("At least one event is required for a STIX export")
+    export_events_source = source_events
+    if profile == "public":
+        export_events_source = [_public_event(event, salt) for event in source_events]
+        validate_public_records(export_events_source)
 
     identity = _identity()
     objects: list[dict[str, Any]] = [identity]
@@ -409,8 +414,7 @@ def export_events(
     relationships: list[dict[str, Any]] = []
     classifications: set[str] = set()
 
-    for original in source_events:
-        event = _public_event(original, salt) if profile == "public" else original
+    for event in export_events_source:
         is_demo = bool(event.get("is_demo", False))
         classifications.add("synthetic" if is_demo else "live")
 
@@ -490,18 +494,7 @@ def export_events(
         "objects": ordered,
     }
     if profile == "public":
-        serialized = _canonical(bundle)
-        if "raw_payload_hex" in serialized or "payload_bin" in serialized:
-            raise AssertionError("Public STIX output contains a payload field")
-        if _contains_ip_literal(bundle):
-            raise AssertionError("Public STIX output contains an IP address literal")
-        raw_sources = {
-            str(event.get("source_ip", "")).strip()
-            for event in source_events
-            if event.get("source_ip")
-        }
-        if any(source_ip in serialized for source_ip in raw_sources):
-            raise AssertionError("Public STIX output contains a raw source IP")
+        validate_public_stix_bundle(bundle)
     return bundle
 
 

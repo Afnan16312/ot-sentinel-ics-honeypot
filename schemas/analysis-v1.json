@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OT Sentinel Analysis v1",
+  "type": "object",
+  "required": ["schema_version", "analysis_id", "analysis_run_id", "event_id", "input_digest", "executed_at", "versions", "attack_hypotheses", "detection_results"],
+  "properties": {
+    "schema_version": {"const": "ot-sentinel.analysis/v1"},
+    "analysis_id": {"type": "string", "minLength": 1},
+    "analysis_run_id": {"type": "string", "minLength": 1},
+    "event_id": {"type": "string", "minLength": 1},
+    "input_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "executed_at": {"type": "string", "minLength": 1},
+    "versions": {"type": "object"},
+    "attack_hypotheses": {"type": "array"},
+    "detection_results": {"type": "array"}
+  }
+}

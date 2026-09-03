@@ -1,0 +1,63 @@
+name: ot-sentinel-soc-lab
+
+services:
+  wazuh.manager:
+    extends:
+      file: ./vendor/wazuh-docker/single-node/docker-compose.yml
+      service: wazuh.manager
+    ports: !override
+      - "127.0.0.1:1514:1514"
+      - "127.0.0.1:1515:1515"
+      - "127.0.0.1:5514:514/udp"
+      - "127.0.0.1:55000:55000"
+    volumes:
+      - ../../detections/wazuh/ot_sentinel_rules.xml:/var/ossec/etc/rules/ot_sentinel_rules.xml:ro
+      - ./generated/wazuh_manager.conf:/wazuh-config-mount/etc/ossec.conf:ro
+      - ./staging:/var/ossec/logs/ot-sentinel:ro
+
+  wazuh.indexer:
+    extends:
+      file: ./vendor/wazuh-docker/single-node/docker-compose.yml
+      service: wazuh.indexer
+    ports: !override
+      - "127.0.0.1:9200:9200"
+
+  wazuh.dashboard:
+    extends:
+      file: ./vendor/wazuh-docker/single-node/docker-compose.yml
+      service: wazuh.dashboard
+    ports: !override
+      - "127.0.0.1:5601:5601"
+
+  suricata:
+    image: jasonish/suricata:8.0.4
+    profiles: ["suricata"]
+    entrypoint: ["suricata"]
+    command: ["--build-info"]
+    network_mode: none
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    volumes:
+      - ./suricata.yaml:/etc/suricata/suricata.yaml:ro
+      - ./classification.config:/etc/suricata/classification.config:ro
+      - ./reference.config:/etc/suricata/reference.config:ro
+      - ./threshold.config:/etc/suricata/threshold.config:ro
+      - ../../detections/suricata:/etc/suricata/rules:ro
+      - ./fixtures:/fixtures:ro
+      - ./output:/output
+
+volumes:
+  wazuh_api_configuration:
+  wazuh_etc:
+  wazuh_logs:
+  wazuh_queue:
+  wazuh_var_multigroups:
+  wazuh_integrations:
+  wazuh_active_response:
+  wazuh_agentless:
+  wazuh_wodles:
+  filebeat_etc:
+  filebeat_var:
+  wazuh-indexer-data:
+  wazuh-dashboard-config:
+  wazuh-dashboard-custom:

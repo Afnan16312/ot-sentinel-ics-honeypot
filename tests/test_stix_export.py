@@ -5,7 +5,10 @@ from uuid import UUID
 
 import stix2validator
 
+from ot_sentinel.publication import PublicationValidationError
 from ot_sentinel.stix_export import export_events
+
+PUBLIC_SALT = "unit-test-publication-salt-32-bytes-minimum"
 
 
 def sample_event(*, is_demo=True, sanitized=False):
@@ -48,8 +51,8 @@ def sample_event(*, is_demo=True, sanitized=False):
 
 class StixExportTests(unittest.TestCase):
     def test_public_profile_is_deterministic_and_contains_no_raw_evidence(self):
-        first = export_events([sample_event()], profile="public", salt="unit-test-salt")
-        second = export_events([sample_event()], profile="public", salt="unit-test-salt")
+        first = export_events([sample_event()], profile="public", salt=PUBLIC_SALT)
+        second = export_events([sample_event()], profile="public", salt=PUBLIC_SALT)
         self.assertEqual(first, second)
 
         serialized = json.dumps(first)
@@ -88,8 +91,19 @@ class StixExportTests(unittest.TestCase):
         event = sample_event(sanitized=True)
         event["source_ip"] = "203.0.113.8"
         event["source_id"] = "src-203.0.113.8"
-        with self.assertRaisesRegex(AssertionError, "raw source IP"):
+        with self.assertRaisesRegex(PublicationValidationError, "source_id contains"):
             export_events([event], profile="public")
+
+    def test_public_profile_rejects_short_salt(self):
+        with self.assertRaisesRegex(ValueError, "at least 32"):
+            export_events([sample_event()], profile="public", salt="short")
+
+    def test_public_profile_rejects_mixed_classification(self):
+        with self.assertRaisesRegex(PublicationValidationError, "must not be mixed"):
+            export_events(
+                [sample_event(sanitized=True), sample_event(is_demo=False, sanitized=True)],
+                profile="public",
+            )
 
     def test_private_profile_preserves_source_and_payload_as_standard_scos(self):
         bundle = export_events([sample_event(is_demo=False)], profile="private")

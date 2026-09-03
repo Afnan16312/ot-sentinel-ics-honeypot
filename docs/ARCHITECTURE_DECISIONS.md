@@ -25,6 +25,11 @@ This file records the major decisions behind OT Sentinel `v0.2.0`. Each decision
 | ADR-017 | Treat CI and release evidence as product features | Make security and reproducibility visible |
 | ADR-018 | Keep public-cloud deployment optional | Avoid making paid infrastructure a prerequisite |
 | ADR-019 | Use an Oracle edge bridge plus a host egress guard | Publish the decoy ports on the verified Docker host without permitting container-initiated Internet connections |
+| ADR-020 | Retain the framework-free collector | Two authenticated machine endpoints do not justify Flask or Django yet |
+| ADR-021 | Use an aggregate-first public dashboard handoff | Keep observed rows private and require review before public summary replacement |
+| ADR-022 | Use separate SQLite auxiliary state and one shared publication gate | Add restart durability and consistent privacy without replacing JSONL or adding an ORM |
+| ADR-023 | Use an immutable offline handoff and sanitized-only Wazuh staging | Keep final evidence reproducible, private and separate from the live sensor |
+| ADR-024 | Separate evidence meaning, review priority and validation state | Prevent users from treating field completeness or historical fixture results as threat certainty |
 
 ## ADR-001 — Custom low-interaction sensor
 
@@ -142,7 +147,7 @@ This file records the major decisions behind OT Sentinel `v0.2.0`. Each decision
 
 **Why.** The project can demonstrate the path from protocol evidence to an operational alert.
 
-**Consequences.** Offline validation is intentionally not called engine certification. Destination environments must run their native validators.
+**Consequences.** Offline validation is intentionally not called engine certification. The pinned Wazuh 4.14.7 and Suricata 8.0.4 content also has local native positive/negative evidence, but destination environments and future versions must repeat their native validators.
 
 **Evidence.** `detections/`, `scripts/validate_detections.py`, [DETECTION_ENGINEERING.md](DETECTION_ENGINEERING.md).
 
@@ -255,6 +260,50 @@ This file records the major decisions behind OT Sentinel `v0.2.0`. Each decision
 **Consequences.** The host now owns a Docker network and firewall policy outside the base Compose lifecycle. The helper must run at boot, and the outbound test must be repeated after Docker or firewall-backend changes. The current helper targets Docker's iptables backend and is not automatically valid for the nftables backend.
 
 **Evidence.** `infra/oracle/`, [ORACLE_CLOUD_RUNBOOK.md](ORACLE_CLOUD_RUNBOOK.md), [LIVE_DEPLOYMENT_RECORD.md](LIVE_DEPLOYMENT_RECORD.md), deployment invariant tests.
+
+## ADR-020 — Retain the framework-free collector
+
+**Decision.** Keep the two-endpoint collector on Python's standard library. Do not add Flask, Django or Django REST Framework while the API remains limited to authenticated event ingestion and process health.
+
+**Why.** The current collector already implements exact-body HMAC, freshness, identity, replay, size, timeout, concurrency and privacy controls, and those behaviors are covered by synthetic black-box tests. A framework would add dependencies without removing the need for those controls.
+
+**Migration triggers.** Reconsider when complex resources, analyst accounts/roles, browser workflows, case data, major SIEM/SOAR consumers or unsafe scaling limits become real requirements.
+
+**Full record.** [ADR_020_COLLECTOR_FRAMEWORK.md](ADR_020_COLLECTOR_FRAMEWORK.md).
+
+## ADR-021 — Aggregate-first public dashboard handoff
+
+**Context.** Even pseudonymized event rows can disclose timing, stable identifiers or small-group patterns that a public dashboard does not need.
+
+**Decision.** Add a separate publication step that accepts only validated sanitized input and emits aggregate counts plus calendar-date boundaries. Keep individual live records private and require a human review before any observed summary replaces the synthetic dashboard source.
+
+**Why.** The public presentation can show protocol and ATT&CK trends with less disclosure risk and without creating an automatic path from the Oracle sensor to GitHub or Streamlit.
+
+**Consequences.** Aggregate output cannot support public row-level investigation. A separately authorized analyst workflow must retain private evidence, and small-count disclosure still needs human review.
+
+**Evidence.** `scripts/build_public_summary.py`, `tests/test_public_summary.py`, `data/demo_summary.json`, [Safe Publication Pipeline](SAFE_PUBLICATION_PIPELINE.md).
+
+## ADR-022 — Durable auxiliary state and shared safety gates
+
+**Status.** Accepted for the Phase 2 feature branch.
+
+**Decision.** Keep JSONL as authoritative private evidence and use separate standard-library SQLite databases only for replay reservations, privacy-reduced observation deduplication and an optional delivery spool. Centralize public record and STIX privacy validation in the package. Keep Detection Preview explicitly offline.
+
+**Why.** Replay and delivery state must survive restarts, but replacing JSONL or adopting a broker/ORM would add unnecessary coupling. A single publication gate prevents scripts and Streamlit from applying inconsistent safety rules.
+
+**Consequences.** Auxiliary database corruption can reduce replay, indexing or delivery availability but must not erase JSONL. Private stores need protection and bounds. No new runtime dependency is introduced. Native SOC output is recorded separately from offline predictions; the reviewed public video remains a human evidence requirement.
+
+**Full record.** [ADR_022_PHASE_2_DURABLE_STATE_AND_GATES.md](ADR_022_PHASE_2_DURABLE_STATE_AND_GATES.md).
+
+## ADR-024 — Separate evidence meaning, review priority and validation state
+
+**Decision.** Keep review priority, structural evidence completeness and detection-validation state as separate concepts. Default triage to bounded sessions, preserve local notes during ordinary workspace reset and show historical native synthetic-fixture evidence separately from current offline rule prediction.
+
+**Why.** Combining these signals would invite users to read a completeness label or fixture pass as a probability of compromise. The existing Streamlit and standard-library architecture already supports the required behavior without a new framework, service or live-sensor connection.
+
+**Consequences.** Users gain clearer interpretation and reversible navigation. Completeness remains a field-availability statement, native status becomes stale after relevant changes, and local notes remain non-durable.
+
+**Full record.** [ADR_024_USER_CENTERED_EVIDENCE_WORKFLOW.md](ADR_024_USER_CENTERED_EVIDENCE_WORKFLOW.md).
 
 ## How to change a decision
 

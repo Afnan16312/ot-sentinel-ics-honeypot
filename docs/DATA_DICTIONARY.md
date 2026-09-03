@@ -1,5 +1,7 @@
 # Public event data dictionary
 
+The existing public demo uses the legacy mixed-event schema for backward compatibility. New v0.3 sensor and collector records use **Observation v1**, which contains capture evidence only; versioned **Analysis v1** records store ATT&CK hypotheses, severity, triage and detection outcomes separately. See [v0.3 data contracts](V0_3_DATA_CONTRACTS.md).
+
 | Field | Description |
 |---|---|
 | `event_id` | Unique event identifier |
@@ -8,17 +10,15 @@
 | `observed_at` | UTC ISO-8601 timestamp |
 | `protocol` | `modbus`, `s7`, or `iec104` |
 | `source_id` | Salted, truncated SHA-256 pseudonym |
-| `source_network` | Coarse source prefix; may be removed in stricter releases |
 | `source_country` | Approximate GeoIP country, not verified physical location |
 | `source_asn` | Approximate autonomous-system label |
 | `event_type` | Connection, request, or bounded sensor error |
 | `decoded` | Allow-listed protocol metadata and optional fictional profile state |
-| `techniques` | Evidence-qualified ATT&CK hypotheses with confidence and rationale |
-| `severity` | Analytical priority, not proof of compromise |
+| `techniques` | Legacy-only evidence-qualified ATT&CK hypotheses with confidence and rationale; new records keep this in Analysis v1 |
+| `severity` | Legacy-only analytical priority, not proof of compromise; new records keep this in Analysis v1 |
 | `is_demo` | `true` for synthetic portfolio data |
 | `sanitized` | Indicates that publication processing was applied |
 
-The dashboard derives `risk_score`, `risk_band` and score factors from the fields above. These are deterministic analyst-priority aids, not assertions about a person's identity or intent.
+The public dashboard derives `triage_score`, `triage_priority` and public score factors from the fields above. These are deterministic analyst-priority aids, not assertions about a person's identity or intent. Private repeat and novelty evidence may inform the private collector score, but they are intentionally not displayed in public views.
 
-Private sensor events may also contain `source_ip` and `raw_payload_hex`. Public datasets and public STIX bundles never contain either field. Remote collector transport adds authentication headers but does not add secrets to the event body.
-
+Private sensor events may also contain `source_ip`, `source_network` and `raw_payload_hex`. Strict public sanitization removes all three, recursively removes credential-like keys and requires `sanitized: true`. Public datasets and public STIX bundles contain no literal address or network prefix. Remote collector transport adds authentication headers but does not add secrets to the event body.

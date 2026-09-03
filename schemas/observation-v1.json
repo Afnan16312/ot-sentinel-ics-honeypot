@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OT Sentinel Observation v1",
+  "type": "object",
+  "required": ["schema_version", "event_id", "session_id", "sensor_id", "observed_at", "protocol", "event_type", "data_classification", "capture"],
+  "properties": {
+    "schema_version": {"const": "ot-sentinel.observation/v1"},
+    "event_id": {"type": "string", "minLength": 1},
+    "session_id": {"type": "string", "minLength": 1},
+    "sensor_id": {"type": "string", "minLength": 1},
+    "observed_at": {"type": "string", "minLength": 1},
+    "protocol": {"type": "string", "minLength": 1},
+    "event_type": {"type": "string", "minLength": 1},
+    "data_classification": {"enum": ["raw_private", "sanitized_private", "synthetic"]},
+    "capture": {"type": "object"}
+  }
+}

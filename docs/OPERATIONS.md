@@ -35,9 +35,21 @@ Set `OT_HEALTH_PATH=logs/health.json` or pass `--health-file`. After each event 
 - total and per-protocol event counts,
 - event-type counts,
 - alert and collector queue depth/drop counters,
-- delivery failures.
+- delivery failures,
+- oldest collector-queue age and optional spool storage readiness.
 
 The file contains operational health only. It is not an availability guarantee.
+
+### Optional local dashboard assurance
+
+The public dashboard never reads cloud health or private logs by itself. For a local operator-only view of the approved aggregate health snapshot, set the path explicitly before starting Streamlit:
+
+```powershell
+$env:OT_ASSURANCE_HEALTH_PATH = "logs\health.json"
+.\run_dashboard.ps1
+```
+
+The dashboard allowlists only health state, timestamps, aggregate event count, bounded queue/delivery counters, session-capacity counters and storage readiness. It ignores raw telemetry, addresses, payloads, secrets and unknown fields. A visible “not connected” state means the dashboard is not making a sensor-health claim.
 
 ## Selective webhook alerts
 
@@ -49,9 +61,26 @@ $env:OT_ALERT_SECRET = "a-private-random-secret-of-at-least-16-characters"
 .\.venv\Scripts\python.exe -m ot_sentinel.sensor
 ```
 
-Only events with both high severity and a high-confidence ATT&CK match are eligible. The alert excludes source IPs and raw payloads, is deduplicated by session and technique, is HMAC-SHA256 signed, and uses a bounded background queue. HTTPS is required except for loopback testing.
+Only high-severity events are eligible. The alert excludes source IPs and raw payloads, is deduplicated by session and technique, is HMAC-SHA256 signed, and uses a bounded background queue. HTTPS is required except for loopback testing.
 
 The receiver should verify the `X-OT-Sentinel-Signature` header against the exact request body before processing it.
+
+### File-based alert configuration
+
+For a private indexed deployment, copy and edit [`config/alerts.yaml`](../config/alerts.yaml). It intentionally uses the JSON subset of YAML so the sensor does not need a YAML parser. Keep `enabled` as `false` until the endpoint and secret are ready; do not put secrets in this file.
+
+```powershell
+$env:OT_ALERT_SECRET = "a-private-random-secret-of-at-least-16-characters"
+.\.venv\Scripts\python.exe -m ot_sentinel.sensor `
+  --observation-db logs\observations.sqlite3 `
+  --alerts-config config\alerts.yaml
+```
+
+When enabled through this file, an event is enqueued only after its private SQLite observation has been recorded. Delivery remains asynchronous with a bounded queue: a slow, unavailable or failing webhook increments health counters but never blocks an ICS listener. The JSON sent to Slack, Discord or a SOAR endpoint contains only `observed_at`, `protocol`, `severity`, `mitre_attack_ids` and an HMAC-derived `source_hash`; it excludes raw addresses, payloads, credentials, sensor identifiers and session identifiers.
+
+### Explainable private threat score
+
+Each private observation stores `threat_score` (0–100), `threat_priority` and `threat_factors_json`. The factors are protocol action, strongest ATT&CK evidence confidence, repeat pseudonymous-source activity and payload-fingerprint novelty. Existing Streamlit **Triage** cards show the same explainable review model for sanitized dashboard records. If the private index is connected to an analyst-only dashboard later, display these three stored fields directly; do not copy the private database into the public Streamlit build.
 
 ## Central multi-sensor collector
 
@@ -83,14 +112,40 @@ $env:OT_SENSOR_ID = "remote-sensor-02"
 
 The transport signs the timestamp and exact JSON body. The collector rejects unknown sensors, invalid signatures, stale timestamps, oversized requests, identity mismatches and duplicate event IDs. It writes `transport_authenticated: true` only after those checks pass.
 
+Collector replay reservations default to a private SQLite file, so an accepted sensor/event pair remains rejected through a local collector restart until expiry. This database stores replay keys and expiry only; collector event JSONL remains the private evidence output.
+
+### Optional local durable delivery spool
+
+For a local controlled test, set a private ignored spool path before starting the sensor:
+
+```powershell
+$env:OT_COLLECTOR_SPOOL = "logs/collector-delivery.sqlite3"
+$env:OT_COLLECTOR_SPOOL_MAX_ROWS = "5000"
+$env:OT_COLLECTOR_SPOOL_MAX_BYTES = "33554432"
+$env:OT_CONFIGURATION_VERSION = "local-synthetic-v1"
+$env:OT_COLLECTOR_HEARTBEAT = "true"
+```
+
+The spool persists pending event JSON across restarts, rejects the newest enqueue when its row or byte bound is full and retries due rows with bounded exponential backoff. It never stores `OT_COLLECTOR_SECRET` or a request signature; both are used only when transmitting. Disable the feature by leaving `OT_COLLECTOR_SPOOL` unset. This option was tested locally and was not deployed to Oracle.
+
+### Local health checker
+
+Use [Local Health Monitoring Runbook](HEALTH_MONITORING_RUNBOOK.md) for synthetic/local snapshots. The checker reports warning (`1`) and critical (`2`) states without echoing event data, addresses, payloads or paths. No monitor or scheduler was installed in cloud infrastructure.
+
+The machine-readable request and response contract is [OpenAPI 3.1](api/collector.openapi.json). The [collector threat model](COLLECTOR_THREAT_MODEL.md) explains what the controls do and do not protect. The [operational hardening guide](COLLECTOR_HARDENING.md) covers TLS termination, gateways, rate limits, supervision, rotation, monitoring, backup, migration and rollback without treating those deployment activities as already completed.
+
 For a same-machine demonstration only, the collector accepts `--allow-insecure-loopback` while bound to `127.0.0.1`. Plain HTTP is deliberately refused for remote addresses.
 
 ## Shutdown and failure behavior
 
 - `Ctrl+C` closes the sensor or collector cleanly.
 - Alert and collector delivery never blocks protocol handling; bounded queues absorb short interruptions.
-- After three failed deliveries the health counter increases and the sensor continues locally.
+- In-memory delivery makes three bounded attempts; the optional durable spool reschedules failed rows with capped exponential backoff.
 - Local JSONL remains the evidence source when a remote integration is unavailable.
+
+## Final offline handoff
+
+The post-collection preflight, sanitized SQLite import, persistent local Wazuh staging, reports, STIX, Navigator and manifest are documented in [Final Data Handoff Runbook](FINAL_DATA_HANDOFF.md). These commands operate only on a separately transferred local file. They do not connect to Oracle, publish automatically or replace the Streamlit demonstration dataset.
 
 ## Oracle host daily check
 
@@ -115,3 +170,6 @@ The service should be `active`, the container should be `Up`, health should be `
 - Monitor disk space and ship private logs to approved storage.
 - Do not expose the collector or sensor from a personal network.
 - Do not place any component on the same network as production OT.
+- Treat `GET /health` as process liveness only; monitor successful storage and disk state separately.
+- Preserve the exact request bytes through any gateway because HMAC verification covers the exact body.
+- Use the tested 64 KiB application limit even if an upstream proxy permits larger generic requests.

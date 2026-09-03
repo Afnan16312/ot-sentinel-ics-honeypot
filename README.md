@@ -8,6 +8,8 @@
 
 > **Honest data notice:** The public dashboard uses clearly labeled, computer-generated demonstration data. A separate isolated Oracle Cloud sensor began a private live collection on 2026-08-19, but no unreviewed live record is published or presented as attacker activity. See the [privacy-safe deployment record](docs/LIVE_DEPLOYMENT_RECORD.md).
 
+![OT Sentinel interactive geographic investigation workspace](docs/assets/dashboard.png)
+
 ## Project author
 
 OT Sentinel is my OT/ICS security research project.
@@ -27,6 +29,11 @@ My system then:
 5. Displays trends, locations, techniques and sessions in an interactive dashboard.
 6. Exports portable STIX intelligence and tested Sigma, Suricata and Wazuh rules.
 7. Prioritizes stronger events with an explainable risk score and review queue.
+8. Keeps replay and pending delivery state across local restarts using optional bounded SQLite stores.
+9. Generates a synthetic ATT&CK Navigator layer and weekly intelligence brief.
+10. Prepares an immutable, checksum-led final handoff for private SQLite analysis and persistent local Wazuh ingestion.
+11. Provides an interactive four-mode geographic investigation workspace with privacy-safe source drill-down and time playback.
+12. Separates session review priority, evidence completeness and detection-validation state so the dashboard cannot easily overstate what the records prove.
 
 ## Why it matters
 
@@ -38,7 +45,9 @@ I also documented how OT Sentinel compares with established honeypot projects an
 
 For the complete record of requirements, shipped features, engineering decisions, system design, and solved problems, start with the [engineering documentation](docs/ENGINEERING_DOCUMENTATION.md).
 
-## What is included in version 0.2
+Development uses the optional, local-only [Ponytail and Graphify workflow](docs/DEVELOPER_ASSISTANTS.md); neither tool runs on the Oracle sensor.
+
+## What is included in version 0.3
 
 | Feature | Plain-language purpose |
 |---|---|
@@ -50,6 +59,29 @@ For the complete record of requirements, shipped features, engineering decisions
 | Multi-sensor collector | Accepts authenticated events from isolated sensors over encrypted transport |
 | Release evidence | Produces an SPDX software bill of materials and SHA-256 file checksums |
 | Isolated live deployment | Reproduces the Oracle ARM64 service, restart, firewall and log-retention controls without publishing private telemetry |
+| Evidence-first data contracts | Keeps immutable observation evidence separate from repeatable analysis results and supports non-destructive legacy migration |
+| Guided investigation | Gives learners and analysts a Scope → Prioritize → Validate path into Session Explorer and ATT&CK evidence |
+| Detection coverage backlog | Turns observed behavior into a concrete mapping, rule and fixture engineering worklist |
+| Operator assurance | Optionally displays allowlisted aggregate local health state without exposing telemetry or connecting to cloud infrastructure |
+
+## Merged investigation and assurance enhancements
+
+| Enhancement | Plain-language purpose |
+|---|---|
+| Durable replay protection | A resent collector event remains rejected after a local collector restart |
+| Scanner deduplication | Repeated identical requests increment a count instead of creating misleading duplicate analysis rows |
+| Navigator and weekly brief | Synthetic/private SQLite analysis becomes a heat layer and a reproducible seven-day Markdown summary |
+| Shared publication safety gate | Streamlit, public summaries and public STIX reject raw addresses, prefixes, payloads, credentials and mixed provenance |
+| Detection Preview | Shows which Sigma, Wazuh and Suricata rules would match, clearly labeled as an offline prediction |
+| Local readiness monitor | Reports stale health, disk, queue, delivery and storage conditions without echoing telemetry |
+| Durable delivery spool | Optionally preserves pending collector forwards across restarts without storing HMAC secrets |
+| Standards validation | CI validates the collector contract with a pinned OpenAPI 3.1 implementation |
+| Final data handoff | Safe preflight, transactional SQLite import, Wazuh staging and a checksum manifest prepare the completed study without automatic publication |
+| Interactive threat map | Compares bounded flow paths, source bubbles, density and UTC playback, then opens a privacy-safe source investigation summary |
+
+The disposable loopback-only Wazuh 4.14.7/Suricata 8.0.4 lab passed native positive and negative checks with synthetic fixtures; see the privacy-safe [native validation evidence](tests/soc/NATIVE_VALIDATION.md). The exact [recording checklist](docs/RECORDING_CHECKLIST.md) is ready, but no public video is claimed yet.
+
+The [final data handoff runbook](docs/FINAL_DATA_HANDOFF.md) prepares the offline workflow for the end of the authorized collection. It does not connect Wazuh to Oracle, publish observed records or replace the synthetic dashboard.
 
 ## Current live-study status
 
@@ -83,6 +115,25 @@ streamlit run app.py
 ```
 
 Streamlit opens the dashboard in your browser with the included demonstration data.
+
+### Review the sanitized Oracle handoff locally
+
+After an authorized collection is closed, the handoff can be reviewed on your own
+computer without putting private records in GitHub or a public Streamlit deployment.
+The repository includes a launcher for this purpose:
+
+```powershell
+.\run_private_review.ps1 -Port 8512
+```
+
+It reads the privacy-validated `events.sanitized.jsonl` from the newest local handoff,
+shows `SANITIZED` in the dashboard, and never contacts or changes Oracle. The current
+handoff intentionally has no source coordinates, so the map shows the approximate UAE
+sensor region and explains why source bubbles are not plotted. Keep the public dashboard
+on the synthetic dataset until the processing manifest's manual publication review is
+completed; sanitized does not mean automatically approved for public release.
+
+The observatory map supports zoom, pan, fullscreen, country focus, four analytical modes and a reviewed aggregate CSV export. The dashboard uses a Stitch-inspired light workstation layout with a fixed analysis rail, compact status header, filter chips and responsive KPI/map cards. Its design decisions, privacy contract, interaction model and QA evidence are documented in [Interactive Threat Map Redesign](docs/INTERACTIVE_MAP_REDESIGN.md).
 
 ## Run the honeypot locally
 
@@ -143,9 +194,16 @@ python -m pytest -q -p no:cacheprovider
 python -m ruff check .
 python scripts/validate_detections.py
 python scripts/validate_public_data.py data/demo_events.jsonl
+python -m openapi_spec_validator docs/api/collector.openapi.json
 ```
 
 The public-data check helps prevent accidental publication of raw IP addresses, raw payloads or unlabeled demonstration records.
+
+The aggregate-only dashboard summary can also be reproduced without exposing individual rows:
+
+```bash
+python scripts/build_public_summary.py data/demo_events.jsonl data/demo_summary.json
+```
 
 Other useful commands:
 
@@ -174,6 +232,18 @@ ot-sentinel export-stix data/demo_events.jsonl artifacts/public-stix.json --prof
 | `docs/ORACLE_CLOUD_RUNBOOK.md` | Exact verified Oracle deployment, isolation and recovery procedure |
 | `docs/LIVE_DEPLOYMENT_RECORD.md` | Privacy-safe evidence that the live sensor is operating |
 | `docs/DETECTION_ENGINEERING.md` | Detection logic, testing and deployment notes |
+| `docs/SAFE_PUBLICATION_PIPELINE.md` | Aggregate-only synthetic pipeline and future publication gates |
+| `docs/SOC_INTEGRATION_PLAN.md` | Safe offline Wazuh and Suricata integration phases |
+| `docs/FINAL_DATA_HANDOFF.md` | Exact private preflight, analysis, Wazuh and final-review procedure |
+| `docs/MONITORING_PLAN.md` | Future health, capacity and privacy-monitoring design |
+| `docs/THREAT_INTELLIGENCE_REPORT_TEMPLATE.md` | Privacy-reviewed live-study report structure |
+| `docs/DEMO_SCRIPT.md` | Simple five-minute explanation for project demonstrations |
+| `docs/RECORDING_CHECKLIST.md` | Exact synthetic-only 5–7 minute recording and privacy-review procedure |
+| `docs/INTERACTIVE_MAP_REDESIGN.md` | Map gap analysis, shipped interactions, privacy controls and QA matrix |
+| `docs/PRODUCT_GAP_ANALYSIS.md` | Comprehensive user pain-point audit and prioritized map/product roadmap |
+| `docs/USER_RESEARCH_AND_FEATURE_STRATEGY.md` | Detailed user personas, jobs, pain points, problem statements, minor/major feature backlog and validation plan |
+| `docs/PHASE_2_ENGINEERING_RECORD.md` | Phase 2 decisions, features, tests, limitations and non-deployment record |
+| `docs/HEALTH_MONITORING_RUNBOOK.md` | Local privacy-safe readiness checker instructions |
 | `docs/STIX_EXPORT.md` | Public and private STIX export rules |
 | `docs/COMPETITIVE_ANALYSIS_AND_ROADMAP.md` | Project comparison and zero-cost improvement plan |
 | `output/pdf/` | Demonstration threat-intelligence report |

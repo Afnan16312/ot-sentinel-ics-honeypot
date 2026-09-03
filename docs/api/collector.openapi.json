@@ -1,0 +1,375 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "OT Sentinel Collector API",
+    "version": "0.2.0",
+    "summary": "Minimal authenticated ingestion API for synthetic or private OT Sentinel events",
+    "description": "The collector exposes exactly two endpoints. POST /v1/events authenticates an exact JSON request body with a sensor identifier, Unix timestamp and HMAC-SHA256 signature. GET /health is a minimal process-liveness response. TLS is mandatory outside an explicit loopback lab."
+  },
+  "paths": {
+    "/v1/events": {
+      "post": {
+        "summary": "Authenticate and append one event envelope",
+        "description": "The serialized request body must be between 1 and 65,536 bytes. X-OT-Signature is sha256=<lowercase hex HMAC>, calculated over the UTF-8 timestamp, one newline byte and the exact request body. The timestamp must be within the configured clock-skew window, currently 30 to 900 seconds with a 300-second default. A sensor/event ID pair is accepted only once during the replay window. Error responses never echo request bodies, signatures, sensor identifiers or storage details.",
+        "operationId": "acceptCollectorEvent",
+        "security": [
+          {
+            "sensorId": [],
+            "requestTimestamp": [],
+            "hmacSignature": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-OT-Sensor",
+            "in": "header",
+            "required": true,
+            "description": "Configured sensor identifier. It must match both sensor_id fields in the envelope.",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "X-OT-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "Unix time in whole seconds used in the signature and freshness check.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            }
+          },
+          {
+            "name": "X-OT-Signature",
+            "in": "header",
+            "required": true,
+            "description": "HMAC-SHA256 of timestamp + newline + exact body, prefixed with sha256=.",
+            "schema": {
+              "type": "string",
+              "pattern": "^sha256=[a-f0-9]{64}$"
+            }
+          },
+          {
+            "name": "Content-Length",
+            "in": "header",
+            "required": true,
+            "description": "Exactly one decimal content length is required; accepted range is 1 through 65,536 bytes.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65536
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventEnvelope"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Authenticated event appended to private storage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Accepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationFailed"
+          },
+          "408": {
+            "$ref": "#/components/responses/RequestTimeout"
+          },
+          "409": {
+            "$ref": "#/components/responses/ReplayConflict"
+          },
+          "411": {
+            "$ref": "#/components/responses/LengthRequired"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/StorageUnavailable"
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Return collector process liveness",
+        "description": "This endpoint confirms that the HTTP process can answer. It does not prove storage durability, certificate validity, downstream availability or end-to-end ingestion.",
+        "operationId": "getCollectorHealth",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Collector process is answering",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "sensorId": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-OT-Sensor",
+        "description": "Sensor identity; not sufficient without the timestamp and HMAC."
+      },
+      "requestTimestamp": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-OT-Timestamp",
+        "description": "Freshness value signed together with the exact body."
+      },
+      "hmacSignature": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-OT-Signature",
+        "description": "Per-sensor HMAC-SHA256 proof. TLS is still required."
+      }
+    },
+    "schemas": {
+      "EventEnvelope": {
+        "type": "object",
+        "required": [
+          "schema",
+          "sensor_id",
+          "sent_at",
+          "event"
+        ],
+        "properties": {
+          "schema": {
+            "const": "ot-sentinel-envelope/1"
+          },
+          "sensor_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sent_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "configuration_version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional non-secret sensor configuration label. Envelope version remains 1."
+          },
+          "heartbeat": {
+            "$ref": "#/components/schemas/Heartbeat"
+          },
+          "event": {
+            "$ref": "#/components/schemas/Event"
+          }
+        }
+      },
+      "Heartbeat": {
+        "type": "object",
+        "description": "Optional privacy-safe delivery-queue readiness metadata.",
+        "required": [
+          "queue_depth",
+          "oldest_age_seconds"
+        ],
+        "properties": {
+          "queue_depth": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "oldest_age_seconds": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "Event": {
+        "type": "object",
+        "required": [
+          "event_id",
+          "session_id",
+          "sensor_id",
+          "observed_at",
+          "protocol",
+          "event_type"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "session_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sensor_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "protocol": {
+            "type": "string",
+            "minLength": 1
+          },
+          "event_type": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": true
+      },
+      "Accepted": {
+        "type": "object",
+        "required": [
+          "accepted",
+          "event_id"
+        ],
+        "properties": {
+          "accepted": {
+            "const": true
+          },
+          "event_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "accepted",
+          "error"
+        ],
+        "properties": {
+          "accepted": {
+            "const": false
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Health": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "const": "ok"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Invalid length, incomplete body or invalid event envelope",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "AuthenticationFailed": {
+        "description": "Missing, unknown, stale, mismatched or incorrectly signed authentication material",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "RequestTimeout": {
+        "description": "The complete declared body was not received within the bounded timeout",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "ReplayConflict": {
+        "description": "The authenticated sensor/event identifier was already accepted during the replay window",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "LengthRequired": {
+        "description": "Content-Length is missing",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "PayloadTooLarge": {
+        "description": "The declared body exceeds 65,536 bytes",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "UnsupportedMediaType": {
+        "description": "Content-Type is not application/json",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "StorageUnavailable": {
+        "description": "Authenticated storage failed; no path or exception detail is disclosed and the event may be retried",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    }
+  }
+}

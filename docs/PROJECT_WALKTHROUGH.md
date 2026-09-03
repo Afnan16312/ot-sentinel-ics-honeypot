@@ -95,13 +95,16 @@ Before events are suitable for publication, the privacy layer:
 
 ### Step 7: The dashboard displays the results
 
-The Streamlit dashboard provides five main views:
+The Streamlit dashboard provides six main views:
 
-1. **Observatory:** overview, source distribution, technique summaries and activity timeline.
+1. **Observatory:** an interactive global workspace with flow, source-bubble, density and time-playback modes, plus privacy-safe source drill-down.
 2. **ATT&CK Layer:** technique intensity separated by industrial protocol.
-3. **Triage & Validation:** explainable event priority, review queue and mapper test results.
-4. **Session Explorer:** sanitized event records for detailed investigation.
-5. **Methodology:** an explanation of what the sensor can and cannot prove.
+3. **Detection Preview:** explains which included Sigma, Wazuh and Suricata rules match the visible synthetic evidence.
+4. **Triage & Validation:** explainable event priority, review queue and mapper test results.
+5. **Session Explorer:** sanitized event records for detailed investigation.
+6. **Methodology:** an explanation of what the sensor can and cannot prove.
+
+On the map I can zoom, pan, switch analytical modes, limit the observation window and select a pseudonymous source. The investigation panel shows only reviewed public fields. Coordinates are deliberately coarse, and the path lines show network observations rather than proven routes or attacker attribution.
 
 ## 6. What the current dashboard data means
 

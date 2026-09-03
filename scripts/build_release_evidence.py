@@ -59,7 +59,7 @@ def main() -> None:
     files = evidence_files()
     evidence = {
         "schema": "ot-sentinel-release-evidence/1",
-        "project_version": "0.2.0",
+        "project_version": "0.3.0",
         "commit": commit_id(),
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "validation": {
@@ -80,4 +80,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

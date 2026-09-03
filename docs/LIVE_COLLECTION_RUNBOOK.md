@@ -36,3 +36,5 @@ This runbook governs the active two-to-four-week study that began on 2026-08-19.
 - Publish only after the privacy review is signed off.
 
 The isolated infrastructure is now operating, but the study is not complete. The unfinished milestone is to finish the stated collection window, shut down cleanly, sanitize and review the evidence, and publish only material that passes the privacy and methodology gates.
+
+The complete offline procedure is prepared in [Final Data Handoff Runbook](FINAL_DATA_HANDOFF.md). Do not run it against the live VM or before the authorized shutdown and private transfer.

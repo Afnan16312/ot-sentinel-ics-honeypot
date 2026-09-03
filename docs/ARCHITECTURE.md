@@ -43,13 +43,20 @@ Mappings are hypotheses, not automatic attribution:
 | Controller program transfer | T0843 | High |
 | Documented exploit signature | T0866 | High |
 
-The risk score uses protocol action, evidence strength, mapping confidence, repetition and novelty. It never uses geography or identity and is not proof of attacker intent, attribution or compromise.
+The private-index threat score uses protocol action, mapping confidence, repeat pseudonymous-source observations and novel payload fingerprints. The score, priority and factor list are stored with each private observation. It never uses geography or identity and is not proof of attacker intent, attribution or compromise.
+
+The Streamlit **Triage** view already presents the same 0–100 review score, priority and evidence factors for approved public-safe records. A future private analyst deployment may read the stored `threat_score`, `threat_priority` and `threat_factors_json` fields directly; public releases should expose only an approved aggregate or sanitized derived score.
 
 ## Failure containment
 
 - Alert and collector delivery use bounded queues and retries; failures do not block protocol listeners.
-- Alerts are deduplicated and contain no source IP address or raw payload.
+- Alerts are deduplicated and contain no source IP address or raw payload; the optional source hash is HMAC-derived locally for correlation only.
 - Collector timestamps, event identifiers and signatures are checked before append-only storage.
 - Health output records parser errors, queue drops, delivery failures and last-event time.
 - Public datasets, STIX bundles and release evidence are created through repeatable local commands.
 
+## Collector assurance
+
+The optional collector intentionally exposes only `POST /v1/events` and `GET /health`. Its contract is published as [OpenAPI 3.1](api/collector.openapi.json), and synthetic black-box tests exercise authentication, freshness, identity, replay, malformed framing, concurrency, timeouts, storage failure, privacy-safe errors and shutdown through real loopback sockets.
+
+The design remains framework-free because two machine endpoints do not currently justify the dependency and operational surface of Flask or Django. See [ADR-020](ADR_020_COLLECTOR_FRAMEWORK.md), the [collector threat model](COLLECTOR_THREAT_MODEL.md) and [collector hardening guide](COLLECTOR_HARDENING.md).

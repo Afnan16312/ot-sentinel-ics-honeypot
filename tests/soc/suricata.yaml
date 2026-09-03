@@ -1,0 +1,35 @@
+%YAML 1.1
+---
+vars:
+  address-groups:
+    HOME_NET: "[10.20.0.0/16]"
+    EXTERNAL_NET: "!$HOME_NET"
+
+default-rule-path: /etc/suricata/rules
+default-log-dir: /output
+classification-file: /etc/suricata/classification.config
+reference-config-file: /etc/suricata/reference.config
+threshold-file: /etc/suricata/threshold.config
+rule-files:
+  - ot_sentinel_modbus.rules
+
+app-layer:
+  protocols:
+    modbus:
+      enabled: yes
+      detection-ports:
+        dp: 502
+
+stream:
+  checksum-validation: yes
+
+outputs:
+  - eve-log:
+      enabled: yes
+      filetype: regular
+      filename: eve.json
+      types:
+        - alert
+
+logging:
+  default-log-level: notice
