@@ -155,6 +155,26 @@ def test_all_map_modes_build_and_playback_has_frames():
     }
 
 
+def test_empty_map_keeps_approximate_region_context_visible():
+    figure = build_threat_map(
+        pd.DataFrame(),
+        mode="Source bubbles",
+        show_region=True,
+    )
+
+    assert figure.layout.map.layers
+    assert figure.layout.map.layers[0].color == "#D5DEE5"
+
+    offline = build_threat_map(
+        pd.DataFrame(),
+        mode="Source bubbles",
+        offline_map=True,
+        show_region=True,
+    )
+    assert offline.layout.geo.showland is True
+    assert any(trace.name == "Approximate UAE region" for trace in offline.data)
+
+
 def test_map_viewpoint_fits_visible_data_and_focuses_one_source():
     records = frame(
         event("a", source="src-a", country="Alpha", latitude=10, longitude=20),

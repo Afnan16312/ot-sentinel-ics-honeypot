@@ -12,9 +12,9 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 PROTOCOL_COLORS = {
-    "modbus": "#EF4444",
-    "s7": "#3B82F6",
-    "iec104": "#FBBF24",
+    "modbus": "#DC2626",
+    "s7": "#2563EB",
+    "iec104": "#7C3AED",
     "unknown": "#94A3B8",
 }
 SEVERITY_ORDER = {"info": 0, "low": 1, "medium": 2, "high": 3}
@@ -450,6 +450,8 @@ def _add_source_markers(fig: go.Figure, points: pd.DataFrame) -> None:
 
 def _add_severity_halos(fig: go.Figure, points: pd.DataFrame, *, offline: bool = False) -> None:
     """Put a subtle, non-selectable halo behind elevated-severity observations."""
+    if points.empty or "max_severity" not in points:
+        return
     elevated = points[points["max_severity"].isin(["high", "medium"])]
     if elevated.empty:
         return
@@ -476,6 +478,8 @@ def _add_severity_halos(fig: go.Figure, points: pd.DataFrame, *, offline: bool =
 
 def _add_offline_source_markers(fig: go.Figure, points: pd.DataFrame) -> None:
     """Render selectable source aggregates without external map tiles."""
+    if points.empty:
+        return
     for protocol in sorted(points["protocol"].unique()):
         protocol_points = points[points["protocol"] == protocol]
         fig.add_trace(
@@ -708,8 +712,25 @@ def build_threat_map(
     if mode not in MAP_MODES:
         raise ValueError(f"Unsupported map mode: {mode}")
 
+    if points.empty and offline_map and mode != "Time playback":
+        return _build_offline_map(
+            points,
+            mode=mode,
+            show_flows=show_flows,
+            show_region=show_region,
+            revision=revision,
+            map_center=map_center,
+            map_zoom=map_zoom,
+        )
+
     if points.empty:
+        # Keep the geographic workspace visible even when sanitized records have
+        # no usable source coordinates.  This is common for private handoffs
+        # where geolocation is intentionally withheld; the UAE marker is only
+        # the coarse sensor region, never an attacker location.
         figure = go.Figure()
+        if show_region:
+            _add_region_marker(figure)
         return _base_layout(figure, map_style, revision, map_center, map_zoom)
 
     if offline_map and mode != "Time playback":

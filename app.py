@@ -112,7 +112,7 @@ st.markdown(
     """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
-:root { --canvas:#f9f9f9; --surface:#ffffff; --recessed:#f5f7fa; --border:#d1d5db; --text:#1a1c1e; --muted:#414751; --blue:#0060ab; --purple:#6a4da0; --red:#d32f2f; --amber:#b47c00; --green:#1b804b; }
+:root { --canvas:#f9f9f9; --surface:#ffffff; --recessed:#f5f7fa; --border:#d1d5db; --text:#1a1c1e; --muted:#414751; --blue:#2563eb; --purple:#7c3aed; --red:#dc2626; --amber:#ea580c; --orange:#ea580c; }
 html, body, [class*="css"] { font-family:'Inter',sans-serif; color:var(--text); }
 .stApp { background:var(--canvas); }
 [data-testid="stHeader"] { background:transparent; }
@@ -123,7 +123,7 @@ html, body, [class*="css"] { font-family:'Inter',sans-serif; color:var(--text); 
 .stTabs [role="tablist"]::before { content:'OT Sentinel'; position:absolute; top:-52px; left:20px; height:52px; display:flex; align-items:center; color:#004883; font-size:18px; font-weight:600; letter-spacing:-.02em; }
 .stitch-brand { display:none; }
 .stitch-status { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; }
-.stitch-status .dot { width:8px; height:8px; border-radius:50%; background:var(--green); display:inline-block; }
+.stitch-status .dot { width:8px; height:8px; border-radius:50%; background:var(--blue); display:inline-block; }
 .stitch-status .divider { color:#c1c7d3; margin:0 4px; }
 .stitch-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; }
 .header-info { width:32px; height:32px; border:1px solid var(--border); border-radius:4px; background:white; color:var(--muted); }
@@ -145,7 +145,7 @@ html, body, [class*="css"] { font-family:'Inter',sans-serif; color:var(--text); 
 .filter-chip { display:inline-flex; align-items:center; padding:5px 9px; border-radius:4px; border:1px solid var(--border); background:#fff; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:11px; }
 .filter-chip.blue { color:var(--blue); border-color:#a9c7ff; background:#eef4ff; }
 .filter-chip.purple { color:var(--purple); border-color:#d8b8ff; background:#f8efff; }
-.filter-chip.green { color:var(--green); border-color:#abd9be; background:#eefaf2; }
+.filter-chip.green { color:var(--orange); border-color:#fed7aa; background:#fff7ed; }
 .filter-chip.red { color:var(--red); border-color:#f2b0b0; background:#fff0f0; }
 .filter-divider { height:24px; width:1px; background:var(--border); }
 .filter-help { display:block; margin-left:0; color:var(--muted); font-size:11px; line-height:1.35; white-space:nowrap; }
@@ -200,7 +200,7 @@ div[data-testid="stDataFrame"] { border:1px solid var(--border); border-radius:4
 .map-legend { display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; padding:8px 10px; margin:8px 0 10px; background:#f5f7fa; border:1px solid var(--border); border-radius:4px; color:var(--muted); font-size:.7rem; }
 .map-legend span { display:inline-flex; align-items:center; gap:5px; }
 .legend-dot { width:9px; height:9px; border-radius:50%; display:inline-block; border:1px solid rgba(0,0,0,.18); }
-.legend-line { width:18px; height:0; border-top:2px solid #3B82F6; display:inline-block; }
+.legend-line { width:18px; height:0; border-top:2px solid #2563EB; display:inline-block; }
 .map-story { display:grid; grid-template-columns:1.3fr 1fr 1fr; gap:8px; margin:8px 0 10px; }
 .map-story-card { padding:9px 10px; background:#f8fafc; border:1px solid var(--border); border-radius:4px; color:var(--muted); font-size:.72rem; line-height:1.4; }
 .map-story-card.primary { border-left:3px solid var(--blue); background:#f2f7ff; }
@@ -227,7 +227,7 @@ div[data-testid="stDataFrame"] { border:1px solid var(--border); border-radius:4
 .rail-label { color:var(--muted); font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; }
 .rail-value { color:var(--text); font-family:'JetBrains Mono',monospace; font-size:1.4rem; margin:4px 0 7px; }
 .rail-value.red { color:var(--red); }
-.rail-trend { color:var(--green); font-family:'JetBrains Mono',monospace; font-size:.78rem; }
+.rail-trend { color:var(--blue); font-family:'JetBrains Mono',monospace; font-size:.78rem; }
 .protocol-row { margin:8px 0 10px; }
 .protocol-meta { display:flex; justify-content:space-between; color:var(--muted); font-family:'JetBrains Mono',monospace; font-size:.7rem; }
 .protocol-track { height:6px; background:#eef1f5; margin-top:4px; }
@@ -955,15 +955,15 @@ with overview:
     investigation_state.map_window = time_preset
     offline_map = st.checkbox(
         "Offline map fallback",
-        value=False,
+        value=not is_demo,
         key="map_offline",
-        help="Use a tile-free geographic view when external CARTO/OpenStreetMap tiles are blocked.",
+        help="Use a tile-free geographic view when external CARTO/OpenStreetMap tiles are blocked or source coordinates are withheld.",
     )
     map_theme = st.selectbox(
         "Map theme",
-        ["Dark operations", "Detailed place names", "Low-clutter background"],
+        ["Detailed place names", "Dark operations", "Low-clutter background"],
         key="map_theme",
-        help="Dark operations is the default presentation view. This changes only the visual background, never the observations or their privacy-safe precision.",
+        help="Detailed place names is the default light presentation view. This changes only the visual background, never the observations or their privacy-safe precision.",
     )
     investigation_state.map_theme = map_theme
     investigation_state.sync_to_session(st.session_state)
@@ -1048,9 +1048,9 @@ with overview:
         )
     st.markdown(
         "<div class='map-legend' aria-label='Map legend'>"
-        "<span><i class='legend-dot' style='background:#EF4444'></i>Modbus</span>"
-        "<span><i class='legend-dot' style='background:#3B82F6'></i>S7</span>"
-        "<span><i class='legend-dot' style='background:#FBBF24'></i>IEC-104</span>"
+        "<span><i class='legend-dot' style='background:#DC2626'></i>Modbus</span>"
+        "<span><i class='legend-dot' style='background:#2563EB'></i>S7</span>"
+        "<span><i class='legend-dot' style='background:#7C3AED'></i>IEC-104</span>"
         "<span>Bubble size = recorded observations</span>"
         "<span><i class='legend-dot' style='background:#F8FAFC'></i>Halo = elevated severity</span>"
         "<span>Labels = country and place names</span>"
@@ -1075,48 +1075,50 @@ with overview:
 
     map_column, detail_column = st.columns([2.5, 0.9], gap="large")
     with map_column:
+        map_styles = {
+            "Dark operations": "carto-darkmatter",
+            "Detailed place names": "carto-positron",
+            "Low-clutter background": "carto-positron-nolabels",
+        }
+        map_style = map_styles[map_theme] if show_labels else "carto-positron-nolabels"
+        revision = f"ot-map-{st.session_state.get('_map_revision', 0)}"
+        threat_map = build_threat_map(
+            map_points,
+            mode=map_mode,
+            event_frame=map_frame,
+            show_flows=show_flows,
+            show_region=True,
+            map_style=map_style,
+            revision=revision,
+            offline_map=offline_map,
+            map_center=map_center,
+            map_zoom=map_zoom,
+        )
+        map_state = st.plotly_chart(
+            threat_map,
+            width="stretch",
+            key=f"interactive_threat_map_{map_mode}",
+            on_select="rerun",
+            selection_mode="points",
+            config={
+                "displaylogo": False,
+                "scrollZoom": True,
+                "responsive": True,
+                "modeBarButtonsToRemove": ["lasso2d", "select2d"],
+            },
+        )
+        map_selection = selection_from_plotly_state(map_state)
+        if map_selection is not None:
+            st.session_state["_selected_map_source"] = map_selection
+            investigation_state.selected_source = map_selection
         if map_points.empty:
-            st.info("No safely mappable observations match the current filters and time window.")
-            map_selection = None
-        else:
-            map_styles = {
-                "Dark operations": "carto-darkmatter",
-                "Detailed place names": "carto-positron",
-                "Low-clutter background": "carto-positron-nolabels",
-            }
-            map_style = map_styles[map_theme] if show_labels else "carto-positron-nolabels"
-            revision = f"ot-map-{st.session_state.get('_map_revision', 0)}"
-            threat_map = build_threat_map(
-                map_points,
-                mode=map_mode,
-                event_frame=map_frame,
-                show_flows=show_flows,
-                show_region=True,
-                map_style=map_style,
-                revision=revision,
-                offline_map=offline_map,
-                map_center=map_center,
-                map_zoom=map_zoom,
+            st.info(
+                "No source coordinates are available in this sanitized handoff. "
+                "The map remains visible with the approximate UAE sensor region; "
+                "event counts and protocol analysis are still available below."
             )
-            map_state = st.plotly_chart(
-                threat_map,
-                width="stretch",
-                key=f"interactive_threat_map_{map_mode}",
-                on_select="rerun",
-                selection_mode="points",
-                config={
-                    "displaylogo": False,
-                    "scrollZoom": True,
-                    "responsive": True,
-                    "modeBarButtonsToRemove": ["lasso2d", "select2d"],
-                },
-            )
-            map_selection = selection_from_plotly_state(map_state)
-            if map_selection is not None:
-                st.session_state["_selected_map_source"] = map_selection
-                investigation_state.selected_source = map_selection
-            if offline_map and map_mode == "Time playback":
-                st.caption("Offline fallback is available for Flow, Source bubbles and Density; playback uses the tile map.")
+        if offline_map and map_mode == "Time playback":
+            st.caption("Offline fallback is available for Flow, Source bubbles and Density; playback uses the tile map.")
 
         with st.expander("Accessible source table", expanded=False):
             accessible_selection = None
@@ -1242,7 +1244,7 @@ with overview:
         protocol_counts = filtered["protocol"].value_counts() if not filtered.empty else pd.Series(dtype="int64")
         protocol_total = max(int(protocol_counts.sum()), 1)
         protocol_rows = []
-        protocol_colors = {"modbus": "#EF4444", "s7": "#3B82F6", "iec104": "#FBBF24"}
+        protocol_colors = {"modbus": "#DC2626", "s7": "#2563EB", "iec104": "#7C3AED"}
         for protocol, count in protocol_counts.items():
             percent = round((int(count) / protocol_total) * 100)
             protocol_rows.append(
@@ -1431,6 +1433,10 @@ with overview:
                 unsafe_allow_html=True,
             )
         else:
+            st.info(
+                "No safely mappable observations match the current filters or observation window. "
+                "The dashboard has not lost data; records without approved coarse coordinates stay off the map."
+            )
             st.markdown(
                 "<div class='detail-panel'><div class='detail-label'>No mapped evidence</div>"
                 "<div class='detail-value'>Change the filters or observation window.</div></div>",
@@ -1540,7 +1546,7 @@ with overview:
             x="observed_at",
             y="events",
             color="protocol",
-            color_discrete_map={"modbus": "#EF4444", "s7": "#3B82F6", "iec104": "#FBBF24"},
+            color_discrete_map={"modbus": "#DC2626", "s7": "#2563EB", "iec104": "#7C3AED"},
         )
         line.update_traces(line_width=1.4)
         line.update_layout(

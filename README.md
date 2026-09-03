@@ -116,6 +116,23 @@ streamlit run app.py
 
 Streamlit opens the dashboard in your browser with the included demonstration data.
 
+### Review the sanitized Oracle handoff locally
+
+After an authorized collection is closed, the handoff can be reviewed on your own
+computer without putting private records in GitHub or a public Streamlit deployment.
+The repository includes a launcher for this purpose:
+
+```powershell
+.\run_private_review.ps1 -Port 8512
+```
+
+It reads the privacy-validated `events.sanitized.jsonl` from the newest local handoff,
+shows `SANITIZED` in the dashboard, and never contacts or changes Oracle. The current
+handoff intentionally has no source coordinates, so the map shows the approximate UAE
+sensor region and explains why source bubbles are not plotted. Keep the public dashboard
+on the synthetic dataset until the processing manifest's manual publication review is
+completed; sanitized does not mean automatically approved for public release.
+
 The observatory map supports zoom, pan, fullscreen, country focus, four analytical modes and a reviewed aggregate CSV export. The dashboard uses a Stitch-inspired light workstation layout with a fixed analysis rail, compact status header, filter chips and responsive KPI/map cards. Its design decisions, privacy contract, interaction model and QA evidence are documented in [Interactive Threat Map Redesign](docs/INTERACTIVE_MAP_REDESIGN.md).
 
 ## Run the honeypot locally

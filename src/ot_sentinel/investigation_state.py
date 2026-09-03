@@ -23,7 +23,7 @@ MAP_WINDOWS = (
     "Last 14 days",
     "Custom UTC range",
 )
-MAP_THEMES = ("Dark operations", "Detailed place names", "Low-clutter background")
+MAP_THEMES = ("Detailed place names", "Dark operations", "Low-clutter background")
 FILTER_NAMES = (
     "protocols",
     "severity",
@@ -88,7 +88,7 @@ class InvestigationState:
     map_camera: str = "overview"
     map_mode: str = "Flow view"
     map_window: str = "All observations"
-    map_theme: str = "Dark operations"
+    map_theme: str = "Detailed place names"
     walkthrough_step: int = 0
     filters: dict[str, object] = field(default_factory=dict)
 
