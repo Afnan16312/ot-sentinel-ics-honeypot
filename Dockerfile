@@ -9,6 +9,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN useradd --create-home --uid 10001 sensor
 WORKDIR /app
 
+# Refresh the slim base image's Debian security packages at build time.
+# The floating Python tag can lag behind Debian security updates.
+RUN apt-get update \
+    && apt-get upgrade --yes \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY pyproject.toml README.md LICENSE ./
 COPY src ./src
 COPY profiles ./profiles
