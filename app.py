@@ -384,6 +384,18 @@ def info_badge(label: str, explanation: str) -> str:
     )
 
 
+def _has_dashboard_value(value: object) -> bool:
+    """Check scalar and JSON-array values without triggering pandas ambiguity."""
+    if value is None:
+        return False
+    if isinstance(value, (list, tuple, dict, set)):
+        return bool(value)
+    try:
+        return bool(pd.notna(value))
+    except ValueError:
+        return True
+
+
 def build_triage_queue(frame: pd.DataFrame) -> pd.DataFrame:
     """Create an explainable review queue from normalized dashboard rows."""
     rows: list[dict] = []
@@ -392,7 +404,7 @@ def build_triage_queue(frame: pd.DataFrame) -> pd.DataFrame:
         decoded = {
             column.removeprefix("decoded."): event[column]
             for column in decoded_columns
-            if pd.notna(event[column])
+            if _has_dashboard_value(event[column])
         }
         event_record = {
             "event_type": event.get("event_type"),

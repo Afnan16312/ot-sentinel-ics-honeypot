@@ -27,6 +27,16 @@ CONTROL_OPERATIONS = {
 }
 MAP_MODES = ("Flow view", "Source bubbles", "Density", "Time playback")
 UAE_REGION = {"latitude": 24.4, "longitude": 54.4, "label": "UAE sensor region"}
+OFFLINE_EMPTY_CENTER = {"lat": UAE_REGION["latitude"], "lon": UAE_REGION["longitude"]}
+OFFLINE_EMPTY_ZOOM = 3.25
+OFFLINE_CONTEXT_LABELS = (
+    (24.4, 54.4, "UAE region"),
+    (24.5, 45.0, "Saudi Arabia"),
+    (26.4, 51.5, "Qatar"),
+    (30.0, 47.6, "Kuwait"),
+    (22.7, 58.4, "Oman"),
+    (32.5, 44.5, "Iraq"),
+)
 MAX_FLOW_PATHS = 60
 PUBLIC_COORDINATE_PRECISION = 1
 MAX_SOURCE_MARKER_SIZE = 28.0
@@ -554,7 +564,41 @@ def _build_offline_map(
                 showlegend=False,
             )
         )
-    center = map_center or {"lat": 18.0, "lon": 25.0}
+    if points.empty:
+        figure.add_trace(
+            go.Scattergeo(
+                lat=[item[0] for item in OFFLINE_CONTEXT_LABELS],
+                lon=[item[1] for item in OFFLINE_CONTEXT_LABELS],
+                text=[item[2] for item in OFFLINE_CONTEXT_LABELS],
+                mode="text",
+                textfont={"size": 11, "color": "#667085"},
+                hoverinfo="skip",
+                showlegend=False,
+            )
+        )
+        figure.add_annotation(
+            x=0.03,
+            y=0.95,
+            xref="paper",
+            yref="paper",
+            text=(
+                "<b>Privacy-safe regional view</b><br>"
+                "Source coordinates are unavailable or intentionally withheld."
+            ),
+            showarrow=False,
+            align="left",
+            bgcolor="rgba(255,255,255,0.94)",
+            bordercolor="#CBD5E1",
+            borderwidth=1,
+            borderpad=8,
+            font={"size": 12, "color": "#344054"},
+        )
+    center = map_center or (
+        OFFLINE_EMPTY_CENTER if points.empty else {"lat": 18.0, "lon": 25.0}
+    )
+    effective_zoom = map_zoom if map_zoom is not None else (
+        OFFLINE_EMPTY_ZOOM if points.empty else 0.75
+    )
     figure.update_layout(
         height=640,
         margin={"l": 0, "r": 0, "t": 0, "b": 0},
@@ -563,7 +607,7 @@ def _build_offline_map(
         geo={
             "projection": {
                 "type": "natural earth",
-                "scale": max(0.8, min(4.0, (map_zoom or 0.75) * 1.2)),
+                "scale": max(0.8, min(4.0, effective_zoom * 1.2)),
             },
             "center": {"lat": center["lat"], "lon": center["lon"]},
             "showland": True,
@@ -673,7 +717,7 @@ def map_viewpoint(
     """Return a predictable camera for fitting visible points or one source."""
     default_center = {"lat": 18.0, "lon": 25.0}
     if points.empty:
-        return default_center, 0.75
+        return OFFLINE_EMPTY_CENTER.copy(), OFFLINE_EMPTY_ZOOM
 
     working = points.copy()
     if focus:
@@ -731,7 +775,14 @@ def build_threat_map(
         figure = go.Figure()
         if show_region:
             _add_region_marker(figure)
-        return _base_layout(figure, map_style, revision, map_center, map_zoom)
+        empty_center, empty_zoom = map_viewpoint(points)
+        return _base_layout(
+            figure,
+            map_style,
+            revision,
+            map_center or empty_center,
+            map_zoom if map_zoom is not None else empty_zoom,
+        )
 
     if offline_map and mode != "Time playback":
         return _build_offline_map(

@@ -173,6 +173,13 @@ def test_empty_map_keeps_approximate_region_context_visible():
     )
     assert offline.layout.geo.showland is True
     assert any(trace.name == "Approximate UAE region" for trace in offline.data)
+    center, zoom = map_viewpoint(pd.DataFrame())
+    assert center == {"lat": 24.4, "lon": 54.4}
+    assert zoom == 3.25
+    assert offline.layout.geo.center.lat == 24.4
+    assert offline.layout.geo.center.lon == 54.4
+    assert any(trace.mode == "text" for trace in offline.data)
+    assert "Privacy-safe regional view" in offline.layout.annotations[0].text
 
 
 def test_map_viewpoint_fits_visible_data_and_focuses_one_source():
