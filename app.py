@@ -384,6 +384,18 @@ def info_badge(label: str, explanation: str) -> str:
     )
 
 
+def _has_dashboard_value(value: object) -> bool:
+    """Check scalar and JSON-array values without triggering pandas ambiguity."""
+    if value is None:
+        return False
+    if isinstance(value, (list, tuple, dict, set)):
+        return bool(value)
+    try:
+        return bool(pd.notna(value))
+    except ValueError:
+        return True
+
+
 def build_triage_queue(frame: pd.DataFrame) -> pd.DataFrame:
     """Create an explainable review queue from normalized dashboard rows."""
     rows: list[dict] = []
@@ -392,7 +404,7 @@ def build_triage_queue(frame: pd.DataFrame) -> pd.DataFrame:
         decoded = {
             column.removeprefix("decoded."): event[column]
             for column in decoded_columns
-            if pd.notna(event[column])
+            if _has_dashboard_value(event[column])
         }
         event_record = {
             "event_type": event.get("event_type"),
@@ -722,7 +734,7 @@ st.markdown(
 )
 st.markdown(
     f"<div class='context-strip'><b>Data &amp; privacy context</b><span>{'Synthetic dataset' if is_demo else 'Sanitized observations'}</span>"
-    f"<span>Publication-validated public dataset</span><span>Dataset ends {escape(latest_label)}</span>"
+    f"<span>{'Publication-validated public dataset' if is_demo else 'Privacy-validated local handoff'}</span><span>Dataset ends {escape(latest_label)}</span>"
     f"<span>{len(filtered):,} events in scope</span><span>Approximate geography</span>"
     f"<span>No raw IPs or payloads</span></div>",
     unsafe_allow_html=True,
@@ -756,7 +768,7 @@ if is_demo:
     )
 else:
     st.markdown(
-        "<div class='live-banner'><b>SANITIZED OBSERVATIONS</b> — Source identifiers are pseudonymized and payload content is excluded from this public view.</div>",
+        "<div class='live-banner'><b>SANITIZED OBSERVATIONS · LOCAL REVIEW</b> — Source identifiers are pseudonymized and payload content is excluded. This handoff is not approved for public release.</div>",
         unsafe_allow_html=True,
     )
 

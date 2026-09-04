@@ -1,18 +1,23 @@
 [CmdletBinding()]
 param(
     [ValidateRange(1024, 65535)]
-    [int]$Port = 8512
+    [int]$Port = 8512,
+    [string]$SanitizedPath = ""
 )
 
 $ErrorActionPreference = "Stop"
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location -LiteralPath $projectRoot
 
-$handoffRoot = Get-ChildItem -LiteralPath (Join-Path $projectRoot "data\private\handoff") -Directory -ErrorAction Stop |
-    Sort-Object Name -Descending | Select-Object -First 1
-if (-not $handoffRoot) { throw "No private handoff folder was found." }
-
-$sanitizedPath = Join-Path $handoffRoot.FullName "sanitized\events.sanitized.jsonl"
+if ($SanitizedPath) {
+    $sanitizedPath = (Resolve-Path -LiteralPath $SanitizedPath -ErrorAction Stop).Path
+}
+else {
+    $handoffRoot = Get-ChildItem -LiteralPath (Join-Path $projectRoot "data\private\handoff") -Directory -ErrorAction Stop |
+        Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if (-not $handoffRoot) { throw "No private handoff folder was found." }
+    $sanitizedPath = Join-Path $handoffRoot.FullName "sanitized\events.sanitized.jsonl"
+}
 if (-not (Test-Path -LiteralPath $sanitizedPath)) { throw "Sanitized handoff file was not found: $sanitizedPath" }
 
 $env:OT_PUBLIC_DATA_PATH = $sanitizedPath
